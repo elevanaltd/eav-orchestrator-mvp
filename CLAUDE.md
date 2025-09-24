@@ -1,18 +1,18 @@
-# EAV Orchestrator Prototype - Development Instructions
+# EAV Orchestrator MVP - Development Instructions
 
-<!-- PROTOTYPE_WORKSPACE_DECLARATION: Clean-slate architecture validation project -->
+<!-- MVP_WORKSPACE_DECLARATION: Clean-slate architecture validation project -->
 <!-- PARENT_PROJECT_LEARNINGS: Applied from /Volumes/HestAI-Projects/eav-orchestrator/coordination/240-DOC-BUILD-LEARNINGS-AND-RESTART-BLUEPRINT.md -->
 
-**Project:** EAV Orchestrator Prototype - Paragraph=Component Architecture Validation
-**Repository:** `/Volumes/HestAI-Projects/eav-orchestrator-prototype/build/` (🟢 **ACTIVE PROTOTYPE REPOSITORY**)
+**Project:** EAV Orchestrator MVP - Paragraph=Component Architecture Validation
+**Repository:** `/Volumes/HestAI-Projects/eav-orchestrator-prototype/build/` (🟢 **ACTIVE MVP REPOSITORY**)
 **Purpose:** Clean-slate validation of core architecture before production implementation
 **Last Updated:** 2025-09-24 (Workspace Creation Complete)
-**Status:** PROTOTYPE PHASE - Architecture validation with simplified methodology
+**Status:** MVP PHASE - Architecture validation with simplified methodology
 
 ## Project Context & Mission
 
-### 🎯 PROTOTYPE MISSION
-This prototype exists to **validate the fundamental architecture** for EAV Orchestrator before investing in full production implementation. Based on extensive learnings from a failed parent project, this prototype tests the **paragraph=component model** with minimal complexity.
+### 🎯 MVP MISSION
+This MVP exists to **validate the fundamental architecture** for EAV Orchestrator before investing in full production implementation. Based on extensive learnings from a failed parent project, this MVP tests the **paragraph=component model** with minimal complexity.
 
 ### 📚 PARENT PROJECT RELATIONSHIP
 - **Failed Build Location:** `/Volumes/HestAI-Projects/eav-orchestrator/dev-failed-reference/`
@@ -38,7 +38,7 @@ USER TYPES → Single TipTap Editor → Y.js Document Structure → Component Ex
 4. **Component Data Flows to SmartSuite Successfully**
 5. **Architecture Scales to Production Requirements**
 
-## Technology Stack (Prototype-Specific)
+## Technology Stack (MVP-Specific)
 
 ### Frontend Stack
 ```yaml
@@ -63,7 +63,7 @@ Testing:
 ```yaml
 SmartSuite:
   - Workspace: s3qnmox1
-  - Prototype Table: 68b2437a8f1755b055e0a124
+  - MVP Table: 68b2437a8f1755b055e0a124
   - Manual sync with visual feedback
   - Component extraction demonstration
 
@@ -71,10 +71,10 @@ Supabase_Later:
   - PostgreSQL for component storage
   - Y.js document persistence
   - Server-side component extraction functions
-  - (Added in later prototype phases)
+  - (Added in later MVP phases)
 ```
 
-## Prototype-Adapted Development Methodology
+## MVP-Adapted Development Methodology
 
 ### Simplified TRACED Protocol
 - **T**est: Core architectural validation tests (not comprehensive coverage)
@@ -82,7 +82,7 @@ Supabase_Later:
 - **A**nalyze: Reference parent project learnings before decisions
 - **C**onsult: Use parent project anti-patterns as guidance
 - **E**xecute: Simplified quality gates focused on architecture
-- **D**ocument: Prototype-specific decisions and learnings
+- **D**ocument: MVP-specific decisions and learnings
 
 ### Quality Gates (Streamlined)
 ```yaml
@@ -93,7 +93,7 @@ MUST_PASS:
   - Component extraction working
   - SmartSuite sync demonstrating data flow
 
-PROTOTYPE_FOCUS:
+MVP_FOCUS:
   - Architecture validation over feature completeness
   - User experience validation over comprehensive testing
   - Clear graduation path over production hardening
@@ -133,7 +133,7 @@ PROTOTYPE_FOCUS:
 ## Current File Structure
 
 ```
-build/                              # Active prototype repository
+build/                              # Active MVP repository
 ├── src/
 │   ├── components/
 │   │   ├── TipTapEditor.tsx        # ✅ Core editor component
@@ -197,7 +197,7 @@ npm run typecheck    # TypeScript validation
 npm run validate     # Run all quality checks
 ```
 
-### Prototype Validation Workflow
+### MVP Validation Workflow
 ```bash
 # 1. Validate core architecture
 npm run validate     # Must pass all quality gates
@@ -260,7 +260,7 @@ npm run dev
 ## Graduation to Production
 
 ### Success Triggers
-If prototype validates:
+If MVP validates:
 - Architecture is sound and intuitive
 - User experience meets Google Docs standard
 - Component flow works reliably
@@ -276,7 +276,7 @@ If prototype validates:
 6. **Tab Navigation:** Complete workflow (Script, Review, Scenes, Voice, Direction)
 
 ### Learning Documentation
-All prototype learnings will be captured in:
+All MVP learnings will be captured in:
 - `/Volumes/HestAI-Projects/eav-orchestrator-prototype/coordination/docs/`
 - Cross-referenced with parent project failures
 - Architecture decision records for production guidance
@@ -290,7 +290,7 @@ All prototype learnings will be captured in:
 **Decision Point:** Day 8 - Graduate to production vs iterate architecture
 **Quality Focus:** Architecture validation over feature completeness
 
-**Key Principle:** This prototype exists to prove the architecture works before investing in production features. Every decision should validate the core paragraph=component model.
+**Key Principle:** This MVP exists to prove the architecture works before investing in production features. Every decision should validate the core paragraph=component model.
 
 ---
 
