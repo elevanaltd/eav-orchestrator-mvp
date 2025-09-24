@@ -5,12 +5,34 @@
  * Clean copy/paste with visual indicators only
  */
 
-import React, { useState } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { Node } from '@tiptap/pm/model';
+import { dataAccess } from '../services/data-access';
+import type { Script, ScriptComponent } from '../types/data';
+
+// Simple debounce utility for auto-save (removed - using inline implementation)
+
+// Format relative time (e.g., "2 minutes ago")
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+
+  if (seconds < 60) {
+    return 'just now';
+  } else if (minutes < 60) {
+    return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  } else {
+    const hours = Math.floor(minutes / 60);
+    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  }
+}
 
 // ============================================
 // PARAGRAPH COMPONENT TRACKER
@@ -77,9 +99,16 @@ const ParagraphComponentTracker = Extension.create({
 // REACT COMPONENT
 // ============================================
 
-export const TipTapEditor: React.FC = () => {
-  const [componentCount, setComponentCount] = useState(0);
-  const [extractedComponents, setExtractedComponents] = useState<any[]>([]);
+interface TipTapEditorProps {
+  videoId?: string;  // Optional video ID for loading/saving
+}
+
+export const TipTapEditor: React.FC<TipTapEditorProps> = ({ videoId }) => {
+  const [, setComponentCount] = useState(0); // Keep for future display
+  const [extractedComponents, setExtractedComponents] = useState<ScriptComponent[]>([]);
+  const [currentScript, setCurrentScript] = useState<Script | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -107,31 +136,159 @@ export const TipTapEditor: React.FC = () => {
     }
   });
 
-  const extractComponents = (editor: any) => {
-    const components: any[] = [];
+  // Save script and components to Supabase
+  const saveToSupabase = useCallback(async (_htmlContent: string, components: ScriptComponent[]) => {
+    if (!videoId) return;
+
+    setSaveStatus('saving');
+
+    try {
+      // Get plain text for the script
+      const plainText = components.map(c => c.content).join('\n\n');
+
+      // Save or update script
+      let scriptId = currentScript?.id;
+
+      if (scriptId) {
+        // Update existing script
+        const updateResponse = await dataAccess.updateScript(scriptId, {
+          plainText,
+          componentCount: components.length,
+          // Note: We'll add Y.js state later
+        });
+
+        if (updateResponse.error) {
+          throw new Error(`Failed to update script: ${updateResponse.error.message}`);
+        }
+      } else {
+        // Create new script
+        const createResponse = await dataAccess.createScript({
+          videoId,
+          yDocState: null, // We'll implement Y.js later
+          plainText,
+          componentCount: components.length,
+          lastEditedBy: 'system', // We'll use auth later
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+
+        if (createResponse.error || !createResponse.data) {
+          throw new Error(`Failed to create script: ${createResponse.error?.message || 'Unknown error'}`);
+        }
+
+        scriptId = createResponse.data.id;
+        setCurrentScript(createResponse.data);
+      }
+
+      // Delete old components and create new ones
+      if (scriptId) {
+        const deleteResponse = await dataAccess.deleteScriptComponents(scriptId);
+        if (deleteResponse.error) {
+          console.error('Warning: failed to delete old components:', deleteResponse.error);
+        }
+
+        // Create all components
+        for (const component of components) {
+          const createCompResponse = await dataAccess.createScriptComponent({
+            scriptId,
+            componentNumber: component.componentNumber,
+            content: component.content,
+            wordCount: component.wordCount,
+            createdAt: new Date()
+          });
+
+          if (createCompResponse.error) {
+            console.error('Warning: failed to create component:', createCompResponse.error);
+          }
+        }
+      }
+
+      setSaveStatus('saved');
+      setLastSaved(new Date());
+
+      // Reset status after 2 seconds
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Failed to save:', error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
+  }, [videoId, currentScript]);
+
+  // Debounced save function (save after 1 second of no changes)
+  const debouncedSave = useMemo(() => {
+    let timeout: NodeJS.Timeout | null = null;
+    return (htmlContent: string, components: ScriptComponent[]) => {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => saveToSupabase(htmlContent, components), 1000);
+    };
+  }, [saveToSupabase]);
+
+  const extractComponents = useCallback((editor: Editor) => {
+    const components: ScriptComponent[] = [];
     let componentNum = 0;
 
-    editor.state.doc.forEach((node: any) => {
+    editor.state.doc.forEach((node: Node) => {
       if (node.type.name === 'paragraph' && node.content.size > 0) {
         componentNum++;
         components.push({
-          number: componentNum,
+          id: '', // Will be assigned by database
+          scriptId: currentScript?.id || '',
+          componentNumber: componentNum,
           content: node.textContent,
           wordCount: node.textContent.split(/\s+/).filter(Boolean).length,
-          hash: generateHash(node.textContent)
+          createdAt: new Date()
         });
       }
     });
 
     setComponentCount(componentNum);
     setExtractedComponents(components);
-  };
 
-  const generateHash = (text: string): string => {
-    return text.length.toString(36) + text.charCodeAt(0).toString(36);
-  };
+    // Auto-save if we have a script
+    if (currentScript && videoId) {
+      debouncedSave(editor.getHTML(), components);
+    }
+  }, [currentScript, videoId, debouncedSave]);
 
-  const testCopy = () => {
+
+
+  // Load script when video changes
+  useEffect(() => {
+    if (!videoId) return;
+
+    const loadScript = async () => {
+      const response = await dataAccess.getScriptByVideoId(videoId);
+
+      if (response.data) {
+        setCurrentScript(response.data);
+
+        // Load components
+        const componentsResponse = await dataAccess.listScriptComponents(response.data.id);
+        if (componentsResponse.data) {
+          setExtractedComponents(componentsResponse.data);
+          setComponentCount(componentsResponse.data.length);
+        }
+
+        // Load content into editor if it exists
+        if (response.data.plainText && editor) {
+          // Convert plain text to HTML paragraphs
+          const paragraphs = response.data.plainText
+            .split('\n\n')
+            .filter(p => p.trim())
+            .map(p => `<p>${p}</p>`)
+            .join('');
+
+          editor.commands.setContent(paragraphs || '');
+        }
+      }
+    };
+
+    loadScript();
+  }, [videoId, editor]);
+
+  // Test function for component extraction (unused in production)
+  const _testCopy = () => {
     if (!editor) return;
 
     // Select all content
@@ -141,6 +298,9 @@ export const TipTapEditor: React.FC = () => {
 
     alert('Content copied! Paste it anywhere to see clean text without component labels.');
   };
+
+  // Reference to prevent unused variable warning (development utility)
+  void _testCopy;
 
   return (
     <div className="editor-layout">
@@ -302,8 +462,22 @@ export const TipTapEditor: React.FC = () => {
       {/* Main Editor Area */}
       <div className="main-editor">
         <div className="editor-header">
-          <h1 className="editor-title">Script Editor</h1>
-          <p className="editor-subtitle">Each paragraph becomes a component (C1, C2, C3...) that flows through the production pipeline</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h1 className="editor-title">Script Editor</h1>
+              <p className="editor-subtitle">Each paragraph becomes a component (C1, C2, C3...) that flows through the production pipeline</p>
+            </div>
+            <div className="save-status">
+              {saveStatus === 'saving' && <span style={{ color: '#6B7280' }}>💾 Saving...</span>}
+              {saveStatus === 'saved' && <span style={{ color: '#10B981' }}>✅ Saved</span>}
+              {saveStatus === 'error' && <span style={{ color: '#EF4444' }}>⚠️ Save failed</span>}
+              {lastSaved && saveStatus === 'idle' && (
+                <span style={{ color: '#9CA3AF', fontSize: '12px' }}>
+                  Last saved {formatRelativeTime(lastSaved)}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="editor-content">
@@ -323,9 +497,9 @@ export const TipTapEditor: React.FC = () => {
 
         <div className="sidebar-content">
           {extractedComponents.map((comp) => (
-            <div key={comp.number} className="component-item">
+            <div key={comp.componentNumber} className="component-item">
               <div className="component-header">
-                <span className="component-number">C{comp.number}</span>
+                <span className="component-number">C{comp.componentNumber}</span>
                 <span className="component-stats">{comp.wordCount} words</span>
               </div>
               <div className="component-content">
@@ -341,6 +515,7 @@ export const TipTapEditor: React.FC = () => {
           )}
         </div>
       </div>
+
     </div>
   );
 };

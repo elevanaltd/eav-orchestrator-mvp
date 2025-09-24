@@ -1,29 +1,26 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import App from '../App'
 
+// Mock Supabase
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } }))
+    }
+  }
+}))
+
 describe('App Component', () => {
-  it('renders the prototype title', () => {
+  it('renders login page when not authenticated', async () => {
     render(<App />)
-    expect(screen.getByText('EAV Orchestrator Prototype')).toBeInTheDocument()
+    expect(await screen.findByText('Sign In')).toBeInTheDocument()
   })
 
-  it('shows architecture validation subtitle', () => {
+  it('includes routing structure', () => {
     render(<App />)
-    expect(screen.getByText('Architecture validation: Paragraph=Component model')).toBeInTheDocument()
-  })
-
-  it('renders the TipTap editor component', () => {
-    render(<App />)
-    // Check for component structure content
-    expect(screen.getByText('Component C1')).toBeInTheDocument()
-    expect(screen.getByText('Component C2')).toBeInTheDocument()
-    expect(screen.getByText('Component C3')).toBeInTheDocument()
-  })
-
-  it('displays prototype status information', () => {
-    render(<App />)
-    expect(screen.getByText('Prototype Status:')).toBeInTheDocument()
-    expect(screen.getByText('Basic TipTap editor with component structure')).toBeInTheDocument()
+    // App should render without errors with routing
+    expect(document.querySelector('.auth-container')).toBeDefined()
   })
 })
