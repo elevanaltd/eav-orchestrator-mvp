@@ -7,9 +7,15 @@ interface NavigationSidebarProps {
   // Optional legacy callbacks for backward compatibility
   onProjectSelect?: (projectId: string) => void;
   onVideoSelect?: (videoId: string, projectId: string) => void;
+  // Auto-refresh configuration
+  refreshInterval?: number; // milliseconds, default 30000 (30 seconds)
 }
 
-export function NavigationSidebar({ onProjectSelect, onVideoSelect }: NavigationSidebarProps) {
+export function NavigationSidebar({
+  onProjectSelect,
+  onVideoSelect,
+  refreshInterval = 30000
+}: NavigationSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
@@ -26,15 +32,53 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Load projects on mount
+  // Auto-refresh state
+  const [isVisible, setIsVisible] = useState(!document.hidden);
+
+  // Handle visibility changes for performance optimization
   useEffect(() => {
-    loadProjects();
+    const handleVisibilityChange = () => {
+      setIsVisible(!document.hidden);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
-  const loadProjects = async () => {
-    setLoading(true);
+  // Auto-refresh projects when component is visible
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+
+    // Initial load
+    loadProjects();
+
+    // Set up refresh interval
+    const intervalId = setInterval(() => {
+      if (!document.hidden) {
+        refreshData();
+      }
+    }, refreshInterval);
+
+    // Cleanup interval on unmount or dependency change
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isVisible, refreshInterval]);
+
+  const loadProjects = async (isRefresh = false) => {
+    if (isRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError('');
+
     try {
       const { data, error } = await supabase
         .from('projects')
@@ -48,12 +92,31 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
       setError(`Failed to load projects: ${err}`);
       console.error('Navigation: Load projects error:', err);
     }
-    setLoading(false);
+
+    if (isRefresh) {
+      setIsRefreshing(false);
+    } else {
+      setLoading(false);
+    }
   };
 
-  const loadVideos = async (projectId: string) => {
-    setLoading(true);
+  const refreshData = async () => {
+    // Refresh projects data without disrupting UI
+    await loadProjects(true);
+
+    // Refresh videos for expanded projects
+    const refreshPromises = Array.from(expandedProjects).map(projectId =>
+      loadVideos(projectId, true)
+    );
+    await Promise.all(refreshPromises);
+  };
+
+  const loadVideos = async (projectId: string, isRefresh = false) => {
+    if (!isRefresh) {
+      setLoading(true);
+    }
     setError('');
+
     try {
       const { data, error } = await supabase
         .from('videos')
@@ -74,7 +137,10 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
       setError(`Failed to load videos: ${err}`);
       console.error('Navigation: Load videos error:', err);
     }
-    setLoading(false);
+
+    if (!isRefresh) {
+      setLoading(false);
+    }
   };
 
   const toggleSidebar = () => {
@@ -133,7 +199,14 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
           {!isCollapsed && (
             <>
               <h2>EAV Orchestrator</h2>
-              <p>Projects & Videos</p>
+              <p>
+                Projects & Videos
+                {isRefreshing && (
+                  <span className="nav-refresh-indicator" title="Refreshing data...">
+                    🔄
+                  </span>
+                )}
+              </p>
             </>
           )}
         </div>
