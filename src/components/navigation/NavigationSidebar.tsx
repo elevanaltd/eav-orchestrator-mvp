@@ -186,20 +186,18 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
                       onClick={() => handleProjectClick(project.id)}
                     >
                       <div className="nav-project-icon">
-                        {projectVideos.length > 0 ? (isExpanded ? '📂' : '📁') : '📄'}
+                        {isExpanded ? '📂' : '📁'}
                       </div>
                       <div className="nav-project-info">
                         <div className="nav-project-title">{project.title}</div>
                         <div className="nav-project-meta">
-                          {projectVideos.length} videos
+                          {isExpanded ? `${projectVideos.length} videos` : 'Click to expand'}
                           {project.due_date && ` • Due ${project.due_date}`}
                         </div>
                       </div>
-                      {projectVideos.length > 0 && (
-                        <div className="nav-project-expand">
-                          {isExpanded ? '▼' : '▶'}
-                        </div>
-                      )}
+                      <div className="nav-project-expand">
+                        {isExpanded ? '▼' : '▶'}
+                      </div>
                     </div>
 
                     {isExpanded && projectVideos.length > 0 && (
