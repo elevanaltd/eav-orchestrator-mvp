@@ -49,6 +49,7 @@ serve(async (req) => {
   try {
     // Get secrets from environment (never exposed to client)
     const SMARTSUITE_API_KEY = Deno.env.get('SMARTSUITE_API_KEY')
+    // Edge Functions still use the old naming convention
     const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 
