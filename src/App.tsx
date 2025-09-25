@@ -9,6 +9,7 @@ import { TipTapEditor } from './components/TipTapEditor'
 import { TestRLS } from './components/TestRLS'
 import { TestDataPanel } from './components/TestDataPanel'
 import { NavigationTest } from './components/NavigationTest'
+import { SmartSuiteSyncPanel } from './components/SmartSuiteSyncPanel'
 import './App.css'
 
 function MainApp() {
@@ -19,6 +20,7 @@ function MainApp() {
         <div className="app-content">
           <NavigationTest />
           <TestRLS />
+          <SmartSuiteSyncPanel />
           <TipTapEditor />
           <TestDataPanel />
         </div>
