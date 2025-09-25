@@ -369,14 +369,14 @@ export const TipTapEditor: React.FC = () => {
           color: #F59E0B;
         }
 
-        /* Editor Content Area */
+        /* Editor Content Area - Full Width */
         .editor-content {
           flex: 1;
           overflow-y: auto;
-          padding: 40px;
-          padding-left: 100px; /* Space for component labels */
-          max-width: 900px;
-          margin: 0 auto;
+          padding: 40px 60px; /* Increased horizontal padding */
+          padding-left: 120px; /* Space for component labels */
+          max-width: none; /* Remove max-width constraint */
+          margin: 0;
           width: 100%;
         }
 
@@ -403,7 +403,7 @@ export const TipTapEditor: React.FC = () => {
         /* Component labels - positioned in margin */
         .component-label {
           position: absolute !important;
-          left: -60px !important;
+          left: -70px !important; /* Adjusted for new padding */
           top: 3px;
         }
 
