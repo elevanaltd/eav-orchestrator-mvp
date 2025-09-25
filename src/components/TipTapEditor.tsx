@@ -228,10 +228,14 @@ export const TipTapEditor: React.FC = () => {
         // SECURITY: Use safe conversion to prevent XSS injection
         const safeContent = convertPlainTextToHTML(script.plain_text);
         editor.commands.setContent(safeContent);
+        // Trigger component extraction by updating editorContent state
+        setEditorContent(safeContent);
       } else {
         // Default content for new scripts (sanitized)
         const defaultContent = sanitizeHTML('<h2>Script for Video</h2><p>Start writing your script here. Each paragraph becomes a component that flows through the production pipeline.</p>');
         editor.commands.setContent(defaultContent);
+        // Trigger component extraction by updating editorContent state
+        setEditorContent(defaultContent);
       }
 
       // Components will be automatically extracted via useEffect when content changes
