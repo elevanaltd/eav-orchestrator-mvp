@@ -63,8 +63,10 @@ describe('scriptService', () => {
         }
       ];
 
-      // This test will initially fail because the service doesn't exist
-      expect(() => saveScript('script-123', '<p>Test content</p>', components)).toBeDefined();
+      // Test updated to match new signature: scriptId, yjsState, plainText, components
+      const yjsState = null; // Will be actual Y.js state when integrated
+      const plainText = 'Test content';
+      expect(() => saveScript('script-123', yjsState, plainText, components)).toBeDefined();
     });
   });
 

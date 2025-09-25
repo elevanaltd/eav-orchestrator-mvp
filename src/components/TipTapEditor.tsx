@@ -133,7 +133,18 @@ export const TipTapEditor: React.FC = () => {
     try {
       const script = await loadScriptForVideo(selectedVideo.id);
       setCurrentScript(script);
-      editor.commands.setContent(script.content);
+
+      // Initialize editor content from Y.js state or plain text
+      // TODO: When Y.js is integrated, deserialize from yjs_state
+      if (script.plain_text) {
+        // For now, use plain text wrapped in basic HTML
+        const initialContent = `<p>${script.plain_text.replace(/\n\n/g, '</p><p>')}</p>`;
+        editor.commands.setContent(initialContent);
+      } else {
+        // Default content for new scripts
+        editor.commands.setContent('<h2>Script for Video</h2><p>Start writing your script here. Each paragraph becomes a component that flows through the production pipeline.</p>');
+      }
+
       extractComponents(editor);
       setSaveStatus('saved');
       setLastSaved(new Date(script.updated_at));
@@ -161,8 +172,11 @@ export const TipTapEditor: React.FC = () => {
 
     setSaveStatus('saving');
     try {
-      const content = editor.getHTML();
-      const updatedScript = await saveScript(currentScript.id, content, extractedComponents);
+      const plainText = editor.getText();
+      // TODO: Properly serialize Y.js state when Y.js is integrated
+      // For now, we'll pass null and let the backend handle it
+      const yjsState = null; // Will be implemented when Y.js is integrated
+      const updatedScript = await saveScript(currentScript.id, yjsState, plainText, extractedComponents);
       setCurrentScript(updatedScript);
       setLastSaved(new Date());
       setSaveStatus('saved');
