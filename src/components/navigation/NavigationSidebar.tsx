@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigation, Project, Video } from '../../contexts/NavigationContext';
+import { validateProjectId, ValidationError } from '../../lib/validation';
 import '../../styles/Navigation.css';
+
+// Critical-Engineer: consulted for Security vulnerability assessment
 
 interface NavigationSidebarProps {
   // Optional legacy callbacks for backward compatibility
@@ -50,16 +53,26 @@ export function NavigationSidebar({
   }, []);
 
   // Declare functions before they are used
+  // SECURITY FIX: Prevent race condition by using functional state updates
   const refreshData = useCallback(async () => {
     // Refresh projects data without disrupting UI
     await loadProjects(true);
 
-    // Refresh videos for expanded projects
-    const refreshPromises = Array.from(expandedProjects).map(projectId =>
-      loadVideos(projectId, true)
-    );
-    await Promise.all(refreshPromises);
-  }, [expandedProjects]);
+    // Use functional state update to get current expandedProjects
+    // This prevents stale closure issues
+    setExpandedProjects(currentExpanded => {
+      // Refresh videos for currently expanded projects
+      const refreshPromises = Array.from(currentExpanded).map(projectId =>
+        loadVideos(projectId, true)
+      );
+      Promise.all(refreshPromises).catch(err => {
+        console.error('Failed to refresh expanded project videos:', err);
+      });
+
+      // Return the same state (no change needed)
+      return currentExpanded;
+    });
+  }, []); // Empty dependency array - no external dependencies needed
 
   // Auto-refresh projects when component is visible
   useEffect(() => {
@@ -119,23 +132,30 @@ export function NavigationSidebar({
     setError('');
 
     try {
+      // SECURITY: Validate projectId before database operation
+      const validatedProjectId = validateProjectId(projectId);
+
       const { data, error } = await supabase
         .from('videos')
         .select('*')
-        .eq('project_id', projectId)
+        .eq('project_id', validatedProjectId)
         .order('title');
 
       if (error) throw error;
 
       // Update videos state - merge with existing videos from other projects
       setVideos(prevVideos => [
-        ...prevVideos.filter(v => v.project_id !== projectId),
+        ...prevVideos.filter(v => v.project_id !== validatedProjectId),
         ...(data || [])
       ]);
 
-      console.log('Navigation: Videos loaded for project:', projectId, data);
+      console.log('Navigation: Videos loaded for project:', validatedProjectId, data);
     } catch (err) {
-      setError(`Failed to load videos: ${err}`);
+      if (err instanceof ValidationError) {
+        setError(`Invalid project ID: ${err.message}`);
+      } else {
+        setError(`Failed to load videos: ${err}`);
+      }
       console.error('Navigation: Load videos error:', err);
     }
 

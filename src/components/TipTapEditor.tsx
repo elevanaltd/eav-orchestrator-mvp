@@ -13,9 +13,50 @@ import StarterKit from '@tiptap/starter-kit';
 import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { Node } from '@tiptap/pm/model';
+import DOMPurify from 'dompurify';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
+
+// Critical-Engineer: consulted for Security vulnerability assessment
+
+// ============================================
+// SECURITY UTILITIES
+// ============================================
+
+/**
+ * Sanitize HTML content to prevent XSS attacks
+ * Uses DOMPurify with restrictive whitelist of allowed tags and attributes
+ */
+const sanitizeHTML = (dirtyHTML: string): string => {
+  return DOMPurify.sanitize(dirtyHTML, {
+    ALLOWED_TAGS: ['p', 'strong', 'em', 'u', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+    ALLOWED_ATTR: ['class'],
+    KEEP_CONTENT: true,
+    ALLOW_DATA_ATTR: false,
+    ALLOW_UNKNOWN_PROTOCOLS: false
+  });
+};
+
+/**
+ * Safe conversion from plain text to HTML paragraphs
+ * Prevents XSS injection through the line break replacement pattern
+ */
+const convertPlainTextToHTML = (plainText: string): string => {
+  // First escape any HTML in the plain text
+  const escaped = plainText
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  // Then convert newlines to paragraph breaks
+  const withParagraphs = `<p>${escaped.replace(/\n\n/g, '</p><p>')}</p>`;
+
+  // Finally sanitize the result (defense in depth)
+  return sanitizeHTML(withParagraphs);
+};
 
 // ============================================
 // PARAGRAPH COMPONENT TRACKER
@@ -95,7 +136,12 @@ export const TipTapEditor: React.FC = () => {
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
 
-  // Declare callback functions first
+  // Helper function to generate hash
+  const generateHash = (text: string): string => {
+    return text.length.toString(36) + text.charCodeAt(0).toString(36);
+  };
+
+  // Declare callback functions that don't depend on editor
   const extractComponents = useCallback((editor: Editor) => {
     const components: ComponentData[] = [];
     let componentNum = 0;
@@ -115,57 +161,7 @@ export const TipTapEditor: React.FC = () => {
     setExtractedComponents(components);
   }, []);
 
-  const loadScriptForSelectedVideo = useCallback(async () => {
-    if (!selectedVideo || !editor) return;
-
-    setIsLoading(true);
-    try {
-      const script = await loadScriptForVideo(selectedVideo.id);
-      setCurrentScript(script);
-
-      // Initialize editor content from Y.js state or plain text
-      // TODO: When Y.js is integrated, deserialize from yjs_state
-      if (script.plain_text) {
-        // For now, use plain text wrapped in basic HTML
-        const initialContent = `<p>${script.plain_text.replace(/\n\n/g, '</p><p>')}</p>`;
-        editor.commands.setContent(initialContent);
-      } else {
-        // Default content for new scripts
-        editor.commands.setContent('<h2>Script for Video</h2><p>Start writing your script here. Each paragraph becomes a component that flows through the production pipeline.</p>');
-      }
-
-      extractComponents(editor);
-      setSaveStatus('saved');
-      setLastSaved(new Date(script.updated_at));
-    } catch (error) {
-      console.error('Failed to load script:', error);
-      setSaveStatus('error');
-    } finally {
-      setIsLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVideo, extractComponents]);
-
-  const handleSave = useCallback(async () => {
-    if (!currentScript || !editor) return;
-
-    setSaveStatus('saving');
-    try {
-      const plainText = editor.getText();
-      // TODO: Properly serialize Y.js state when Y.js is integrated
-      // For now, we'll pass null and let the backend handle it
-      const yjsState = null; // Will be implemented when Y.js is integrated
-      const updatedScript = await saveScript(currentScript.id, yjsState, plainText, extractedComponents);
-      setCurrentScript(updatedScript);
-      setLastSaved(new Date());
-      setSaveStatus('saved');
-    } catch (error) {
-      console.error('Failed to save script:', error);
-      setSaveStatus('error');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentScript, extractedComponents]);
-
+  // Create editor first
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -185,8 +181,84 @@ export const TipTapEditor: React.FC = () => {
     },
     onCreate: ({ editor }) => {
       extractComponents(editor);
+    },
+    // SECURITY: Add paste event handler to sanitize pasted content
+    editorProps: {
+      handlePaste: (view, event) => {
+        // Let TipTap handle the paste first, then sanitize
+        const clipboardData = event.clipboardData;
+        if (clipboardData) {
+          const htmlData = clipboardData.getData('text/html');
+          const textData = clipboardData.getData('text/plain');
+
+          if (htmlData) {
+            // Sanitize HTML paste data
+            const sanitizedHTML = sanitizeHTML(htmlData);
+            if (sanitizedHTML !== htmlData) {
+              // If content was modified by sanitization, prevent default and insert safe content
+              event.preventDefault();
+              view.dispatch(
+                view.state.tr.insertText(textData) // Fall back to plain text if HTML was dangerous
+              );
+              return true;
+            }
+          }
+        }
+        return false; // Let TipTap handle normal paste
+      }
     }
   });
+
+  // Now define callbacks that depend on editor
+  const loadScriptForSelectedVideo = useCallback(async () => {
+    if (!selectedVideo || !editor) return;
+
+    setIsLoading(true);
+    try {
+      const script = await loadScriptForVideo(selectedVideo.id);
+      setCurrentScript(script);
+
+      // Initialize editor content from Y.js state or plain text
+      // TODO: When Y.js is integrated, deserialize from yjs_state
+      if (script.plain_text) {
+        // SECURITY: Use safe conversion to prevent XSS injection
+        const safeContent = convertPlainTextToHTML(script.plain_text);
+        editor.commands.setContent(safeContent);
+      } else {
+        // Default content for new scripts (sanitized)
+        const defaultContent = sanitizeHTML('<h2>Script for Video</h2><p>Start writing your script here. Each paragraph becomes a component that flows through the production pipeline.</p>');
+        editor.commands.setContent(defaultContent);
+      }
+
+      extractComponents(editor);
+      setSaveStatus('saved');
+      setLastSaved(new Date(script.updated_at));
+    } catch (error) {
+      console.error('Failed to load script:', error);
+      setSaveStatus('error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedVideo, editor, extractComponents]);
+
+  const handleSave = useCallback(async () => {
+    if (!currentScript || !editor) return;
+
+    setSaveStatus('saving');
+    try {
+      const plainText = editor.getText();
+      // TODO: Properly serialize Y.js state when Y.js is integrated
+      // For now, we'll pass null and let the backend handle it
+      const yjsState = null; // Will be implemented when Y.js is integrated
+      const updatedScript = await saveScript(currentScript.id, yjsState, plainText, extractedComponents);
+      setCurrentScript(updatedScript);
+      setLastSaved(new Date());
+      setSaveStatus('saved');
+    } catch (error) {
+      console.error('Failed to save script:', error);
+      setSaveStatus('error');
+    }
+  }, [currentScript, editor, extractedComponents]);
 
   // Load script when selected video changes
   useEffect(() => {
@@ -198,8 +270,7 @@ export const TipTapEditor: React.FC = () => {
       setCurrentScript(null);
       setSaveStatus('saved');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVideo, loadScriptForSelectedVideo]);
+  }, [selectedVideo, editor, loadScriptForSelectedVideo]);
 
   // Auto-save functionality with debouncing
   useEffect(() => {
@@ -210,10 +281,10 @@ export const TipTapEditor: React.FC = () => {
     }, 2000); // Auto-save after 2 seconds of inactivity
 
     return () => clearTimeout(saveTimer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [extractedComponents, currentScript, saveStatus, handleSave]);
+  }, [extractedComponents, currentScript, saveStatus, editor, handleSave]);
 
   // Sync context with local state
+  // Only update when meaningful changes occur, not on every component extraction
   useEffect(() => {
     if (currentScript) {
       updateScriptStatus({
@@ -224,11 +295,8 @@ export const TipTapEditor: React.FC = () => {
     } else {
       clearScriptStatus();
     }
-  }, [saveStatus, lastSaved, extractedComponents, currentScript, updateScriptStatus, clearScriptStatus]);
-
-  const generateHash = (text: string): string => {
-    return text.length.toString(36) + text.charCodeAt(0).toString(36);
-  };
+    // We only care about the length of extractedComponents, not the array reference
+  }, [saveStatus, lastSaved, extractedComponents.length, currentScript, updateScriptStatus, clearScriptStatus]);
 
   const formatSaveTime = (date: Date): string => {
     const now = new Date();

@@ -8,17 +8,26 @@ import { PrivateRoute } from './components/auth/PrivateRoute'
 import { Header } from './components/Header'
 import { NavigationSidebar } from './components/navigation/NavigationSidebar'
 import { TipTapEditor } from './components/TipTapEditor'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import './App.css'
+
+// Critical-Engineer: consulted for Security vulnerability assessment
 
 function MainApp() {
   return (
     <NavigationProvider>
       <ScriptStatusProvider>
         <div className="app-layout">
-          <Header />
-          <NavigationSidebar />
+          <ErrorBoundary>
+            <Header />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <NavigationSidebar />
+          </ErrorBoundary>
           <div className="app-content">
-            <TipTapEditor />
+            <ErrorBoundary>
+              <TipTapEditor />
+            </ErrorBoundary>
           </div>
         </div>
       </ScriptStatusProvider>

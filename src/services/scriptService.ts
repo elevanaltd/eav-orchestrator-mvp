@@ -5,9 +5,19 @@
  * - Creating scripts when they don't exist
  * - Loading scripts for specific videos
  * - Saving script content and extracted components
+ *
+ * Critical-Engineer: consulted for Security vulnerability assessment
  */
 
 import { supabase } from '../lib/supabase';
+import {
+  validateVideoId,
+  validateScriptId,
+  validateScriptContent,
+  validateComponentArray,
+  ValidationError,
+  type ComponentData
+} from '../lib/validation';
 
 // Type definitions for scripts matching normalized database schema
 export interface Script {
@@ -23,12 +33,8 @@ export interface Script {
 
 // Critical-Engineer: consulted for Architecture pattern selection (yjs_state as source of truth)
 
-export interface ComponentData {
-  number: number;
-  content: string;
-  wordCount: number;
-  hash: string;
-}
+// Re-export ComponentData from validation module for type consistency
+export type { ComponentData } from '../lib/validation';
 
 export interface ScriptServiceErrorInterface {
   message: string;
@@ -43,11 +49,14 @@ export interface ScriptServiceErrorInterface {
  */
 export async function loadScriptForVideo(videoId: string): Promise<Script> {
   try {
+    // SECURITY: Validate input before database operation
+    const validatedVideoId = validateVideoId(videoId);
+
     // First, try to find existing script
     const { data: existingScript, error: fetchError } = await supabase
       .from('scripts')
       .select('*')
-      .eq('video_id', videoId)
+      .eq('video_id', validatedVideoId)
       .single();
 
     if (fetchError && fetchError.code !== 'PGRST116') {
@@ -83,7 +92,7 @@ export async function loadScriptForVideo(videoId: string): Promise<Script> {
 
     // Create new script for video (Y.js state will be initialized by editor)
     const newScript = {
-      video_id: videoId,
+      video_id: validatedVideoId,
       yjs_state: null, // Will be populated when editor saves
       plain_text: 'Script for Video\n\nStart writing your script here. Each paragraph becomes a component that flows through the production pipeline.',
       component_count: 0,
@@ -110,6 +119,9 @@ export async function loadScriptForVideo(videoId: string): Promise<Script> {
     if (error instanceof ScriptServiceError) {
       throw error;
     }
+    if (error instanceof ValidationError) {
+      throw new ScriptServiceError(`Input validation failed: ${error.message}`);
+    }
     throw new ScriptServiceError(`Unexpected error loading script: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -125,13 +137,17 @@ export async function saveScript(
   components: ComponentData[]
 ): Promise<Script> {
   try {
+    // SECURITY: Validate all inputs before database operation
+    const validatedScriptId = validateScriptId(scriptId);
+    const validatedPlainText = validateScriptContent(plainText);
+    const validatedComponents = validateComponentArray(components);
     // Try to use atomic RPC function first
     const { data: rpcData, error: rpcError } = await supabase
       .rpc('save_script_with_components', {
-        p_script_id: scriptId,
+        p_script_id: validatedScriptId,
         p_yjs_state: yjsState,
-        p_plain_text: plainText,
-        p_components: components
+        p_plain_text: validatedPlainText,
+        p_components: validatedComponents
       });
 
     // If RPC exists and works, use it
@@ -152,11 +168,11 @@ export async function saveScript(
       .from('scripts')
       .update({
         yjs_state: yjsState,
-        plain_text: plainText,
-        component_count: components.length,
+        plain_text: validatedPlainText,
+        component_count: validatedComponents.length,
         updated_at: new Date().toISOString()
       })
-      .eq('id', scriptId)
+      .eq('id', validatedScriptId)
       .select('*')
       .single();
 
@@ -168,16 +184,16 @@ export async function saveScript(
     const { error: deleteError } = await supabase
       .from('script_components')
       .delete()
-      .eq('script_id', scriptId);
+      .eq('script_id', validatedScriptId);
 
     if (deleteError) {
       throw new ScriptServiceError(`Failed to delete existing components: ${deleteError.message}`, deleteError.code);
     }
 
     // Insert new components if any exist
-    if (components.length > 0) {
-      const componentsToInsert = components.map(comp => ({
-        script_id: scriptId,
+    if (validatedComponents.length > 0) {
+      const componentsToInsert = validatedComponents.map(comp => ({
+        script_id: validatedScriptId,
         component_number: comp.number,
         content: comp.content,
         word_count: comp.wordCount,
@@ -196,11 +212,14 @@ export async function saveScript(
     // Return complete script with components
     return {
       ...updatedScript,
-      components
+      components: validatedComponents
     };
   } catch (error) {
     if (error instanceof ScriptServiceError) {
       throw error;
+    }
+    if (error instanceof ValidationError) {
+      throw new ScriptServiceError(`Input validation failed: ${error.message}`);
     }
     throw new ScriptServiceError(`Unexpected error saving script: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -211,10 +230,13 @@ export async function saveScript(
  */
 export async function getScriptById(scriptId: string): Promise<Script> {
   try {
+    // SECURITY: Validate input before database operation
+    const validatedScriptId = validateScriptId(scriptId);
+
     const { data: script, error } = await supabase
       .from('scripts')
       .select('*')
-      .eq('id', scriptId)
+      .eq('id', validatedScriptId)
       .single();
 
     if (error) {
@@ -225,7 +247,7 @@ export async function getScriptById(scriptId: string): Promise<Script> {
     const { data: components, error: componentsError } = await supabase
       .from('script_components')
       .select('*')
-      .eq('script_id', scriptId)
+      .eq('script_id', validatedScriptId)
       .order('component_number', { ascending: true });
 
     if (componentsError) {
@@ -247,6 +269,9 @@ export async function getScriptById(scriptId: string): Promise<Script> {
   } catch (error) {
     if (error instanceof ScriptServiceError) {
       throw error;
+    }
+    if (error instanceof ValidationError) {
+      throw new ScriptServiceError(`Input validation failed: ${error.message}`);
     }
     throw new ScriptServiceError(`Unexpected error fetching script: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }

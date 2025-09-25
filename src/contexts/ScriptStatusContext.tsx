@@ -5,7 +5,7 @@
  * Allows Header to display save status without prop drilling
  */
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
 
 export interface ScriptStatus {
   saveStatus: 'saved' | 'saving' | 'unsaved' | 'error';
@@ -28,7 +28,8 @@ interface ScriptStatusProviderProps {
 export function ScriptStatusProvider({ children }: ScriptStatusProviderProps) {
   const [scriptStatus, setScriptStatus] = useState<ScriptStatus | null>(null);
 
-  const updateScriptStatus = (updates: Partial<ScriptStatus>) => {
+  // Memoize the update function to maintain stable reference
+  const updateScriptStatus = useCallback((updates: Partial<ScriptStatus>) => {
     setScriptStatus(current => {
       if (!current) {
         // If no current status, create a new one with defaults
@@ -41,18 +42,25 @@ export function ScriptStatusProvider({ children }: ScriptStatusProviderProps) {
       }
       return { ...current, ...updates };
     });
-  };
+  }, []);
 
-  const clearScriptStatus = () => {
+  // Memoize the clear function to maintain stable reference
+  const clearScriptStatus = useCallback(() => {
     setScriptStatus(null);
-  };
+  }, []);
 
-  return (
-    <ScriptStatusContext.Provider value={{
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(
+    () => ({
       scriptStatus,
       updateScriptStatus,
       clearScriptStatus
-    }}>
+    }),
+    [scriptStatus, updateScriptStatus, clearScriptStatus]
+  );
+
+  return (
+    <ScriptStatusContext.Provider value={contextValue}>
       {children}
     </ScriptStatusContext.Provider>
   );
