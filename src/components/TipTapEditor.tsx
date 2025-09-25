@@ -13,8 +13,8 @@ import StarterKit from '@tiptap/starter-kit';
 import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { useNavigation } from '../contexts/NavigationContext';
+import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
-import { ScriptStatusIndicator } from './ScriptStatusIndicator';
 
 // ============================================
 // PARAGRAPH COMPONENT TRACKER
@@ -83,6 +83,7 @@ const ParagraphComponentTracker = Extension.create({
 
 export const TipTapEditor: React.FC = () => {
   const { selectedVideo } = useNavigation();
+  const { updateScriptStatus, clearScriptStatus } = useScriptStatus();
 
   // Script management state
   const [currentScript, setCurrentScript] = useState<Script | null>(null);
@@ -108,6 +109,7 @@ export const TipTapEditor: React.FC = () => {
     onUpdate: ({ editor }) => {
       extractComponents(editor);
       setSaveStatus('unsaved');
+      // Context will be updated via useEffect when extractedComponents changes
     },
     onCreate: ({ editor }) => {
       extractComponents(editor);
@@ -166,6 +168,19 @@ export const TipTapEditor: React.FC = () => {
 
     return () => clearTimeout(saveTimer);
   }, [extractedComponents, currentScript, saveStatus]);
+
+  // Sync context with local state
+  useEffect(() => {
+    if (currentScript) {
+      updateScriptStatus({
+        saveStatus,
+        lastSaved,
+        componentCount: extractedComponents.length
+      });
+    } else {
+      clearScriptStatus();
+    }
+  }, [saveStatus, lastSaved, extractedComponents, currentScript, updateScriptStatus, clearScriptStatus]);
 
   const handleSave = async () => {
     if (!currentScript || !editor) return;
@@ -511,13 +526,7 @@ export const TipTapEditor: React.FC = () => {
           )}
         </div>
 
-        {/* Script Status Indicator - Development Tool */}
-        <ScriptStatusIndicator
-          currentScript={currentScript}
-          saveStatus={saveStatus}
-          lastSaved={lastSaved}
-          componentCount={extractedComponents.length}
-        />
+        {/* Script status now displayed in header */}
       </div>
     </div>
   );

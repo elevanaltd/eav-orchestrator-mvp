@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { NavigationProvider } from './contexts/NavigationContext'
+import { ScriptStatusProvider } from './contexts/ScriptStatusContext'
 import { Login } from './components/auth/Login'
 import { Signup } from './components/auth/Signup'
 import { PrivateRoute } from './components/auth/PrivateRoute'
@@ -12,13 +13,15 @@ import './App.css'
 function MainApp() {
   return (
     <NavigationProvider>
-      <div className="app-layout">
-        <Header />
-        <NavigationSidebar />
-        <div className="app-content">
-          <TipTapEditor />
+      <ScriptStatusProvider>
+        <div className="app-layout">
+          <Header />
+          <NavigationSidebar />
+          <div className="app-content">
+            <TipTapEditor />
+          </div>
         </div>
-      </div>
+      </ScriptStatusProvider>
     </NavigationProvider>
   )
 }
