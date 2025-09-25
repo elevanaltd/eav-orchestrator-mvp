@@ -1,9 +1,10 @@
-import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import { NavigationProvider } from './contexts/NavigationContext'
 import { Login } from './components/auth/Login'
 import { Signup } from './components/auth/Signup'
 import { PrivateRoute } from './components/auth/PrivateRoute'
+import { NavigationSidebar } from './components/navigation/NavigationSidebar'
 import { TipTapEditor } from './components/TipTapEditor'
 import { TestRLS } from './components/TestRLS'
 import { TestDataPanel } from './components/TestDataPanel'
@@ -11,11 +12,16 @@ import './App.css'
 
 function MainApp() {
   return (
-    <div className="App">
-      <TestRLS />
-      <TipTapEditor />
-      <TestDataPanel />
-    </div>
+    <NavigationProvider>
+      <div className="app-layout">
+        <NavigationSidebar />
+        <div className="app-content">
+          <TestRLS />
+          <TipTapEditor />
+          <TestDataPanel />
+        </div>
+      </div>
+    </NavigationProvider>
   )
 }
 

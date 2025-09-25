@@ -15,12 +15,10 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
 
   // Use navigation context for selection state
   const {
-    selectedProject,
-    selectedVideo,
     setSelectedProject,
     setSelectedVideo,
     isProjectSelected,
-    isVideoSelected
+    isVideoSelected: checkVideoSelected
   } = useNavigation();
 
   // Data loading state
@@ -207,7 +205,7 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
                     {isExpanded && projectVideos.length > 0 && (
                       <div className="nav-video-list">
                         {projectVideos.map(video => {
-                          const isVideoSelected = isVideoSelected(video.id);
+                          const isVideoSelected = checkVideoSelected(video.id);
                           return (
                             <div
                               key={video.id}
