@@ -134,6 +134,7 @@ serve(async (req) => {
         {
           headers: {
             'Authorization': `Bearer ${SMARTSUITE_API_KEY}`,
+            'Account-ID': 's3qnmox1', // Required workspace ID
             'Content-Type': 'application/json'
           }
         }
@@ -176,6 +177,7 @@ serve(async (req) => {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${SMARTSUITE_API_KEY}`,
+                  'Account-ID': 's3qnmox1', // Required workspace ID
                   'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
