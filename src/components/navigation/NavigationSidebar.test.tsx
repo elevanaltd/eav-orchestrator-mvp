@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { vi, beforeEach, afterEach, describe, it, expect } from 'vitest';
 import { NavigationSidebar } from './NavigationSidebar';
 import { NavigationProvider } from '../../contexts/NavigationContext';

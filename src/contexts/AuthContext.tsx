@@ -26,44 +26,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session with better error handling
+    // Get initial session
     const getInitialSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-
-        if (error) {
-          console.error('Auth session error:', error)
-
-          // Handle specific refresh token errors
-          if (error.message?.includes('refresh') || error.message?.includes('Invalid Refresh Token')) {
-            console.log('Refresh token invalid, clearing session')
-            // Clear any invalid session data
-            await supabase.auth.signOut()
-          }
-        }
-
-        setCurrentUser(session?.user ?? null)
-      } catch (err) {
-        console.error('Unexpected auth error:', err)
-      } finally {
-        setLoading(false)
-      }
+      const { data: { session } } = await supabase.auth.getSession()
+      setCurrentUser(session?.user ?? null)
+      setLoading(false)
     }
 
     getInitialSession()
 
-    // Listen for auth changes with enhanced error handling
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Handle auth errors
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('Token successfully refreshed')
-        } else if (event === 'SIGNED_OUT') {
-          console.log('User signed out')
-        } else if (event === 'USER_UPDATED') {
-          console.log('User data updated')
-        }
-
         setCurrentUser(session?.user ?? null)
         setLoading(false)
       }
