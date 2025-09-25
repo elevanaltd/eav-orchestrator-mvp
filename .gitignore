@@ -48,3 +48,4 @@ temp/
 
 # Vitest
 coverage/
+.coord
