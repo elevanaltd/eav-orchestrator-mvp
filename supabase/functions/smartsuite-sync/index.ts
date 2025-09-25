@@ -14,14 +14,31 @@ interface SyncResult {
   errors: string[]
 }
 
-interface SyncMetadata {
+// SmartSuite data types
+interface SmartSuiteProject {
   id: string
-  status: 'idle' | 'running' | 'error'
-  last_sync_started_at: string | null
-  last_sync_completed_at: string | null
-  last_error: string | null
-  sync_count: number
+  title?: string
+  projdue456?: {
+    to_date?: {
+      date?: string
+    }
+  }
 }
+
+interface SmartSuiteVideo {
+  id: string
+  title?: string
+  mainStreamStatus?: {
+    value?: string
+  }
+  voStreamStatus?: {
+    value?: string
+  }
+  productionType?: string
+}
+
+// Note: SyncMetadata interface removed as it's not used in this edge function
+// The sync_metadata table is managed by the client-side code
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -96,7 +113,7 @@ serve(async (req) => {
 
       // 2. Transform and upsert projects to Supabase
       if (projects.items && projects.items.length > 0) {
-        const transformedProjects = projects.items.map((p: any) => ({
+        const transformedProjects = projects.items.map((p: SmartSuiteProject) => ({
           id: p.id,
           title: p.title || 'Untitled Project',
           due_date: p.projdue456?.to_date?.date || null
@@ -152,8 +169,8 @@ serve(async (req) => {
 
             // Transform and upsert videos (filter out reused videos)
             const transformedVideos = projectVideos
-              .filter((v: any) => v.productionType !== 'reuse')
-              .map((v: any) => ({
+              .filter((v: SmartSuiteVideo) => v.productionType !== 'reuse')
+              .map((v: SmartSuiteVideo) => ({
                 id: v.id,
                 project_id: project.id,
                 title: v.title || 'Untitled Video',
