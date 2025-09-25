@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { TipTapEditor } from './TipTapEditor';
 import { NavigationProvider } from '../contexts/NavigationContext';
+import { ScriptStatusProvider } from '../contexts/ScriptStatusContext';
 
 // Mock the script service
 vi.mock('../services/scriptService', () => ({
@@ -64,7 +65,9 @@ describe('TipTapEditor with Navigation', () => {
   it('should render with navigation integration', () => {
     render(
       <NavigationProvider>
-        <TipTapEditor />
+        <ScriptStatusProvider>
+          <TipTapEditor />
+        </ScriptStatusProvider>
       </NavigationProvider>
     );
 
@@ -75,7 +78,9 @@ describe('TipTapEditor with Navigation', () => {
   it('should show "Select a video to edit" when no video selected', () => {
     render(
       <NavigationProvider>
-        <TipTapEditor />
+        <ScriptStatusProvider>
+          <TipTapEditor />
+        </ScriptStatusProvider>
       </NavigationProvider>
     );
 

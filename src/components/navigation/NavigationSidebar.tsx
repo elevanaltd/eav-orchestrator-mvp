@@ -1,15 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigation, Project, Video } from '../../contexts/NavigationContext';
+import { validateProjectId, ValidationError } from '../../lib/validation';
 import '../../styles/Navigation.css';
+
+// Critical-Engineer: consulted for Security vulnerability assessment
 
 interface NavigationSidebarProps {
   // Optional legacy callbacks for backward compatibility
   onProjectSelect?: (projectId: string) => void;
   onVideoSelect?: (videoId: string, projectId: string) => void;
+  // Auto-refresh configuration
+  refreshInterval?: number; // milliseconds, default 30000 (30 seconds)
 }
 
-export function NavigationSidebar({ onProjectSelect, onVideoSelect }: NavigationSidebarProps) {
+export function NavigationSidebar({
+  onProjectSelect,
+  onVideoSelect,
+  refreshInterval = 30000
+}: NavigationSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
@@ -26,15 +35,75 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Load projects on mount
+  // Auto-refresh state
+  const [isVisible, setIsVisible] = useState(!document.hidden);
+
+  // Handle visibility changes for performance optimization
   useEffect(() => {
-    loadProjects();
+    const handleVisibilityChange = () => {
+      setIsVisible(!document.hidden);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
-  const loadProjects = async () => {
-    setLoading(true);
+  // Declare functions before they are used
+  // SECURITY FIX: Prevent race condition by using functional state updates
+  const refreshData = useCallback(async () => {
+    // Refresh projects data without disrupting UI
+    await loadProjects(true);
+
+    // Use functional state update to get current expandedProjects
+    // This prevents stale closure issues
+    setExpandedProjects(currentExpanded => {
+      // Refresh videos for currently expanded projects
+      const refreshPromises = Array.from(currentExpanded).map(projectId =>
+        loadVideos(projectId, true)
+      );
+      Promise.all(refreshPromises).catch(err => {
+        console.error('Failed to refresh expanded project videos:', err);
+      });
+
+      // Return the same state (no change needed)
+      return currentExpanded;
+    });
+  }, []); // Empty dependency array - no external dependencies needed
+
+  // Auto-refresh projects when component is visible
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+
+    // Initial load
+    loadProjects();
+
+    // Set up refresh interval
+    const intervalId = setInterval(() => {
+      if (!document.hidden) {
+        refreshData();
+      }
+    }, refreshInterval);
+
+    // Cleanup interval on unmount or dependency change
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isVisible, refreshInterval, refreshData]);
+
+  const loadProjects = async (isRefresh = false) => {
+    if (isRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError('');
+
     try {
       const { data, error } = await supabase
         .from('projects')
@@ -48,33 +117,51 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
       setError(`Failed to load projects: ${err}`);
       console.error('Navigation: Load projects error:', err);
     }
-    setLoading(false);
+
+    if (isRefresh) {
+      setIsRefreshing(false);
+    } else {
+      setLoading(false);
+    }
   };
 
-  const loadVideos = async (projectId: string) => {
-    setLoading(true);
+  const loadVideos = async (projectId: string, isRefresh = false) => {
+    if (!isRefresh) {
+      setLoading(true);
+    }
     setError('');
+
     try {
+      // SECURITY: Validate projectId before database operation
+      const validatedProjectId = validateProjectId(projectId);
+
       const { data, error } = await supabase
         .from('videos')
         .select('*')
-        .eq('project_id', projectId)
+        .eq('project_id', validatedProjectId)
         .order('title');
 
       if (error) throw error;
 
       // Update videos state - merge with existing videos from other projects
       setVideos(prevVideos => [
-        ...prevVideos.filter(v => v.project_id !== projectId),
+        ...prevVideos.filter(v => v.project_id !== validatedProjectId),
         ...(data || [])
       ]);
 
-      console.log('Navigation: Videos loaded for project:', projectId, data);
+      console.log('Navigation: Videos loaded for project:', validatedProjectId, data);
     } catch (err) {
-      setError(`Failed to load videos: ${err}`);
+      if (err instanceof ValidationError) {
+        setError(`Invalid project ID: ${err.message}`);
+      } else {
+        setError(`Failed to load videos: ${err}`);
+      }
       console.error('Navigation: Load videos error:', err);
     }
-    setLoading(false);
+
+    if (!isRefresh) {
+      setLoading(false);
+    }
   };
 
   const toggleSidebar = () => {
@@ -133,7 +220,14 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
           {!isCollapsed && (
             <>
               <h2>EAV Orchestrator</h2>
-              <p>Projects & Videos</p>
+              <p>
+                Projects & Videos
+                {isRefreshing && (
+                  <span className="nav-refresh-indicator" title="Refreshing data...">
+                    🔄
+                  </span>
+                )}
+              </p>
             </>
           )}
         </div>

@@ -1,22 +1,36 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { NavigationProvider } from './contexts/NavigationContext'
+import { ScriptStatusProvider } from './contexts/ScriptStatusContext'
 import { Login } from './components/auth/Login'
 import { Signup } from './components/auth/Signup'
 import { PrivateRoute } from './components/auth/PrivateRoute'
+import { Header } from './components/Header'
 import { NavigationSidebar } from './components/navigation/NavigationSidebar'
 import { TipTapEditor } from './components/TipTapEditor'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import './App.css'
+
+// Critical-Engineer: consulted for Security vulnerability assessment
 
 function MainApp() {
   return (
     <NavigationProvider>
-      <div className="app-layout">
-        <NavigationSidebar />
-        <div className="app-content">
-          <TipTapEditor />
+      <ScriptStatusProvider>
+        <div className="app-layout">
+          <ErrorBoundary>
+            <Header />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <NavigationSidebar />
+          </ErrorBoundary>
+          <div className="app-content">
+            <ErrorBoundary>
+              <TipTapEditor />
+            </ErrorBoundary>
+          </div>
         </div>
-      </div>
+      </ScriptStatusProvider>
     </NavigationProvider>
   )
 }
