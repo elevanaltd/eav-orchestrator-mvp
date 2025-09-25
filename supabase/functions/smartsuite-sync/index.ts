@@ -60,6 +60,31 @@ serve(async (req) => {
     // Create Supabase client with service role (bypasses RLS)
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
+    // First check if there's a stale lock (running for more than 5 minutes)
+    const { data: currentStatus } = await supabase
+      .from('sync_metadata')
+      .select('*')
+      .eq('id', 'singleton')
+      .single()
+
+    if (currentStatus?.status === 'running' && currentStatus?.last_sync_started_at) {
+      const lockAge = Date.now() - new Date(currentStatus.last_sync_started_at).getTime()
+      const LOCK_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+
+      if (lockAge > LOCK_TIMEOUT_MS) {
+        // Lock is stale, forcibly release it
+        await supabase
+          .from('sync_metadata')
+          .update({
+            status: 'idle',
+            last_error: 'Previous sync timed out after 5 minutes'
+          })
+          .eq('id', 'singleton')
+
+        console.log('Released stale lock from previous sync')
+      }
+    }
+
     // Implement distributed locking - only one sync can run at a time
     const { data: lockData, error: lockError } = await supabase
       .from('sync_metadata')
@@ -73,10 +98,19 @@ serve(async (req) => {
       .single()
 
     if (lockError || !lockData) {
+      // Check the actual current status for better error messaging
+      const { data: statusCheck } = await supabase
+        .from('sync_metadata')
+        .select('status, last_sync_started_at')
+        .eq('id', 'singleton')
+        .single()
+
       return new Response(
         JSON.stringify({
           error: 'Sync already in progress or failed to acquire lock',
-          code: 'SYNC_IN_PROGRESS'
+          code: 'SYNC_IN_PROGRESS',
+          currentStatus: statusCheck?.status,
+          lastStarted: statusCheck?.last_sync_started_at
         }),
         {
           status: 409,
@@ -229,8 +263,9 @@ serve(async (req) => {
       await supabase
         .from('sync_metadata')
         .update({
-          status: 'error',
-          last_error: String(syncError)
+          status: 'idle', // Change to idle instead of error to allow retry
+          last_error: String(syncError),
+          last_sync_completed_at: new Date().toISOString() // Mark completion even if failed
         })
         .eq('id', 'singleton')
 
@@ -246,6 +281,23 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Edge function error:', error)
+
+    // Ensure lock is always released on error
+    try {
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      )
+      await supabase
+        .from('sync_metadata')
+        .update({
+          status: 'idle',
+          last_error: 'Edge function crashed - lock released'
+        })
+        .eq('id', 'singleton')
+    } catch (cleanupError) {
+      console.error('Failed to release lock during cleanup:', cleanupError)
+    }
     return new Response(
       JSON.stringify({
         error: 'An internal error occurred',
