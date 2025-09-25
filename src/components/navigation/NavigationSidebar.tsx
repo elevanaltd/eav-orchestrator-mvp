@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import '../../styles/Navigation.css';
 
 interface Project {
@@ -26,17 +27,61 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedVideo, setSelectedVideo] = useState<string>('');
 
-  // Mock data for now - will be replaced with Supabase in next task
-  const mockProjects: Project[] = [
-    { id: '1', title: 'Sample Project Alpha', due_date: '2025-10-15' },
-    { id: '2', title: 'Beta Campaign', due_date: '2025-10-30' },
-  ];
+  // Data loading state
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
 
-  const mockVideos: Video[] = [
-    { id: 'v1', project_id: '1', title: 'Intro Video', main_stream_status: 'ready', vo_stream_status: 'pending' },
-    { id: 'v2', project_id: '1', title: 'Product Demo', main_stream_status: 'processing', vo_stream_status: 'ready' },
-    { id: 'v3', project_id: '2', title: 'Campaign Overview', main_stream_status: 'ready', vo_stream_status: 'ready' },
-  ];
+  // Load projects on mount
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('title');
+
+      if (error) throw error;
+      setProjects(data || []);
+      console.log('Navigation: Projects loaded:', data);
+    } catch (err) {
+      setError(`Failed to load projects: ${err}`);
+      console.error('Navigation: Load projects error:', err);
+    }
+    setLoading(false);
+  };
+
+  const loadVideos = async (projectId: string) => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('title');
+
+      if (error) throw error;
+
+      // Update videos state - merge with existing videos from other projects
+      setVideos(prevVideos => [
+        ...prevVideos.filter(v => v.project_id !== projectId),
+        ...(data || [])
+      ]);
+
+      console.log('Navigation: Videos loaded for project:', projectId, data);
+    } catch (err) {
+      setError(`Failed to load videos: ${err}`);
+      console.error('Navigation: Load videos error:', err);
+    }
+    setLoading(false);
+  };
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
@@ -55,6 +100,12 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
   const handleProjectClick = (projectId: string) => {
     setSelectedProject(projectId);
     toggleProject(projectId);
+
+    // Load videos for this project if not already expanded
+    if (!expandedProjects.has(projectId)) {
+      loadVideos(projectId);
+    }
+
     onProjectSelect?.(projectId);
   };
 
@@ -70,7 +121,7 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
   };
 
   const getProjectVideos = (projectId: string) => {
-    return mockVideos.filter(video => video.project_id === projectId);
+    return videos.filter(video => video.project_id === projectId);
   };
 
   return (
@@ -95,13 +146,33 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
 
       {!isCollapsed && (
         <div className="nav-content">
+          {error && (
+            <div className="nav-error">
+              {error}
+            </div>
+          )}
+
+          {loading && (
+            <div className="nav-loading">
+              <div className="nav-loading-spinner"></div>
+              Loading...
+            </div>
+          )}
+
           <div className="nav-section">
             <h3 className="nav-section-title">
-              Projects ({mockProjects.length})
+              Projects ({projects.length})
             </h3>
 
             <div className="nav-list">
-              {mockProjects.map(project => {
+              {projects.length === 0 && !loading && !error && (
+                <div className="nav-empty">
+                  <div className="nav-empty-icon">📁</div>
+                  No projects found
+                </div>
+              )}
+
+              {projects.map(project => {
                 const isExpanded = expandedProjects.has(project.id);
                 const isSelected = selectedProject === project.id;
                 const projectVideos = getProjectVideos(project.id);
@@ -165,7 +236,7 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
       {isCollapsed && (
         <div className="nav-collapsed-hint">
           <div className="nav-collapsed-icon">📁</div>
-          <div className="nav-collapsed-count">{mockProjects.length}</div>
+          <div className="nav-collapsed-count">{projects.length}</div>
         </div>
       )}
     </div>
