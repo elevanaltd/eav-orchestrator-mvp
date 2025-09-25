@@ -14,6 +14,7 @@ import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { useNavigation } from '../contexts/NavigationContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
+import { ScriptStatusIndicator } from './ScriptStatusIndicator';
 
 // ============================================
 // PARAGRAPH COMPONENT TRACKER
@@ -495,6 +496,14 @@ export const TipTapEditor: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Script Status Indicator - Development Tool */}
+        <ScriptStatusIndicator
+          currentScript={currentScript}
+          saveStatus={saveStatus}
+          lastSaved={lastSaved}
+          componentCount={extractedComponents.length}
+        />
       </div>
     </div>
   );
