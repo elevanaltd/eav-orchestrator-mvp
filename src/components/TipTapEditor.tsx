@@ -6,12 +6,13 @@
  * Clean copy/paste with visual indicators only
  */
 
-import React, { useState, useEffect } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { Node } from '@tiptap/pm/model';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
@@ -126,9 +127,9 @@ export const TipTapEditor: React.FC = () => {
       setCurrentScript(null);
       setSaveStatus('saved');
     }
-  }, [selectedVideo, editor]);
+  }, [selectedVideo, editor, loadScriptForSelectedVideo]);
 
-  const loadScriptForSelectedVideo = async () => {
+  const loadScriptForSelectedVideo = useCallback(async () => {
     if (!selectedVideo || !editor) return;
 
     setIsLoading(true);
@@ -156,7 +157,7 @@ export const TipTapEditor: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedVideo, editor, extractComponents]);
 
   // Auto-save functionality with debouncing
   useEffect(() => {
@@ -167,7 +168,7 @@ export const TipTapEditor: React.FC = () => {
     }, 2000); // Auto-save after 2 seconds of inactivity
 
     return () => clearTimeout(saveTimer);
-  }, [extractedComponents, currentScript, saveStatus]);
+  }, [extractedComponents, currentScript, saveStatus, editor, handleSave]);
 
   // Sync context with local state
   useEffect(() => {
@@ -182,7 +183,7 @@ export const TipTapEditor: React.FC = () => {
     }
   }, [saveStatus, lastSaved, extractedComponents, currentScript, updateScriptStatus, clearScriptStatus]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!currentScript || !editor) return;
 
     setSaveStatus('saving');
@@ -199,13 +200,13 @@ export const TipTapEditor: React.FC = () => {
       console.error('Failed to save script:', error);
       setSaveStatus('error');
     }
-  };
+  }, [currentScript, editor, extractedComponents]);
 
-  const extractComponents = (editor: any) => {
+  const extractComponents = useCallback((editor: Editor) => {
     const components: ComponentData[] = [];
     let componentNum = 0;
 
-    editor.state.doc.forEach((node: any) => {
+    editor.state.doc.forEach((node: Node) => {
       if (node.type.name === 'paragraph' && node.content.size > 0) {
         componentNum++;
         components.push({
@@ -218,7 +219,7 @@ export const TipTapEditor: React.FC = () => {
     });
 
     setExtractedComponents(components);
-  };
+  }, []);
 
   const generateHash = (text: string): string => {
     return text.length.toString(36) + text.charCodeAt(0).toString(36);

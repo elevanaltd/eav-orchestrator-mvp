@@ -31,7 +31,7 @@ export function Login() {
       } else {
         navigate('/')
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred')
     } finally {
       setLoading(false)

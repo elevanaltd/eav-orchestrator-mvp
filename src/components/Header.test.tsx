@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { User } from '@supabase/supabase-js'
 import { Header } from './Header'
 import { useAuth } from '../contexts/AuthContext'
 import { useScriptStatus } from '../contexts/ScriptStatusContext'
@@ -32,7 +33,7 @@ describe('Header', () => {
 
   it('should display user email when user is authenticated', () => {
     mockUseAuth.mockReturnValue({
-      currentUser: { id: '123', email: 'test@example.com' } as any,
+      currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
@@ -46,7 +47,7 @@ describe('Header', () => {
 
   it('should display logout button when user is authenticated', () => {
     mockUseAuth.mockReturnValue({
-      currentUser: { id: '123', email: 'test@example.com' } as any,
+      currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
@@ -61,7 +62,7 @@ describe('Header', () => {
 
   it('should call logout function when logout button is clicked', () => {
     mockUseAuth.mockReturnValue({
-      currentUser: { id: '123', email: 'test@example.com' } as any,
+      currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
@@ -78,7 +79,7 @@ describe('Header', () => {
 
   it('should have professional styling classes', () => {
     mockUseAuth.mockReturnValue({
-      currentUser: { id: '123', email: 'test@example.com' } as any,
+      currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
@@ -93,7 +94,7 @@ describe('Header', () => {
 
   it('should display app title', () => {
     mockUseAuth.mockReturnValue({
-      currentUser: { id: '123', email: 'test@example.com' } as any,
+      currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
@@ -107,7 +108,7 @@ describe('Header', () => {
 
   it('should display script status when provided', () => {
     mockUseAuth.mockReturnValue({
-      currentUser: { id: '123', email: 'test@example.com' } as any,
+      currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
@@ -135,7 +136,7 @@ describe('Header', () => {
 
   it('should display different save status states', () => {
     mockUseAuth.mockReturnValue({
-      currentUser: { id: '123', email: 'test@example.com' } as any,
+      currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
@@ -176,7 +177,7 @@ describe('Header', () => {
 
   it('should not display script status when not provided', () => {
     mockUseAuth.mockReturnValue({
-      currentUser: { id: '123', email: 'test@example.com' } as any,
+      currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),

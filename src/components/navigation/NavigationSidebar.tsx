@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useNavigation, Project, Video } from '../../contexts/NavigationContext';
 import '../../styles/Navigation.css';
@@ -69,7 +69,7 @@ export function NavigationSidebar({
     return () => {
       clearInterval(intervalId);
     };
-  }, [isVisible, refreshInterval]);
+  }, [isVisible, refreshInterval, refreshData]);
 
   const loadProjects = async (isRefresh = false) => {
     if (isRefresh) {
@@ -100,7 +100,7 @@ export function NavigationSidebar({
     }
   };
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     // Refresh projects data without disrupting UI
     await loadProjects(true);
 
@@ -109,7 +109,7 @@ export function NavigationSidebar({
       loadVideos(projectId, true)
     );
     await Promise.all(refreshPromises);
-  };
+  }, [expandedProjects]);
 
   const loadVideos = async (projectId: string, isRefresh = false) => {
     if (!isRefresh) {

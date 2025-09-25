@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { vi, beforeEach, afterEach, describe, it, expect } from 'vitest';
 import { NavigationSidebar } from './NavigationSidebar';
 import { NavigationProvider } from '../../contexts/NavigationContext';
@@ -10,7 +10,7 @@ vi.mock('../../lib/supabase');
 // Mock CSS import
 vi.mock('../../styles/Navigation.css', () => ({}));
 
-const mockSupabase = supabase as any;
+const mockSupabase = vi.mocked(supabase);
 
 // Test wrapper with NavigationProvider
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (

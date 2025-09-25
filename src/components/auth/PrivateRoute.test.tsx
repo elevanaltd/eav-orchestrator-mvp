@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { User } from '@supabase/supabase-js'
 import { PrivateRoute } from './PrivateRoute'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -62,7 +63,7 @@ describe('PrivateRoute', () => {
 
   it('should render children when user is authenticated', () => {
     mockUseAuth.mockReturnValue({
-      currentUser: { id: '123', email: 'test@example.com' } as any,
+      currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
