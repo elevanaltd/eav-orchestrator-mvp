@@ -1,22 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useNavigation, Project, Video } from '../../contexts/NavigationContext';
 import '../../styles/Navigation.css';
 
-interface Project {
-  id: string;
-  title: string;
-  due_date?: string;
-}
-
-interface Video {
-  id: string;
-  project_id: string;
-  title: string;
-  main_stream_status?: string;
-  vo_stream_status?: string;
-}
-
 interface NavigationSidebarProps {
+  // Optional legacy callbacks for backward compatibility
   onProjectSelect?: (projectId: string) => void;
   onVideoSelect?: (videoId: string, projectId: string) => void;
 }
@@ -24,8 +12,16 @@ interface NavigationSidebarProps {
 export function NavigationSidebar({ onProjectSelect, onVideoSelect }: NavigationSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [selectedProject, setSelectedProject] = useState<string>('');
-  const [selectedVideo, setSelectedVideo] = useState<string>('');
+
+  // Use navigation context for selection state
+  const {
+    selectedProject,
+    selectedVideo,
+    setSelectedProject,
+    setSelectedVideo,
+    isProjectSelected,
+    isVideoSelected
+  } = useNavigation();
 
   // Data loading state
   const [projects, setProjects] = useState<Project[]>([]);
@@ -98,7 +94,9 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
   };
 
   const handleProjectClick = (projectId: string) => {
-    setSelectedProject(projectId);
+    // Find the project object from our projects list
+    const project = projects.find(p => p.id === projectId) || null;
+    setSelectedProject(project);
     toggleProject(projectId);
 
     // Load videos for this project if not already expanded
@@ -106,11 +104,17 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
       loadVideos(projectId);
     }
 
+    // Call legacy callback if provided
     onProjectSelect?.(projectId);
   };
 
   const handleVideoClick = (videoId: string, projectId: string) => {
-    setSelectedVideo(videoId);
+    // Find the video and project objects
+    const video = videos.find(v => v.id === videoId) || null;
+    const project = projects.find(p => p.id === projectId) || null;
+    setSelectedVideo(video, project);
+
+    // Call legacy callback if provided
     onVideoSelect?.(videoId, projectId);
   };
 
@@ -174,7 +178,7 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
 
               {projects.map(project => {
                 const isExpanded = expandedProjects.has(project.id);
-                const isSelected = selectedProject === project.id;
+                const isSelected = isProjectSelected(project.id);
                 const projectVideos = getProjectVideos(project.id);
 
                 return (
@@ -203,7 +207,7 @@ export function NavigationSidebar({ onProjectSelect, onVideoSelect }: Navigation
                     {isExpanded && projectVideos.length > 0 && (
                       <div className="nav-video-list">
                         {projectVideos.map(video => {
-                          const isVideoSelected = selectedVideo === video.id;
+                          const isVideoSelected = isVideoSelected(video.id);
                           return (
                             <div
                               key={video.id}
