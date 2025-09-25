@@ -6,6 +6,7 @@ import { Signup } from './components/auth/Signup'
 import { PrivateRoute } from './components/auth/PrivateRoute'
 import { TipTapEditor } from './components/TipTapEditor'
 import { TestRLS } from './components/TestRLS'
+import { TestDataPanel } from './components/TestDataPanel'
 import './App.css'
 
 function MainApp() {
@@ -13,6 +14,7 @@ function MainApp() {
     <div className="App">
       <TestRLS />
       <TipTapEditor />
+      <TestDataPanel />
     </div>
   )
 }
