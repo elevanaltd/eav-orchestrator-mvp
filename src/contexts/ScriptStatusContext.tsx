@@ -58,6 +58,7 @@ export function ScriptStatusProvider({ children }: ScriptStatusProviderProps) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useScriptStatus() {
   const context = useContext(ScriptStatusContext);
   if (context === undefined) {

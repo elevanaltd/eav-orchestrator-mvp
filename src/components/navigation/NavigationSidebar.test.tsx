@@ -44,7 +44,8 @@ describe('NavigationSidebar Auto-Refresh', () => {
     vi.useFakeTimers();
 
     // Mock successful Supabase responses
-    mockSupabase.from.mockImplementation((tableName: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockSupabase.from as any).mockImplementation((tableName: string) => {
       if (tableName === 'projects') {
         return {
           select: vi.fn().mockReturnValue({

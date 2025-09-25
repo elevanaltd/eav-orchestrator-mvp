@@ -95,6 +95,77 @@ export const TipTapEditor: React.FC = () => {
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
 
+  // Declare callback functions first
+  const extractComponents = useCallback((editor: Editor) => {
+    const components: ComponentData[] = [];
+    let componentNum = 0;
+
+    editor.state.doc.forEach((node: Node) => {
+      if (node.type.name === 'paragraph' && node.content.size > 0) {
+        componentNum++;
+        components.push({
+          number: componentNum,
+          content: node.textContent,
+          wordCount: node.textContent.split(/\s+/).filter(Boolean).length,
+          hash: generateHash(node.textContent)
+        });
+      }
+    });
+
+    setExtractedComponents(components);
+  }, []);
+
+  const loadScriptForSelectedVideo = useCallback(async () => {
+    if (!selectedVideo || !editor) return;
+
+    setIsLoading(true);
+    try {
+      const script = await loadScriptForVideo(selectedVideo.id);
+      setCurrentScript(script);
+
+      // Initialize editor content from Y.js state or plain text
+      // TODO: When Y.js is integrated, deserialize from yjs_state
+      if (script.plain_text) {
+        // For now, use plain text wrapped in basic HTML
+        const initialContent = `<p>${script.plain_text.replace(/\n\n/g, '</p><p>')}</p>`;
+        editor.commands.setContent(initialContent);
+      } else {
+        // Default content for new scripts
+        editor.commands.setContent('<h2>Script for Video</h2><p>Start writing your script here. Each paragraph becomes a component that flows through the production pipeline.</p>');
+      }
+
+      extractComponents(editor);
+      setSaveStatus('saved');
+      setLastSaved(new Date(script.updated_at));
+    } catch (error) {
+      console.error('Failed to load script:', error);
+      setSaveStatus('error');
+    } finally {
+      setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVideo, extractComponents]);
+
+  const handleSave = useCallback(async () => {
+    if (!currentScript || !editor) return;
+
+    setSaveStatus('saving');
+    try {
+      const plainText = editor.getText();
+      // TODO: Properly serialize Y.js state when Y.js is integrated
+      // For now, we'll pass null and let the backend handle it
+      const yjsState = null; // Will be implemented when Y.js is integrated
+      const updatedScript = await saveScript(currentScript.id, yjsState, plainText, extractedComponents);
+      setCurrentScript(updatedScript);
+      setLastSaved(new Date());
+      setSaveStatus('saved');
+    } catch (error) {
+      console.error('Failed to save script:', error);
+      setSaveStatus('error');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentScript, extractedComponents]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -127,37 +198,8 @@ export const TipTapEditor: React.FC = () => {
       setCurrentScript(null);
       setSaveStatus('saved');
     }
-  }, [selectedVideo, editor, loadScriptForSelectedVideo]);
-
-  const loadScriptForSelectedVideo = useCallback(async () => {
-    if (!selectedVideo || !editor) return;
-
-    setIsLoading(true);
-    try {
-      const script = await loadScriptForVideo(selectedVideo.id);
-      setCurrentScript(script);
-
-      // Initialize editor content from Y.js state or plain text
-      // TODO: When Y.js is integrated, deserialize from yjs_state
-      if (script.plain_text) {
-        // For now, use plain text wrapped in basic HTML
-        const initialContent = `<p>${script.plain_text.replace(/\n\n/g, '</p><p>')}</p>`;
-        editor.commands.setContent(initialContent);
-      } else {
-        // Default content for new scripts
-        editor.commands.setContent('<h2>Script for Video</h2><p>Start writing your script here. Each paragraph becomes a component that flows through the production pipeline.</p>');
-      }
-
-      extractComponents(editor);
-      setSaveStatus('saved');
-      setLastSaved(new Date(script.updated_at));
-    } catch (error) {
-      console.error('Failed to load script:', error);
-      setSaveStatus('error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedVideo, editor, extractComponents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVideo, loadScriptForSelectedVideo]);
 
   // Auto-save functionality with debouncing
   useEffect(() => {
@@ -168,7 +210,8 @@ export const TipTapEditor: React.FC = () => {
     }, 2000); // Auto-save after 2 seconds of inactivity
 
     return () => clearTimeout(saveTimer);
-  }, [extractedComponents, currentScript, saveStatus, editor, handleSave]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extractedComponents, currentScript, saveStatus, handleSave]);
 
   // Sync context with local state
   useEffect(() => {
@@ -182,44 +225,6 @@ export const TipTapEditor: React.FC = () => {
       clearScriptStatus();
     }
   }, [saveStatus, lastSaved, extractedComponents, currentScript, updateScriptStatus, clearScriptStatus]);
-
-  const handleSave = useCallback(async () => {
-    if (!currentScript || !editor) return;
-
-    setSaveStatus('saving');
-    try {
-      const plainText = editor.getText();
-      // TODO: Properly serialize Y.js state when Y.js is integrated
-      // For now, we'll pass null and let the backend handle it
-      const yjsState = null; // Will be implemented when Y.js is integrated
-      const updatedScript = await saveScript(currentScript.id, yjsState, plainText, extractedComponents);
-      setCurrentScript(updatedScript);
-      setLastSaved(new Date());
-      setSaveStatus('saved');
-    } catch (error) {
-      console.error('Failed to save script:', error);
-      setSaveStatus('error');
-    }
-  }, [currentScript, editor, extractedComponents]);
-
-  const extractComponents = useCallback((editor: Editor) => {
-    const components: ComponentData[] = [];
-    let componentNum = 0;
-
-    editor.state.doc.forEach((node: Node) => {
-      if (node.type.name === 'paragraph' && node.content.size > 0) {
-        componentNum++;
-        components.push({
-          number: componentNum,
-          content: node.textContent,
-          wordCount: node.textContent.split(/\s+/).filter(Boolean).length,
-          hash: generateHash(node.textContent)
-        });
-      }
-    });
-
-    setExtractedComponents(components);
-  }, []);
 
   const generateHash = (text: string): string => {
     return text.length.toString(36) + text.charCodeAt(0).toString(36);

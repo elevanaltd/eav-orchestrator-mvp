@@ -49,6 +49,18 @@ export function NavigationSidebar({
     };
   }, []);
 
+  // Declare functions before they are used
+  const refreshData = useCallback(async () => {
+    // Refresh projects data without disrupting UI
+    await loadProjects(true);
+
+    // Refresh videos for expanded projects
+    const refreshPromises = Array.from(expandedProjects).map(projectId =>
+      loadVideos(projectId, true)
+    );
+    await Promise.all(refreshPromises);
+  }, [expandedProjects]);
+
   // Auto-refresh projects when component is visible
   useEffect(() => {
     if (!isVisible) {
@@ -99,17 +111,6 @@ export function NavigationSidebar({
       setLoading(false);
     }
   };
-
-  const refreshData = useCallback(async () => {
-    // Refresh projects data without disrupting UI
-    await loadProjects(true);
-
-    // Refresh videos for expanded projects
-    const refreshPromises = Array.from(expandedProjects).map(projectId =>
-      loadVideos(projectId, true)
-    );
-    await Promise.all(refreshPromises);
-  }, [expandedProjects]);
 
   const loadVideos = async (projectId: string, isRefresh = false) => {
     if (!isRefresh) {

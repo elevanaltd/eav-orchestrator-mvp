@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase';
 export interface Script {
   id: string;
   video_id: string;
-  yjs_state?: Uint8Array; // BYTEA field for Y.js document state (primary content storage)
+  yjs_state?: Uint8Array | null; // BYTEA field for Y.js document state (primary content storage)
   plain_text?: string; // Extracted plain text for search/display
   component_count?: number;
   components: ComponentData[]; // Loaded from script_components table
@@ -120,7 +120,7 @@ export async function loadScriptForVideo(videoId: string): Promise<Script> {
  */
 export async function saveScript(
   scriptId: string,
-  yjsState: Uint8Array, // Y.js document state (will be stored as BYTEA)
+  yjsState: Uint8Array | null, // Y.js document state (will be stored as BYTEA)
   plainText: string,
   components: ComponentData[]
 ): Promise<Script> {
