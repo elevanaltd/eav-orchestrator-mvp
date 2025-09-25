@@ -1,11 +1,14 @@
 /**
  * SmartSuite Integration for EAV Orchestrator Prototype
  *
- * Workspace: s3qnmox1
- * Prototype Table: 68b2437a8f1755b055e0a124
+ * ⚠️ DEPRECATED: This file is INSECURE and should not be used.
  *
- * This module provides manual sync capabilities for prototype validation.
- * Real-time sync will be implemented in production version.
+ * SECURITY ISSUE: Exposes API keys to browser and bypasses RLS policies.
+ *
+ * USE INSTEAD: src/lib/smartsuite-secure.ts
+ *
+ * Migration completed: 2025-09-25
+ * All client code should use secureSmartSuite instead of smartSuite.
  */
 
 export interface SmartSuiteConfig {
@@ -33,10 +36,24 @@ export class SmartSuiteIntegration {
   private config: SmartSuiteConfig;
 
   constructor() {
+    console.error(`
+      🚨 SECURITY WARNING: smartsuite.ts is DEPRECATED and INSECURE
+
+      This integration exposes API keys to the browser and bypasses RLS.
+
+      MIGRATE TO: src/lib/smartsuite-secure.ts
+
+      Benefits:
+      • Server-side authentication only
+      • No API keys in browser
+      • RLS policies enforced
+      • Distributed locking
+    `);
+
     this.config = {
       workspaceId: 's3qnmox1',
       prototypeTableId: '68b2437a8f1755b055e0a124',
-      apiKey: import.meta.env.VITE_SMARTSUITE_API_KEY
+      apiKey: undefined // REMOVED: No longer exposing API keys to client
     };
   }
 
