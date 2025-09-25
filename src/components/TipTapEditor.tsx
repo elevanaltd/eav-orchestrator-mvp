@@ -1,16 +1,19 @@
 /**
- * SIMPLIFIED POC: Paragraph-Based Component System
+ * SIMPLIFIED POC: Paragraph-Based Component System with Navigation Integration
  *
  * Each paragraph is automatically a component
+ * Integrates with NavigationContext to load/save scripts for selected videos
  * Clean copy/paste with visual indicators only
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { useNavigation } from '../contexts/NavigationContext';
+import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
 
 // ============================================
 // PARAGRAPH COMPONENT TRACKER
@@ -78,8 +81,16 @@ const ParagraphComponentTracker = Extension.create({
 // ============================================
 
 export const TipTapEditor: React.FC = () => {
-  const [componentCount, setComponentCount] = useState(0);
-  const [extractedComponents, setExtractedComponents] = useState<any[]>([]);
+  const { selectedVideo } = useNavigation();
+
+  // Script management state
+  const [currentScript, setCurrentScript] = useState<Script | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
+
+  // Component extraction state
+  const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
 
   const editor = useEditor({
     extensions: [
@@ -92,23 +103,76 @@ export const TipTapEditor: React.FC = () => {
       }),
       ParagraphComponentTracker
     ],
-    content: `
-      <h2>EAV Script Editor - Component Model</h2>
-      <p>This is the first component of your script. Each paragraph automatically becomes a distinct video component that will flow through scenes, voice generation, and edit guidance.</p>
-      <p>When you press Enter, you create a new component. Notice how each component maintains its identity - C2 will become Scene 2, Voice file 2, and Edit guidance 2.</p>
-      <p>The prototype validates that this paragraph=component architecture works intuitively for content creators while maintaining stable component IDs for the production workflow.</p>
-      <p>Simply type your script naturally. The system automatically extracts components from your paragraphs, maintaining the 1:1 relationship throughout the production pipeline.</p>
-    `,
+    content: '',
     onUpdate: ({ editor }) => {
       extractComponents(editor);
+      setSaveStatus('unsaved');
     },
     onCreate: ({ editor }) => {
       extractComponents(editor);
     }
   });
 
+  // Load script when selected video changes
+  useEffect(() => {
+    if (selectedVideo && editor) {
+      loadScriptForSelectedVideo();
+    } else if (!selectedVideo && editor) {
+      // Clear editor when no video selected
+      editor.commands.setContent('');
+      setCurrentScript(null);
+      setSaveStatus('saved');
+    }
+  }, [selectedVideo, editor]);
+
+  const loadScriptForSelectedVideo = async () => {
+    if (!selectedVideo || !editor) return;
+
+    setIsLoading(true);
+    try {
+      const script = await loadScriptForVideo(selectedVideo.id);
+      setCurrentScript(script);
+      editor.commands.setContent(script.content);
+      extractComponents(editor);
+      setSaveStatus('saved');
+      setLastSaved(new Date(script.updated_at));
+    } catch (error) {
+      console.error('Failed to load script:', error);
+      setSaveStatus('error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Auto-save functionality with debouncing
+  useEffect(() => {
+    if (!currentScript || saveStatus !== 'unsaved' || !editor) return;
+
+    const saveTimer = setTimeout(() => {
+      handleSave();
+    }, 2000); // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(saveTimer);
+  }, [extractedComponents, currentScript, saveStatus]);
+
+  const handleSave = async () => {
+    if (!currentScript || !editor) return;
+
+    setSaveStatus('saving');
+    try {
+      const content = editor.getHTML();
+      const updatedScript = await saveScript(currentScript.id, content, extractedComponents);
+      setCurrentScript(updatedScript);
+      setLastSaved(new Date());
+      setSaveStatus('saved');
+    } catch (error) {
+      console.error('Failed to save script:', error);
+      setSaveStatus('error');
+    }
+  };
+
   const extractComponents = (editor: any) => {
-    const components: any[] = [];
+    const components: ComponentData[] = [];
     let componentNum = 0;
 
     editor.state.doc.forEach((node: any) => {
@@ -123,7 +187,6 @@ export const TipTapEditor: React.FC = () => {
       }
     });
 
-    setComponentCount(componentNum);
     setExtractedComponents(components);
   };
 
@@ -131,16 +194,18 @@ export const TipTapEditor: React.FC = () => {
     return text.length.toString(36) + text.charCodeAt(0).toString(36);
   };
 
-  const testCopy = () => {
-    if (!editor) return;
+  const formatSaveTime = (date: Date): string => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
 
-    // Select all content
-    editor.commands.selectAll();
-    document.execCommand('copy');
-    editor.commands.setTextSelection(0);
-
-    alert('Content copied! Paste it anywhere to see clean text without component labels.');
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
   };
+
 
   return (
     <div className="editor-layout">
@@ -183,6 +248,23 @@ export const TipTapEditor: React.FC = () => {
           margin-top: 5px;
         }
 
+        .save-status {
+          font-weight: 500;
+          color: #10B981;
+        }
+
+        .save-status:has-text('Saving') {
+          color: #F59E0B;
+        }
+
+        .save-status:has-text('error') {
+          color: #EF4444;
+        }
+
+        .save-status:has-text('Unsaved') {
+          color: #F59E0B;
+        }
+
         /* Editor Content Area */
         .editor-content {
           flex: 1;
@@ -219,6 +301,51 @@ export const TipTapEditor: React.FC = () => {
           position: absolute !important;
           left: -60px !important;
           top: 3px;
+        }
+
+        /* Placeholder states */
+        .no-video-placeholder,
+        .loading-placeholder {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 400px;
+          text-align: center;
+          color: #666;
+          background: #f8f9fa;
+          border-radius: 8px;
+          margin: 20px 0;
+        }
+
+        .no-video-placeholder h3 {
+          font-size: 24px;
+          color: #333;
+          margin-bottom: 15px;
+          font-weight: 600;
+        }
+
+        .no-video-placeholder p,
+        .loading-placeholder p {
+          font-size: 16px;
+          line-height: 1.6;
+          margin-bottom: 10px;
+          max-width: 500px;
+        }
+
+        .loading-spinner {
+          width: 32px;
+          height: 32px;
+          border: 3px solid #e5e5e5;
+          border-top: 3px solid #6B7280;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
 
         /* Right Sidebar - Narrow for testing */
@@ -302,12 +429,40 @@ export const TipTapEditor: React.FC = () => {
       {/* Main Editor Area */}
       <div className="main-editor">
         <div className="editor-header">
-          <h1 className="editor-title">Script Editor</h1>
-          <p className="editor-subtitle">Each paragraph becomes a component (C1, C2, C3...) that flows through the production pipeline</p>
+          <h1 className="editor-title">
+            {selectedVideo ? `Script: ${selectedVideo.title}` : 'Script Editor'}
+          </h1>
+          <p className="editor-subtitle">
+            {selectedVideo
+              ? `Each paragraph becomes a component (C1, C2, C3...) that flows through the production pipeline`
+              : `Select a video from the navigation to start editing its script`
+            }
+            {lastSaved && (
+              <span className="save-status">
+                {saveStatus === 'saving' && ' • Saving...'}
+                {saveStatus === 'saved' && ` • Saved ${formatSaveTime(lastSaved)}`}
+                {saveStatus === 'unsaved' && ' • Unsaved changes'}
+                {saveStatus === 'error' && ' • Save error'}
+              </span>
+            )}
+          </p>
         </div>
 
         <div className="editor-content">
-          <EditorContent editor={editor} />
+          {isLoading ? (
+            <div className="loading-placeholder">
+              <div className="loading-spinner"></div>
+              <p>Loading script...</p>
+            </div>
+          ) : !selectedVideo ? (
+            <div className="no-video-placeholder">
+              <h3>Select a Video to Edit</h3>
+              <p>Choose a video from the navigation panel to start editing its script.</p>
+              <p>Each paragraph you write becomes a component that flows through the production pipeline.</p>
+            </div>
+          ) : (
+            <EditorContent editor={editor} />
+          )}
         </div>
       </div>
 

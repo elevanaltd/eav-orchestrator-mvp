@@ -26,7 +26,7 @@ export interface ComponentData {
   hash: string;
 }
 
-export interface ScriptServiceError {
+export interface ScriptServiceErrorInterface {
   message: string;
   code?: string;
   details?: any;

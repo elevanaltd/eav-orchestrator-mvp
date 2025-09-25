@@ -1,0 +1,85 @@
+/**
+ * TipTapEditor Tests - Enhanced with Navigation Integration
+ *
+ * Tests the updated TipTapEditor functionality including:
+ * - Integration with NavigationContext
+ * - Script loading and saving functionality
+ * - Video selection handling
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { TipTapEditor } from './TipTapEditor';
+import { NavigationProvider } from '../contexts/NavigationContext';
+
+// Mock the script service
+vi.mock('../services/scriptService', () => ({
+  loadScriptForVideo: vi.fn().mockResolvedValue({
+    id: 'script-123',
+    video_id: 'video-123',
+    content: '<p>Test script content</p>',
+    components: [],
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
+  }),
+  saveScript: vi.fn().mockResolvedValue({
+    id: 'script-123',
+    video_id: 'video-123',
+    content: '<p>Updated content</p>',
+    components: [],
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
+  })
+}));
+
+// Mock TipTap editor
+vi.mock('@tiptap/react', () => ({
+  useEditor: vi.fn().mockReturnValue({
+    commands: {
+      setContent: vi.fn(),
+      selectAll: vi.fn(),
+      setTextSelection: vi.fn()
+    },
+    state: {
+      doc: {
+        forEach: vi.fn()
+      }
+    },
+    getHTML: vi.fn().mockReturnValue('<p>Mock content</p>')
+  }),
+  EditorContent: vi.fn(() => <div data-testid="editor-content">Editor Content</div>)
+}));
+
+vi.mock('@tiptap/starter-kit', () => ({
+  default: {
+    configure: vi.fn()
+  }
+}));
+
+describe('TipTapEditor with Navigation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should render with navigation integration', () => {
+    render(
+      <NavigationProvider>
+        <TipTapEditor />
+      </NavigationProvider>
+    );
+
+    expect(screen.getByText('Script Editor')).toBeInTheDocument();
+    expect(screen.getByText(/Select a video from the navigation to start editing/)).toBeInTheDocument();
+  });
+
+  it('should show "Select a video to edit" when no video selected', () => {
+    render(
+      <NavigationProvider>
+        <TipTapEditor />
+      </NavigationProvider>
+    );
+
+    expect(screen.getByText('Select a Video to Edit')).toBeInTheDocument();
+    expect(screen.getByText(/Choose a video from the navigation panel/)).toBeInTheDocument();
+  });
+});
