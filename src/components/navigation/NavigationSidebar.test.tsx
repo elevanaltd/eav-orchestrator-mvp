@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { vi, beforeEach, afterEach, describe, it, expect } from 'vitest';
 import { NavigationSidebar } from './NavigationSidebar';
 import { NavigationProvider } from '../../contexts/NavigationContext';
@@ -41,7 +41,7 @@ describe('NavigationSidebar Auto-Refresh', () => {
   ];
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
 
     // Mock successful Supabase responses
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,30 +49,36 @@ describe('NavigationSidebar Auto-Refresh', () => {
       if (tableName === 'projects') {
         return {
           select: vi.fn().mockReturnValue({
-            order: vi.fn().mockResolvedValue({
-              data: mockProjects,
-              error: null
-            })
+            order: vi.fn().mockReturnValue(
+              Promise.resolve({
+                data: mockProjects,
+                error: null
+              })
+            )
           })
         };
       } else if (tableName === 'videos') {
         return {
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockResolvedValue({
-                data: mockVideos,
-                error: null
-              })
+              order: vi.fn().mockReturnValue(
+                Promise.resolve({
+                  data: mockVideos,
+                  error: null
+                })
+              )
             })
           })
         };
       }
       return {
         select: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({
-            data: [],
-            error: null
-          })
+          order: vi.fn().mockReturnValue(
+            Promise.resolve({
+              data: [],
+              error: null
+            })
+          )
         })
       };
     });
@@ -85,28 +91,39 @@ describe('NavigationSidebar Auto-Refresh', () => {
   });
 
   describe('Auto-refresh functionality', () => {
-    it('should render component with basic structure', () => {
-      render(
+    it('should render component with basic structure', async () => {
+      const { unmount } = render(
         <TestWrapper>
           <NavigationSidebar />
         </TestWrapper>
       );
 
-      // Should render basic structure immediately
-      expect(screen.getByText('EAV Orchestrator')).toBeInTheDocument();
-      expect(screen.getByText('Projects & Videos')).toBeInTheDocument();
+      // Wait for initial render
+      await waitFor(() => {
+        expect(screen.getByText('EAV Orchestrator')).toBeInTheDocument();
+      });
+
+      // Check for content that appears after component mounts
+      await waitFor(() => {
+        expect(screen.getByText('Projects & Videos')).toBeInTheDocument();
+      });
+
+      // Cleanup - clear all timers before unmounting
+      vi.clearAllTimers();
+      unmount();
     });
 
-    it('should accept refresh interval prop', () => {
-      // Test that component accepts the prop without errors
-      const { rerender } = render(
+    it('should accept refresh interval prop', async () => {
+      const { rerender, unmount } = render(
         <TestWrapper>
           <NavigationSidebar refreshInterval={5000} />
         </TestWrapper>
       );
 
-      // Should render without error
-      expect(screen.getByText('EAV Orchestrator')).toBeInTheDocument();
+      // Wait for initial render
+      await waitFor(() => {
+        expect(screen.getByText('EAV Orchestrator')).toBeInTheDocument();
+      });
 
       // Test with different interval
       rerender(
@@ -115,36 +132,53 @@ describe('NavigationSidebar Auto-Refresh', () => {
         </TestWrapper>
       );
 
-      expect(screen.getByText('EAV Orchestrator')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('EAV Orchestrator')).toBeInTheDocument();
+      });
+
+      // Cleanup - clear all timers before unmounting
+      vi.clearAllTimers();
+      unmount();
     });
 
-    it('should show refresh indicator when refreshing', () => {
-      render(
+    it('should show refresh indicator when refreshing', async () => {
+      const { unmount } = render(
         <TestWrapper>
           <NavigationSidebar />
         </TestWrapper>
       );
 
-      // Initially no refresh indicator
+      // Wait for initial render
+      await waitFor(() => {
+        expect(screen.getByText('Projects & Videos')).toBeInTheDocument();
+      });
+
+      // Initially no refresh indicator (component loads immediately)
       expect(screen.queryByTitle('Refreshing data...')).not.toBeInTheDocument();
 
-      // The refresh indicator would appear during actual refresh operations
-      // This test verifies the basic structure is in place
-      expect(screen.getByText('Projects & Videos')).toBeInTheDocument();
+      // Cleanup - clear all timers before unmounting
+      vi.clearAllTimers();
+      unmount();
     });
 
-    it('should have visibility detection capability', () => {
-      render(
+    it('should have visibility detection capability', async () => {
+      const { unmount } = render(
         <TestWrapper>
           <NavigationSidebar />
         </TestWrapper>
       );
 
-      // Component should render and be ready for visibility detection
-      expect(screen.getByText('EAV Orchestrator')).toBeInTheDocument();
+      // Wait for initial render
+      await waitFor(() => {
+        expect(screen.getByText('EAV Orchestrator')).toBeInTheDocument();
+      });
 
       // Visibility change events would be handled in the actual component
       // This test confirms the component mounts without errors
+
+      // Cleanup - clear all timers before unmounting
+      vi.clearAllTimers();
+      unmount();
     });
 
   });

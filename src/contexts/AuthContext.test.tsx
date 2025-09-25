@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { AuthProvider, useAuth } from './AuthContext'
 
 // Mock Supabase
@@ -44,14 +44,18 @@ describe('AuthContext', () => {
     vi.clearAllMocks()
   })
 
-  it('should provide auth context to children', () => {
+  it('should provide auth context to children', async () => {
     render(
       <AuthProvider>
         <TestComponent />
       </AuthProvider>
     )
 
-    expect(screen.getByTestId('user-status')).toHaveTextContent('unauthenticated')
+    // Wait for async initialization to complete
+    await waitFor(() => {
+      expect(screen.getByTestId('user-status')).toHaveTextContent('unauthenticated')
+    })
+
     expect(screen.getByText('Sign In')).toBeInTheDocument()
     expect(screen.getByText('Sign Up')).toBeInTheDocument()
     expect(screen.getByText('Logout')).toBeInTheDocument()
