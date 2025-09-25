@@ -46,26 +46,70 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Add detailed logging for debugging
+  console.log('Edge Function invoked:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  })
+
   try {
     // Get secrets from environment (never exposed to client)
     const SMARTSUITE_API_KEY = Deno.env.get('SMARTSUITE_API_KEY')
     // Edge Functions still use the old naming convention
     const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+    // SUPABASE_URL is automatically provided by Supabase Edge Functions
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || 'https://zbxvjyrbkycbfhwmmnmy.supabase.co'
 
-    if (!SMARTSUITE_API_KEY || !SUPABASE_SERVICE_KEY || !SUPABASE_URL) {
-      throw new Error('Missing required environment variables')
+    // Enhanced error logging - list ALL environment variables (minus sensitive ones)
+    console.log('Environment check:', {
+      hasSmartSuiteKey: !!SMARTSUITE_API_KEY,
+      smartSuiteKeyLength: SMARTSUITE_API_KEY?.length || 0,
+      hasSupabaseKey: !!SUPABASE_SERVICE_KEY,
+      supabaseKeyLength: SUPABASE_SERVICE_KEY?.length || 0,
+      hasSupabaseUrl: !!SUPABASE_URL,
+      supabaseUrl: SUPABASE_URL, // Log this since it's not sensitive
+      allEnvKeys: Object.keys(Deno.env.toObject()).filter(k =>
+        !k.includes('KEY') && !k.includes('SECRET') && !k.includes('TOKEN')
+      )
+    })
+
+    if (!SMARTSUITE_API_KEY) {
+      throw new Error('Missing SMARTSUITE_API_KEY environment variable. Please set it in Supabase Dashboard > Settings > Edge Functions > Secrets')
+    }
+
+    if (!SUPABASE_SERVICE_KEY) {
+      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable. This should be automatically provided by Supabase.')
     }
 
     // Create Supabase client with service role (bypasses RLS)
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    console.log('Creating Supabase client...')
+    let supabase
+    try {
+      supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+      console.log('Supabase client created successfully')
+    } catch (clientError) {
+      console.error('Failed to create Supabase client:', clientError)
+      throw new Error(`Supabase client initialization failed: ${clientError.message}`)
+    }
 
     // First check if there's a stale lock (running for more than 5 minutes)
-    const { data: currentStatus } = await supabase
+    console.log('Checking for stale locks...')
+    const { data: currentStatus, error: statusError } = await supabase
       .from('sync_metadata')
       .select('*')
       .eq('id', 'singleton')
       .single()
+
+    if (statusError) {
+      console.error('Error checking sync_metadata:', {
+        message: statusError.message,
+        details: statusError.details,
+        hint: statusError.hint,
+        code: statusError.code
+      })
+      // Don't fail here, this might be first time setup
+    }
 
     if (currentStatus?.status === 'running' && currentStatus?.last_sync_started_at) {
       const lockAge = Date.now() - new Date(currentStatus.last_sync_started_at).getTime()
@@ -129,19 +173,28 @@ serve(async (req) => {
 
     try {
       // 1. Fetch all projects from SmartSuite
-      const projectsResponse = await fetch(
-        'https://api.smartsuite.com/v1/applications/68a8ff5237fde0bf797c05b3/records/list',
-        {
-          headers: {
-            'Authorization': `Bearer ${SMARTSUITE_API_KEY}`,
-            'Account-ID': 's3qnmox1', // Required workspace ID
-            'Content-Type': 'application/json'
-          }
+      console.log('Fetching projects from SmartSuite...')
+      const projectsUrl = 'https://api.smartsuite.com/v1/applications/68a8ff5237fde0bf797c05b3/records/list'
+      console.log('Projects URL:', projectsUrl)
+
+      const projectsResponse = await fetch(projectsUrl, {
+        headers: {
+          'Authorization': `Bearer ${SMARTSUITE_API_KEY}`,
+          'Account-ID': 's3qnmox1', // Required workspace ID
+          'Content-Type': 'application/json'
         }
-      )
+      })
+
+      console.log('SmartSuite projects response:', {
+        status: projectsResponse.status,
+        ok: projectsResponse.ok,
+        statusText: projectsResponse.statusText
+      })
 
       if (!projectsResponse.ok) {
-        throw new Error(`SmartSuite API error: ${projectsResponse.status}`)
+        const errorBody = await projectsResponse.text()
+        console.error('SmartSuite API error response:', errorBody)
+        throw new Error(`SmartSuite API error: ${projectsResponse.status} - ${errorBody}`)
       }
 
       const projects = await projectsResponse.json()
@@ -282,28 +335,42 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Edge function error:', error)
+    // Enhanced error logging with stack trace
+    console.error('Edge function error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      full: error
+    })
 
     // Ensure lock is always released on error
     try {
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      )
-      await supabase
-        .from('sync_metadata')
-        .update({
-          status: 'idle',
-          last_error: 'Edge function crashed - lock released'
-        })
-        .eq('id', 'singleton')
+      const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+      const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+      if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        await supabase
+          .from('sync_metadata')
+          .update({
+            status: 'idle',
+            last_error: `Edge function crashed: ${error.message || 'Unknown error'}`
+          })
+          .eq('id', 'singleton')
+      }
     } catch (cleanupError) {
       console.error('Failed to release lock during cleanup:', cleanupError)
     }
+
+    // Return more detailed error information for debugging
     return new Response(
       JSON.stringify({
-        error: 'An internal error occurred',
-        code: 'INTERNAL_ERROR'
+        error: error.message || 'An internal error occurred',
+        code: 'INTERNAL_ERROR',
+        details: {
+          name: error.name,
+          message: error.message
+        }
       }),
       {
         status: 500,
