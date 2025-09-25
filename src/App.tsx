@@ -4,6 +4,7 @@ import { NavigationProvider } from './contexts/NavigationContext'
 import { Login } from './components/auth/Login'
 import { Signup } from './components/auth/Signup'
 import { PrivateRoute } from './components/auth/PrivateRoute'
+import { Header } from './components/Header'
 import { NavigationSidebar } from './components/navigation/NavigationSidebar'
 import { TipTapEditor } from './components/TipTapEditor'
 import './App.css'
@@ -12,6 +13,7 @@ function MainApp() {
   return (
     <NavigationProvider>
       <div className="app-layout">
+        <Header />
         <NavigationSidebar />
         <div className="app-content">
           <TipTapEditor />
