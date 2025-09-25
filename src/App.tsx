@@ -8,12 +8,15 @@ import { PrivateRoute } from './components/auth/PrivateRoute'
 import { Header } from './components/Header'
 import { NavigationSidebar } from './components/navigation/NavigationSidebar'
 import { TipTapEditor } from './components/TipTapEditor'
+import { SmartSuiteSyncPanel } from './components/SmartSuiteSyncPanel'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import './App.css'
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
 function MainApp() {
+  const isDevelopment = import.meta.env.MODE === 'development'
+
   return (
     <NavigationProvider>
       <ScriptStatusProvider>
@@ -28,6 +31,12 @@ function MainApp() {
             <ErrorBoundary>
               <TipTapEditor />
             </ErrorBoundary>
+            {/* Show sync panel in development only */}
+            {isDevelopment && (
+              <ErrorBoundary>
+                <SmartSuiteSyncPanel />
+              </ErrorBoundary>
+            )}
           </div>
         </div>
       </ScriptStatusProvider>
