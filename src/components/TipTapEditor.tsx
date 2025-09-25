@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Plugin } from '@tiptap/pm/state';
@@ -135,12 +135,31 @@ export const TipTapEditor: React.FC = () => {
 
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
-  const [editorContent, setEditorContent] = useState<string>('');
 
   // Helper function to generate hash
   const generateHash = (text: string): string => {
     return text.length.toString(36) + text.charCodeAt(0).toString(36);
   };
+
+  // Declare callback functions that don't depend on editor
+  const extractComponents = useCallback((editor: Editor) => {
+    const components: ComponentData[] = [];
+    let componentNum = 0;
+
+    editor.state.doc.forEach((node: Node) => {
+      if (node.type.name === 'paragraph' && node.content.size > 0) {
+        componentNum++;
+        components.push({
+          number: componentNum,
+          content: node.textContent,
+          wordCount: node.textContent.split(/\s+/).filter(Boolean).length,
+          hash: generateHash(node.textContent)
+        });
+      }
+    });
+
+    setExtractedComponents(components);
+  }, []);
 
   // Create editor first
   const editor = useEditor({
@@ -156,13 +175,12 @@ export const TipTapEditor: React.FC = () => {
     ],
     content: '',
     onUpdate: ({ editor }) => {
-      // Store the HTML content for processing in useEffect
-      setEditorContent(editor.getHTML());
+      extractComponents(editor);
       setSaveStatus('unsaved');
+      // Context will be updated via useEffect when extractedComponents changes
     },
     onCreate: ({ editor }) => {
-      // Store initial content
-      setEditorContent(editor.getHTML());
+      extractComponents(editor);
     },
     // SECURITY: Add paste event handler to sanitize pasted content
     editorProps: {
@@ -191,28 +209,6 @@ export const TipTapEditor: React.FC = () => {
     }
   });
 
-  // Extract components when editor content changes
-  useEffect(() => {
-    if (!editor) return;
-
-    const components: ComponentData[] = [];
-    let componentNum = 0;
-
-    editor.state.doc.forEach((node: Node) => {
-      if (node.type.name === 'paragraph' && node.content.size > 0) {
-        componentNum++;
-        components.push({
-          number: componentNum,
-          content: node.textContent,
-          wordCount: node.textContent.split(/\s+/).filter(Boolean).length,
-          hash: generateHash(node.textContent)
-        });
-      }
-    });
-
-    setExtractedComponents(components);
-  }, [editorContent, editor]);
-
   // Now define callbacks that depend on editor
   const loadScriptForSelectedVideo = useCallback(async () => {
     if (!selectedVideo || !editor) return;
@@ -228,17 +224,13 @@ export const TipTapEditor: React.FC = () => {
         // SECURITY: Use safe conversion to prevent XSS injection
         const safeContent = convertPlainTextToHTML(script.plain_text);
         editor.commands.setContent(safeContent);
-        // Trigger component extraction by updating editorContent state
-        setEditorContent(safeContent);
       } else {
         // Default content for new scripts (sanitized)
         const defaultContent = sanitizeHTML('<h2>Script for Video</h2><p>Start writing your script here. Each paragraph becomes a component that flows through the production pipeline.</p>');
         editor.commands.setContent(defaultContent);
-        // Trigger component extraction by updating editorContent state
-        setEditorContent(defaultContent);
       }
 
-      // Components will be automatically extracted via useEffect when content changes
+      extractComponents(editor);
       setSaveStatus('saved');
       setLastSaved(new Date(script.updated_at));
     } catch (error) {
@@ -247,7 +239,7 @@ export const TipTapEditor: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedVideo, editor]);
+  }, [selectedVideo, editor, extractComponents]);
 
   const handleSave = useCallback(async () => {
     if (!currentScript || !editor) return;
