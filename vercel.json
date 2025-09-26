@@ -1,13 +1,7 @@
 {
   "functions": {
     "api/smartsuite/[...path].ts": {
-      "runtime": "@vercel/node"
+      "runtime": "@vercel/node@3.0.7"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/api/smartsuite/(.*)",
-      "destination": "/api/smartsuite/$1"
-    }
-  ]
+  }
 }
