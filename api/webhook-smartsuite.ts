@@ -95,9 +95,13 @@ function transformVideo(record: SmartSuiteVideoRecord) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Log the incoming method for debugging
+  console.log(`Webhook called with method: ${req.method}`);
+
   // Only accept POST requests
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    console.error(`Method ${req.method} not allowed - expected POST`);
+    return res.status(405).json({ error: `Method ${req.method} not allowed - webhook expects POST` });
   }
 
   // Verify webhook signature (optional for testing)
