@@ -109,16 +109,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Invalid signature' });
   }
 
-  // Parse webhook payload - handle both full and simple format
+  // Parse webhook payload - handle multiple formats
   let event_type: string;
   let table_id: string;
   let record: any;
   let webhook_id: string | undefined;
 
-  // Check if it's our simple format (just {record: {...}})
-  if (req.body.record && !req.body.event_type) {
-    // Simple format - infer what we need
+  // Check payload format
+  if (req.body.record && req.body.event_type) {
+    // Full format with event_type and record wrapper
+    ({ event_type, table_id, record, webhook_id } = req.body as SmartSuiteWebhookPayload);
+  } else if (req.body.record && !req.body.event_type) {
+    // Simple format - just {record: {...}}
     record = req.body.record;
+    event_type = 'record.updated';
+    webhook_id = 'smartsuite-automation';
 
     // Determine table by checking for unique fields
     if (record.eavcode !== undefined || record.client_filter !== undefined) {
@@ -129,13 +134,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('Cannot determine table type from record fields');
       return res.status(400).json({ error: 'Cannot determine table type' });
     }
-
-    // Infer event type (default to updated since SmartSuite triggers on create/update)
+  } else if (req.body.id && (req.body.eavcode !== undefined || req.body.projects_link !== undefined)) {
+    // Direct format - SmartSuite sends fields at root level
+    record = req.body;  // The entire body IS the record
     event_type = 'record.updated';
     webhook_id = 'smartsuite-automation';
+
+    // Determine table by checking for unique fields
+    if (record.eavcode !== undefined || record.client_filter !== undefined) {
+      table_id = process.env.SMARTSUITE_PROJECTS_TABLE!;
+    } else if (record.projects_link !== undefined || record.video_name !== undefined) {
+      table_id = process.env.SMARTSUITE_VIDEOS_TABLE!;
+    } else {
+      console.error('Cannot determine table type from record fields');
+      return res.status(400).json({ error: 'Cannot determine table type' });
+    }
   } else {
-    // Full format with all fields
-    ({ event_type, table_id, record, webhook_id } = req.body as SmartSuiteWebhookPayload);
+    console.error('Unrecognized webhook payload format:', JSON.stringify(req.body));
+    return res.status(400).json({ error: 'Invalid webhook payload format' });
   }
 
   console.log(`Webhook received: ${event_type} for table ${table_id}`);
