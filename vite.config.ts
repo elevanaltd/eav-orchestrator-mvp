@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
     host: true,
     proxy: {
       '/api/smartsuite': {
-        target: 'https://api.smartsuite.com',
+        target: 'https://app.smartsuite.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/smartsuite/, ''),
         configure: (proxy, _options) => {

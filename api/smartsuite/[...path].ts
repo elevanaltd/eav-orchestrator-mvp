@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const smartSuitePath = Array.isArray(pathSegments) ? pathSegments.join('/') : pathSegments || ''
 
   // Build the SmartSuite API URL
-  const smartSuiteUrl = `https://api.smartsuite.com/${smartSuitePath}`
+  const smartSuiteUrl = `https://app.smartsuite.com/${smartSuitePath}`
 
   // Get SmartSuite API key from environment
   const apiKey = process.env.SMARTSUITE_API_KEY
