@@ -23,7 +23,8 @@ export const SmartSuiteTest = () => {
         // Check sync status
         const syncStatus = await smartSuiteData.getSyncStatus();
         if (syncStatus.lastSync) {
-          setStatus(prev => prev + `\n⏰ Last sync: ${new Date(syncStatus.lastSync).toLocaleString()}`);
+          const syncDate = new Date(syncStatus.lastSync);
+          setStatus(prev => prev + `\n⏰ Last sync: ${syncDate.toLocaleString()}`);
         }
       } else {
         setStatus('⚠️ No projects found. Run manual sync or wait for webhooks.');
