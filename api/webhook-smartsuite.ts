@@ -64,11 +64,25 @@ function verifyWebhookSignature(
 
 /**
  * Transform SmartSuite project record to Supabase schema
- * Note: Field names match 1:1 as designed, minimal transformation needed
+ * Note: When using webhook field selection, names match Supabase 1:1
  */
-function transformProject(record: SmartSuiteProjectRecord) {
+function transformProject(record: any) {
+  // If fields already match Supabase schema (from webhook), use them directly
+  if (record.eav_code !== undefined) {
+    return {
+      id: record.id,
+      title: record.title || 'Untitled',
+      eav_code: record.eav_code || '',
+      client_filter: record.client_filter || null,
+      due_date: record.due_date || null, // Already formatted as date string
+      created_at: record.created_at || new Date().toISOString(),
+      updated_at: record.updated_at || new Date().toISOString()
+    };
+  }
+
+  // Legacy format support (if using full record dump)
   return {
-    id: record.id, // 24-char hex ID used directly
+    id: record.id,
     title: record.title || record.name || 'Untitled',
     eav_code: record.eavcode || '',
     client_filter: record.slabels_c8bebae3c5 || null,
@@ -81,10 +95,25 @@ function transformProject(record: SmartSuiteProjectRecord) {
 /**
  * Transform SmartSuite video record to Supabase schema
  */
-function transformVideo(record: SmartSuiteVideoRecord) {
+function transformVideo(record: any) {
+  // If fields already match Supabase schema (from webhook field selection)
+  if (record.project_id !== undefined || record.projects_link !== undefined) {
+    return {
+      id: record.id,
+      project_id: record.project_id || record.projects_link || null, // Handle both field names
+      title: record.title || 'Untitled',
+      production_type: record.production_type || null,
+      main_stream_status: record.main_stream_status || null,
+      vo_stream_status: record.vo_stream_status || null,
+      created_at: record.created_at || new Date().toISOString(),
+      updated_at: record.updated_at || new Date().toISOString()
+    };
+  }
+
+  // Legacy format support (if using full record dump)
   return {
-    id: record.id, // 24-char hex ID used directly
-    project_id: record.project_id || record.s75e825d24 || null, // Linked field to project
+    id: record.id,
+    project_id: record.project_id || record.s75e825d24 || null,
     title: record.title || record.name || 'Untitled',
     production_type: record.production_type || null,
     main_stream_status: record.main_stream_status || null,
@@ -137,25 +166,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     webhook_id = 'smartsuite-automation';
 
     // Determine table by checking for unique fields
-    if (record.eavcode !== undefined || record.client_filter !== undefined) {
-      table_id = process.env.SMARTSUITE_PROJECTS_TABLE!;
-    } else if (record.projects_link !== undefined || record.video_name !== undefined) {
+    if (record.projects_link !== undefined || record.project_id !== undefined) {
+      // Has project link = it's a VIDEO
       table_id = process.env.SMARTSUITE_VIDEOS_TABLE!;
+    } else if (record.eavcode !== undefined || record.client_filter !== undefined) {
+      // Has EAV code or client filter = it's a PROJECT
+      table_id = process.env.SMARTSUITE_PROJECTS_TABLE!;
     } else {
       console.error('Cannot determine table type from record fields');
       return res.status(400).json({ error: 'Cannot determine table type' });
     }
-  } else if (req.body.id && (req.body.eavcode !== undefined || req.body.projects_link !== undefined)) {
+  } else if (req.body.id && (req.body.eavcode !== undefined || req.body.eav_code !== undefined || req.body.projects_link !== undefined || req.body.project_id !== undefined)) {
     // Direct format - SmartSuite sends fields at root level
     record = req.body;  // The entire body IS the record
     event_type = 'record.updated';
     webhook_id = 'smartsuite-automation';
 
-    // Determine table by checking for unique fields
-    if (record.eavcode !== undefined || record.client_filter !== undefined) {
-      table_id = process.env.SMARTSUITE_PROJECTS_TABLE!;
-    } else if (record.projects_link !== undefined || record.video_name !== undefined) {
+    // Determine table by checking for unique fields (check videos first since they have project links)
+    if (record.projects_link !== undefined || record.project_id !== undefined) {
+      // Has project link = it's a VIDEO
       table_id = process.env.SMARTSUITE_VIDEOS_TABLE!;
+    } else if (record.eavcode !== undefined || record.eav_code !== undefined || record.client_filter !== undefined) {
+      // Has EAV code or client filter = it's a PROJECT
+      table_id = process.env.SMARTSUITE_PROJECTS_TABLE!;
     } else {
       console.error('Cannot determine table type from record fields');
       return res.status(400).json({ error: 'Cannot determine table type' });
