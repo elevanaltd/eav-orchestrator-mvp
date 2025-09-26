@@ -11,6 +11,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
  * Proxies to: https://api.smartsuite.com/api/v1/applications/list
  */
 
+export const config = {
+  runtime: 'nodejs',
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS for browser requests
   res.setHeader('Access-Control-Allow-Credentials', 'true')
