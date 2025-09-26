@@ -9,6 +9,7 @@ import { Header } from './components/Header'
 import { NavigationSidebar } from './components/navigation/NavigationSidebar'
 import { TipTapEditor } from './components/TipTapEditor'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { SmartSuiteTest } from './components/SmartSuiteTest'
 import './App.css'
 
 // Critical-Engineer: consulted for Security vulnerability assessment
@@ -26,6 +27,7 @@ function MainApp() {
           </ErrorBoundary>
           <div className="app-content">
             <ErrorBoundary>
+              <SmartSuiteTest />
               <TipTapEditor />
             </ErrorBoundary>
           </div>
