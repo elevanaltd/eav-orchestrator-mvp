@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import type { SmartSuiteListResponse, SmartSuiteProjectRecord, SmartSuiteVideoRecord } from '../src/types/smartsuite.types';
 
 /**
  * Manual Sync Endpoint
@@ -16,11 +17,11 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY!
 );
 
-// SmartSuite configuration
-const SMARTSUITE_API_KEY = process.env.VITE_SMARTSUITE_API_KEY;
-const WORKSPACE_ID = process.env.VITE_SMARTSUITE_WORKSPACE_ID;
-const PROJECTS_TABLE_ID = process.env.VITE_SMARTSUITE_PROJECTS_TABLE;
-const VIDEOS_TABLE_ID = process.env.VITE_SMARTSUITE_VIDEOS_TABLE;
+// SmartSuite configuration - Server-only variables (no VITE_ prefix)
+const SMARTSUITE_API_KEY = process.env.SMARTSUITE_API_KEY;
+const WORKSPACE_ID = process.env.SMARTSUITE_WORKSPACE_ID;
+const PROJECTS_TABLE_ID = process.env.SMARTSUITE_PROJECTS_TABLE;
+const VIDEOS_TABLE_ID = process.env.SMARTSUITE_VIDEOS_TABLE;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only accept POST requests
@@ -28,10 +29,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Verify user is authenticated (optional - depends on your security needs)
+  // Verify user is authenticated with Supabase
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // Validate token with Supabase
+  const token = authHeader.replace('Bearer ', '');
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) {
+    return res.status(401).json({ error: 'Invalid token' });
   }
 
   try {
@@ -70,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const projectsData = await projectsResponse.json();
 
     // Transform and upsert projects
-    const projects = projectsData.items.map((item: any) => ({
+    const projects = (projectsData as SmartSuiteListResponse<SmartSuiteProjectRecord>).items.map((item) => ({
       id: item.id,
       title: item.title || item.name || 'Untitled',
       eav_code: item.eavcode || '',
@@ -112,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const videosData = await videosResponse.json();
 
     // Transform and upsert videos
-    const videos = videosData.items.map((item: any) => ({
+    const videos = (videosData as SmartSuiteListResponse<SmartSuiteVideoRecord>).items.map((item) => ({
       id: item.id,
       project_id: item.s75e825d24 || null, // Linked field to project
       title: item.title || item.name || 'Untitled',

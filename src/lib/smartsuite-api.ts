@@ -1,13 +1,17 @@
 /**
- * SmartSuite API Integration - Production Implementation
+ * SmartSuite API Integration - LEGACY FILE
  *
- * Technical Architect: Phase 1 SmartSuite Integration
- * Following TRACED methodology with MINIMAL_INTERVENTION_PRINCIPLE
+ * NOTE: This file is legacy code. The new webhook architecture uses:
+ * - smartsuite-data.ts for frontend access
+ * - webhook-smartsuite.ts for real-time sync
  *
- * Workspace: s3qnmox1
- * Projects Table: 68a8ff5237fde0bf797c05b3
- * Videos Table: 68b2437a8f1755b055e0a124
+ * Kept for reference during transition period.
+ *
+ * TODO: Remove after confirming webhook architecture is stable
  */
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { Tables } from '../types/database.types';
 

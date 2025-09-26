@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { smartSuiteData } from './smartsuite-data';
 import { supabase } from './supabase';
+// Simple test file using any types for mocks
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 // Mock Supabase client
 vi.mock('./supabase', () => ({

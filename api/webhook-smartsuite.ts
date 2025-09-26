@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import type { SmartSuiteProjectRecord, SmartSuiteVideoRecord, SmartSuiteWebhookPayload } from '../src/types/smartsuite.types';
 
 /**
  * SmartSuite Webhook Handler
@@ -19,9 +20,9 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY! // Server-side secret key (successor to service_role)
 );
 
-// Table IDs from environment
-const PROJECTS_TABLE_ID = process.env.VITE_SMARTSUITE_PROJECTS_TABLE;
-const VIDEOS_TABLE_ID = process.env.VITE_SMARTSUITE_VIDEOS_TABLE;
+// Table IDs from environment - Server-only variables (no VITE_ prefix)
+const PROJECTS_TABLE_ID = process.env.SMARTSUITE_PROJECTS_TABLE;
+const VIDEOS_TABLE_ID = process.env.SMARTSUITE_VIDEOS_TABLE;
 
 /**
  * Verify webhook signature for security
@@ -65,7 +66,7 @@ function verifyWebhookSignature(
  * Transform SmartSuite project record to Supabase schema
  * Note: Field names match 1:1 as designed, minimal transformation needed
  */
-function transformProject(record: any) {
+function transformProject(record: SmartSuiteProjectRecord) {
   return {
     id: record.id, // 24-char hex ID used directly
     title: record.title || record.name || 'Untitled',
@@ -80,7 +81,7 @@ function transformProject(record: any) {
 /**
  * Transform SmartSuite video record to Supabase schema
  */
-function transformVideo(record: any) {
+function transformVideo(record: SmartSuiteVideoRecord) {
   return {
     id: record.id, // 24-char hex ID used directly
     project_id: record.project_id || record.s75e825d24 || null, // Linked field to project
@@ -114,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     table_id,    // Which table the change occurred in
     record,      // The actual record data
     webhook_id   // SmartSuite webhook ID for tracking
-  } = req.body;
+  } = req.body as SmartSuiteWebhookPayload;
 
   console.log(`Webhook received: ${event_type} for table ${table_id}`);
 

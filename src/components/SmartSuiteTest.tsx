@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { smartSuiteData } from '../lib/smartsuite-data';
+import type { Tables } from '../types/database.types';
 
 export const SmartSuiteTest = () => {
   const [status, setStatus] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Tables<'projects'>[]>([]);
 
   const testConnection = async () => {
     setLoading(true);
