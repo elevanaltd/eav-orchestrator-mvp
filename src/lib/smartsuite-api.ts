@@ -12,7 +12,7 @@
 import type { Tables } from '../types/database.types';
 
 // SmartSuite API Configuration
-const SMARTSUITE_API_BASE = 'https://api.smartsuite.com/api/v1';
+const SMARTSUITE_API_BASE = '/api/smartsuite/api/v1'; // Use Vercel proxy in production
 const WORKSPACE_ID = import.meta.env.VITE_SMARTSUITE_WORKSPACE_ID || 's3qnmox1';
 const PROJECTS_TABLE_ID = import.meta.env.VITE_SMARTSUITE_PROJECTS_TABLE || '68a8ff5237fde0bf797c05b3';
 const VIDEOS_TABLE_ID = import.meta.env.VITE_SMARTSUITE_VIDEOS_TABLE || '68b2437a8f1755b055e0a124';
@@ -53,9 +53,8 @@ export class SmartSuiteAPI {
 
   constructor() {
     this.apiKey = import.meta.env.VITE_SMARTSUITE_API_KEY || '';
+    // In production, headers are handled by Vercel proxy
     this.headers = {
-      'Authorization': `Token ${this.apiKey}`,
-      'Account-Id': WORKSPACE_ID,
       'Content-Type': 'application/json'
     };
   }
