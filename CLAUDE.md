@@ -94,14 +94,17 @@ dev/                                 # Active production build
 
 ```bash
 # Supabase (Production)
+# NOTE: Supabase has migrated from anon/service_role to publishable/secret keys
 VITE_SUPABASE_URL=https://zbxvjyrbkycbfhwmmnmy.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=[your_anon_key]
+VITE_SUPABASE_PUBLISHABLE_KEY=[your_publishable_key]  # Client-side (successor to anon_key)
+SUPABASE_SECRET_KEY=[your_secret_key]                  # Server-side only for webhooks (successor to service_role)
 
 # SmartSuite (Production Workspace)
 VITE_SMARTSUITE_API_KEY=[your_api_key]
 VITE_SMARTSUITE_WORKSPACE_ID=s3qnmox1
 VITE_SMARTSUITE_PROJECTS_TABLE=68a8ff5237fde0bf797c05b3
 VITE_SMARTSUITE_VIDEOS_TABLE=68b2437a8f1755b055e0a124
+SMARTSUITE_WEBHOOK_SECRET=[your_webhook_secret]        # For webhook signature verification
 
 # ElevenLabs (Future)
 VITE_ELEVENLABS_API_KEY=[future_implementation]
@@ -141,11 +144,12 @@ npm run preview            # Preview production build
 - Auto-save functionality
 - Component identity preservation
 
-### 🚧 Current Phase (1): SmartSuite Integration (2-3 days)
-- [ ] Switch from mock data to live API
-- [ ] Implement one-way sync (SmartSuite → App)
-- [ ] Add component upload to SmartSuite
-- [ ] Visual sync status indicators
+### ✅ Current Phase (1): SmartSuite Webhook Integration
+- [x] Frontend reads from Supabase only (single source of truth)
+- [x] Webhook endpoint receives SmartSuite changes
+- [x] Real-time sync via SmartSuite automations
+- [x] Manual sync button as fallback option
+- [ ] Configure SmartSuite webhook automations
 
 ### 📋 Upcoming Phases
 2. **Workflow Implementation** (7-8 days) - All 5 workflow tabs

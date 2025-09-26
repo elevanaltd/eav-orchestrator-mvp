@@ -1,9 +1,13 @@
 /**
- * SmartSuite API Integration Tests
+ * LEGACY TEST FILE - SmartSuite API Integration Tests
  *
- * Technical Architect: Following TRACED methodology
- * Test-first development for Phase 1 SmartSuite integration
+ * NOTE: This tests the legacy smartsuite-api.ts file
+ * New webhook architecture uses smartsuite-data.test.ts
+ *
+ * TODO: Remove after confirming webhook architecture is stable
  */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { SmartSuiteAPI } from './smartsuite-api';

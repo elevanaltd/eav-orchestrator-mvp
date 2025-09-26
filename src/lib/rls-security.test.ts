@@ -430,7 +430,7 @@ skipIfNoEnv('RLS Security Boundaries', () => {
         const maliciousFilter = "'; DELETE FROM projects; --";
 
         // This should fail safely
-        const { error } = await adminClient
+        await adminClient
           .from('user_clients')
           .insert({
             user_id: user.user.id,
