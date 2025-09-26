@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { smartSuiteAPI } from '../lib/smartsuite-api';
+import { smartSuiteData } from '../lib/smartsuite-data';
 
 export const SmartSuiteTest = () => {
   const [status, setStatus] = useState<string>('');
@@ -8,28 +8,25 @@ export const SmartSuiteTest = () => {
 
   const testConnection = async () => {
     setLoading(true);
-    setStatus('Testing connection...');
+    setStatus('Fetching projects from Supabase...');
 
     try {
-      // Test basic connection
-      const result = await smartSuiteAPI.testConnection();
+      // Fetch projects from Supabase (already synced via webhooks)
+      setStatus('📋 Fetching projects...');
+      const projectData = await smartSuiteData.fetchProjects();
 
-      if (result.success) {
-        setStatus(`✅ ${result.message}`);
+      if (projectData.length > 0) {
+        setProjects(projectData);
+        setStatus(`✅ Found ${projectData.length} projects`);
+        console.log('Projects:', projectData);
 
-        // Try fetching projects
-        setStatus(prev => prev + '\n📋 Fetching projects...');
-        const projectData = await smartSuiteAPI.fetchProjects();
-
-        if (projectData.length > 0) {
-          setProjects(projectData);
-          setStatus(prev => prev + `\n✅ Found ${projectData.length} projects`);
-          console.log('Projects:', projectData);
-        } else {
-          setStatus(prev => prev + '\n⚠️ No projects found');
+        // Check sync status
+        const syncStatus = await smartSuiteData.getSyncStatus();
+        if (syncStatus.lastSync) {
+          setStatus(prev => prev + `\n⏰ Last sync: ${new Date(syncStatus.lastSync).toLocaleString()}`);
         }
       } else {
-        setStatus(`❌ ${result.message}`);
+        setStatus('⚠️ No projects found. Run manual sync or wait for webhooks.');
       }
     } catch (error) {
       setStatus(`❌ Error: ${error instanceof Error ? error.message : 'Unknown error'}`);

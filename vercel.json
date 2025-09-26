@@ -1,11 +1,10 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/"
+  "functions": {
+    "api/webhook-smartsuite.ts": {
+      "maxDuration": 10
+    },
+    "api/sync-manual.ts": {
+      "maxDuration": 30
     }
-  ]
+  }
 }
