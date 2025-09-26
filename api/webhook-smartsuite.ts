@@ -109,13 +109,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'Invalid signature' });
   }
 
-  // Parse webhook payload
-  const {
-    event_type,  // 'record.created', 'record.updated', 'record.deleted'
-    table_id,    // Which table the change occurred in
-    record,      // The actual record data
-    webhook_id   // SmartSuite webhook ID for tracking
-  } = req.body as SmartSuiteWebhookPayload;
+  // Parse webhook payload - handle both full and simple format
+  let event_type: string;
+  let table_id: string;
+  let record: any;
+  let webhook_id: string | undefined;
+
+  // Check if it's our simple format (just {record: {...}})
+  if (req.body.record && !req.body.event_type) {
+    // Simple format - infer what we need
+    record = req.body.record;
+
+    // Determine table by checking for unique fields
+    if (record.eavcode !== undefined || record.client_filter !== undefined) {
+      table_id = process.env.SMARTSUITE_PROJECTS_TABLE!;
+    } else if (record.projects_link !== undefined || record.video_name !== undefined) {
+      table_id = process.env.SMARTSUITE_VIDEOS_TABLE!;
+    } else {
+      console.error('Cannot determine table type from record fields');
+      return res.status(400).json({ error: 'Cannot determine table type' });
+    }
+
+    // Infer event type (default to updated since SmartSuite triggers on create/update)
+    event_type = 'record.updated';
+    webhook_id = 'smartsuite-automation';
+  } else {
+    // Full format with all fields
+    ({ event_type, table_id, record, webhook_id } = req.body as SmartSuiteWebhookPayload);
+  }
 
   console.log(`Webhook received: ${event_type} for table ${table_id}`);
 
