@@ -91,9 +91,9 @@ export class SmartSuiteAPI {
    */
   async fetchProjects(): Promise<Tables<'projects'>[]> {
     try {
-      // Temporarily use the simple proxy endpoint until dynamic routes are fixed
+      // Use the dynamic route with proper path
       const response = await fetch(
-        `/api/smartsuite-proxy`,
+        `/api/smartsuite/api/v1/applications/${PROJECTS_TABLE_ID}/records/list/`,
         {
           method: 'POST',
           headers: this.headers,
