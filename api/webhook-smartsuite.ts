@@ -64,11 +64,25 @@ function verifyWebhookSignature(
 
 /**
  * Transform SmartSuite project record to Supabase schema
- * Note: Field names match 1:1 as designed, minimal transformation needed
+ * Note: When using webhook field selection, names match Supabase 1:1
  */
-function transformProject(record: SmartSuiteProjectRecord) {
+function transformProject(record: any) {
+  // If fields already match Supabase schema (from webhook), use them directly
+  if (record.eav_code !== undefined) {
+    return {
+      id: record.id,
+      title: record.title || 'Untitled',
+      eav_code: record.eav_code || '',
+      client_filter: record.client_filter || null,
+      due_date: record.due_date || null, // Already formatted as date string
+      created_at: record.created_at || new Date().toISOString(),
+      updated_at: record.updated_at || new Date().toISOString()
+    };
+  }
+
+  // Legacy format support (if using full record dump)
   return {
-    id: record.id, // 24-char hex ID used directly
+    id: record.id,
     title: record.title || record.name || 'Untitled',
     eav_code: record.eavcode || '',
     client_filter: record.slabels_c8bebae3c5 || null,
@@ -145,14 +159,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('Cannot determine table type from record fields');
       return res.status(400).json({ error: 'Cannot determine table type' });
     }
-  } else if (req.body.id && (req.body.eavcode !== undefined || req.body.projects_link !== undefined)) {
+  } else if (req.body.id && (req.body.eavcode !== undefined || req.body.eav_code !== undefined || req.body.projects_link !== undefined)) {
     // Direct format - SmartSuite sends fields at root level
     record = req.body;  // The entire body IS the record
     event_type = 'record.updated';
     webhook_id = 'smartsuite-automation';
 
-    // Determine table by checking for unique fields
-    if (record.eavcode !== undefined || record.client_filter !== undefined) {
+    // Determine table by checking for unique fields (handle both field name formats)
+    if (record.eavcode !== undefined || record.eav_code !== undefined || record.client_filter !== undefined) {
       table_id = process.env.SMARTSUITE_PROJECTS_TABLE!;
     } else if (record.projects_link !== undefined || record.video_name !== undefined) {
       table_id = process.env.SMARTSUITE_VIDEOS_TABLE!;
