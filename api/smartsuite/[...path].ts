@@ -32,14 +32,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const smartSuiteUrl = `https://app.smartsuite.com/${smartSuitePath}`
 
   // Get SmartSuite API key from environment
-  const apiKey = process.env.SMARTSUITE_API_KEY
-  const workspaceId = process.env.SMARTSUITE_WORKSPACE_ID || 's3qnmox1'
+  // In Vercel, use the VITE_ prefixed version
+  const apiKey = process.env.VITE_SMARTSUITE_API_KEY || process.env.SMARTSUITE_API_KEY
+  const workspaceId = process.env.VITE_SMARTSUITE_WORKSPACE_ID || process.env.SMARTSUITE_WORKSPACE_ID || 's3qnmox1'
 
   if (!apiKey) {
     console.error('SmartSuite API key not configured')
     return res.status(500).json({
       error: 'SmartSuite API key not configured',
-      details: 'SMARTSUITE_API_KEY environment variable is missing'
+      details: 'VITE_SMARTSUITE_API_KEY or SMARTSUITE_API_KEY environment variable is missing'
     })
   }
 
