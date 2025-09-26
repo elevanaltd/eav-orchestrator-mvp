@@ -5,7 +5,7 @@ describe('Supabase client', () => {
     // Set up environment variables for testing
     Object.assign(import.meta.env, {
       VITE_SUPABASE_URL: 'https://test.supabase.co',
-      VITE_SUPABASE_ANON_KEY: 'test-key'
+      VITE_SUPABASE_PUBLISHABLE_KEY: 'test-key'
     })
   })
 
