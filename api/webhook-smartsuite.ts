@@ -100,11 +100,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Verify webhook signature
+  // Verify webhook signature (optional for testing)
   const signature = req.headers['x-smartsuite-signature'] as string;
   const payload = JSON.stringify(req.body);
 
-  if (!verifyWebhookSignature(payload, signature)) {
+  // Skip signature verification if no secret is configured (testing mode)
+  if (!process.env.SMARTSUITE_WEBHOOK_SECRET) {
+    console.warn('⚠️ Webhook signature verification skipped - no secret configured');
+  } else if (!verifyWebhookSignature(payload, signature)) {
     console.error('Invalid webhook signature');
     return res.status(401).json({ error: 'Invalid signature' });
   }
