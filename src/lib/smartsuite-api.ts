@@ -63,7 +63,8 @@ export class SmartSuiteAPI {
    */
   async testConnection(): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${SMARTSUITE_API_BASE}/applications/${PROJECTS_TABLE_ID}`, {
+      // Use the test endpoint to verify functions are working
+      const response = await fetch(`/api/test`, {
         method: 'GET',
         headers: this.headers
       });
@@ -90,8 +91,9 @@ export class SmartSuiteAPI {
    */
   async fetchProjects(): Promise<Tables<'projects'>[]> {
     try {
+      // Temporarily use the simple proxy endpoint until dynamic routes are fixed
       const response = await fetch(
-        `${SMARTSUITE_API_BASE}/applications/${PROJECTS_TABLE_ID}/records/list/`,
+        `/api/smartsuite-proxy`,
         {
           method: 'POST',
           headers: this.headers,
