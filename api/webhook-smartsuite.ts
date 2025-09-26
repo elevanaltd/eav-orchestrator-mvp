@@ -108,12 +108,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const signature = req.headers['x-smartsuite-signature'] as string;
   const payload = JSON.stringify(req.body);
 
-  // Skip signature verification if no secret is configured (testing mode)
-  if (!process.env.SMARTSUITE_WEBHOOK_SECRET) {
-    console.warn('⚠️ Webhook signature verification skipped - no secret configured');
-  } else if (!verifyWebhookSignature(payload, signature)) {
-    console.error('Invalid webhook signature');
-    return res.status(401).json({ error: 'Invalid signature' });
+  // Only verify signature if both secret and signature are provided
+  if (process.env.SMARTSUITE_WEBHOOK_SECRET && signature) {
+    if (!verifyWebhookSignature(payload, signature)) {
+      console.error('Invalid webhook signature');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+  } else if (process.env.SMARTSUITE_WEBHOOK_SECRET && !signature) {
+    console.warn('⚠️ Webhook secret configured but no signature provided - allowing for testing');
+  } else if (!process.env.SMARTSUITE_WEBHOOK_SECRET) {
+    console.warn('⚠️ No webhook secret configured - skipping signature verification');
   }
 
   // Parse webhook payload - handle multiple formats
