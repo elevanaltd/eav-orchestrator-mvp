@@ -14,6 +14,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 // Using Node.js runtime for this API route
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  console.log('[SmartSuite API] Request received:', {
+    method: req.method,
+    url: req.url,
+    query: req.query,
+    headers: req.headers
+  })
+
   // Enable CORS for browser requests
   res.setHeader('Access-Control-Allow-Credentials', 'true')
   res.setHeader('Access-Control-Allow-Origin', '*')
