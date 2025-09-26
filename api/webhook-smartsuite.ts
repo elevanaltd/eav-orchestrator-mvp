@@ -162,7 +162,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let webhook_id: string | undefined;
 
   // Check payload format
-  if (req.body.record && req.body.event_type) {
+  if (req.body.table && req.body.record) {
+    // NEW FORMAT: Explicit table routing - most reliable!
+    record = req.body.record;
+    table_id = req.body.table; // SmartSuite tells us which table
+    event_type = req.body.event_type || 'record.updated';
+    webhook_id = req.body.webhook_id || 'smartsuite-automation';
+
+    console.log(`Webhook using explicit table routing: ${req.body.table}`);
+  } else if (req.body.record && req.body.event_type) {
     // Full format with event_type and record wrapper
     ({ event_type, table_id, record, webhook_id } = req.body as SmartSuiteWebhookPayload);
   } else if (req.body.record && !req.body.event_type) {
@@ -175,7 +183,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (record.projects_link !== undefined || record.project_id !== undefined) {
       // Has project link = it's a VIDEO
       table_id = process.env.SMARTSUITE_VIDEOS_TABLE!;
-    } else if (record.eavcode !== undefined || record.client_filter !== undefined) {
+    } else if (record.eavcode !== undefined || record.eav_code !== undefined || record.client_filter !== undefined) {
       // Has EAV code or client filter = it's a PROJECT
       table_id = process.env.SMARTSUITE_PROJECTS_TABLE!;
     } else {
@@ -218,8 +226,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let result;
 
+    // Map table names to Supabase tables
+    const getSupabaseTable = (tableId: string): string => {
+      // Handle both SmartSuite table IDs and friendly names
+      if (tableId === PROJECTS_TABLE_ID || tableId === 'projects' || tableId === 'Projects') {
+        return 'projects';
+      } else if (tableId === VIDEOS_TABLE_ID || tableId === 'videos' || tableId === 'Videos') {
+        return 'videos';
+      }
+      // Future tables can be added here
+      console.warn(`Unknown table: ${tableId}, attempting to use as-is`);
+      return tableId.toLowerCase(); // Try using the name directly
+    };
+
+    const supabaseTable = getSupabaseTable(table_id);
+
     // Route based on table
-    if (table_id === PROJECTS_TABLE_ID) {
+    if (supabaseTable === 'projects') {
       // Handle project changes
       const project = transformProject(record);
 
@@ -241,7 +264,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       console.log(`Project ${project.id} processed: ${event_type}`);
 
-    } else if (table_id === VIDEOS_TABLE_ID) {
+    } else if (supabaseTable === 'videos') {
       // Handle video changes
       const video = transformVideo(record);
 
@@ -264,8 +287,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`Video ${video.id} processed: ${event_type}`);
 
     } else {
-      console.warn(`Unknown table ID: ${table_id}`);
-      return res.status(400).json({ error: 'Unknown table' });
+      // Try dynamic table handling for future tables
+      console.log(`Attempting dynamic handling for table: ${supabaseTable}`);
+
+      // Just pass the record through with minimal transformation
+      const transformedRecord = {
+        ...record,
+        created_at: record.created_at || new Date().toISOString(),
+        updated_at: record.updated_at || new Date().toISOString()
+      };
+
+      if (event_type === 'record.deleted') {
+        result = await supabase
+          .from(supabaseTable)
+          .delete()
+          .eq('id', transformedRecord.id);
+      } else {
+        result = await supabase
+          .from(supabaseTable)
+          .upsert(transformedRecord, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          });
+      }
+
+      console.log(`Record ${transformedRecord.id} processed in table ${supabaseTable}: ${event_type}`);
     }
 
     // Check for errors
