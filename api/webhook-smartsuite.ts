@@ -64,23 +64,23 @@ function verifyWebhookSignature(
 
 /**
  * Transform SmartSuite project record to Supabase schema
- * Note: When using webhook field selection, names match Supabase 1:1
+ * DYNAMIC MAPPING: Automatically maps any fields with matching names
  */
 function transformProject(record: any) {
-  // If fields already match Supabase schema (from webhook), use them directly
+  // If fields already match Supabase schema (from webhook), pass ALL fields through
   if (record.eav_code !== undefined) {
-    return {
-      id: record.id,
-      title: record.title || 'Untitled',
-      eav_code: record.eav_code || '',
-      client_filter: record.client_filter || null,
-      due_date: record.due_date || null, // Already formatted as date string
-      created_at: record.created_at || new Date().toISOString(),
-      updated_at: record.updated_at || new Date().toISOString()
-    };
+    // Start with all fields from the webhook (they already match Supabase)
+    const transformed = { ...record };
+
+    // Ensure required fields have defaults
+    transformed.title = transformed.title || 'Untitled';
+    transformed.created_at = transformed.created_at || new Date().toISOString();
+    transformed.updated_at = transformed.updated_at || new Date().toISOString();
+
+    return transformed;
   }
 
-  // Legacy format support (if using full record dump)
+  // Legacy format support (if using full record dump from API)
   return {
     id: record.id,
     title: record.title || record.name || 'Untitled',
@@ -94,23 +94,29 @@ function transformProject(record: any) {
 
 /**
  * Transform SmartSuite video record to Supabase schema
+ * DYNAMIC MAPPING: Automatically maps any fields with matching names
  */
 function transformVideo(record: any) {
   // If fields already match Supabase schema (from webhook field selection)
   if (record.project_id !== undefined || record.projects_link !== undefined) {
-    return {
-      id: record.id,
-      project_id: record.project_id || record.projects_link || null, // Handle both field names
-      title: record.title || 'Untitled',
-      production_type: record.production_type || null,
-      main_stream_status: record.main_stream_status || null,
-      vo_stream_status: record.vo_stream_status || null,
-      created_at: record.created_at || new Date().toISOString(),
-      updated_at: record.updated_at || new Date().toISOString()
-    };
+    // Start with all fields from the webhook (they already match Supabase)
+    const transformed = { ...record };
+
+    // Handle project link field name variations
+    if (record.projects_link && !record.project_id) {
+      transformed.project_id = record.projects_link;
+      delete transformed.projects_link;
+    }
+
+    // Ensure required fields have defaults
+    transformed.title = transformed.title || 'Untitled';
+    transformed.created_at = transformed.created_at || new Date().toISOString();
+    transformed.updated_at = transformed.updated_at || new Date().toISOString();
+
+    return transformed;
   }
 
-  // Legacy format support (if using full record dump)
+  // Legacy format support (if using full record dump from API)
   return {
     id: record.id,
     project_id: record.project_id || record.s75e825d24 || null,
