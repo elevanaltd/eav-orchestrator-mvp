@@ -1,299 +1,238 @@
-# EAV Orchestrator MVP - Development Instructions
+# EAV Orchestrator Production Foundation - Development Instructions
 
-<!-- MVP_WORKSPACE_DECLARATION: Clean-slate architecture validation project -->
-<!-- PARENT_PROJECT_LEARNINGS: Applied from /Volumes/HestAI-Projects/eav-orchestrator/coordination/240-DOC-BUILD-LEARNINGS-AND-RESTART-BLUEPRINT.md -->
+<!-- PRODUCTION_FOUNDATION: Building enterprise video workflow system from proven architecture -->
+<!-- STATUS: Core architecture validated ✅ | Implementing production workflow phases -->
 
-**Project:** EAV Orchestrator MVP - Paragraph=Component Architecture Validation
-**Repository:** `/Volumes/HestAI-Projects/eav-orchestrator-prototype/build/` (🟢 **ACTIVE MVP REPOSITORY**)
-**Purpose:** Clean-slate validation of core architecture before production implementation
-**Last Updated:** 2025-09-24 (Workspace Creation Complete)
-**Status:** MVP PHASE - Architecture validation with simplified methodology
+**Project:** EAV Orchestrator Production Foundation
+**Repository:** `/Volumes/HestAI-Projects/eav-orchestrator-mvp/dev/` (🟢 **ACTIVE PRODUCTION BUILD**)
+**Purpose:** Production-grade video workflow system with paragraph=component architecture
+**Last Updated:** 2025-09-26
+**Status:** PRODUCTION BUILD - Architecture proven, expanding to complete workflow
 
-## Project Context & Mission
+## Current State Overview
 
-### 🎯 MVP MISSION
-This MVP exists to **validate the fundamental architecture** for EAV Orchestrator before investing in full production implementation. Based on extensive learnings from a failed parent project, this MVP tests the **paragraph=component model** with minimal complexity.
+### ✅ ARCHITECTURE PROVEN & OPERATIONAL
+The paragraph=component model has been **successfully validated and is now in production use**:
+- **TipTap Editor:** Single editor with component extraction working perfectly
+- **Component Identity:** C1, C2, C3... stable throughout entire system lifecycle
+- **Supabase Backend:** Scripts and components persisting with atomic saves
+- **Authentication:** User management and secure access operational
+- **SmartSuite Integration:** Project/video hierarchy loading from production workspace
+- **Auto-Save:** Visual status indicators and reliable persistence
 
-### 📚 PARENT PROJECT RELATIONSHIP
-- **Failed Build Location:** `/Volumes/HestAI-Projects/eav-orchestrator/dev-failed-reference/`
-- **Key Learnings Applied:** Single TipTap editor, server-side component extraction, minimal database schema
-- **Anti-Patterns Avoided:** Component-by-component editing, circuit breaker masking, migration chaos
-- **Requirements Preserved:** Component flow (Script → Scenes → Voice → Edit), 1:1 mapping, Google Docs-like UX
+### 🚀 CURRENT FOCUS
+**Phase 1: SmartSuite Production Integration** - Switching from test mode to live API connection with production workspace (s3qnmox1).
 
-## Architecture Validation Requirements
+## Production Requirements (From North Star)
 
-### ✅ CORE ARCHITECTURE (Must Prove)
-```
-USER TYPES → Single TipTap Editor → Y.js Document Structure → Component Extraction
-                      ↓                    ↓                         ↓
-             Google Docs-like UX    Single Source of Truth    Stable Component IDs (C1, C2, C3...)
-                      ↓
-             Components Flow: Script → Scenes → Voice → Edit (1:1 mapping)
-```
+### Core Problem Being Solved
+**EAV's video production workflow requires component-based script editing where each paragraph becomes a trackable production component (C1, C2, C3...) flowing seamlessly through Script → Review → Scenes → Voice → Edit phases with collaborative commenting throughout.**
 
-### 🧪 VALIDATION CRITERIA
-1. **Paragraph=Component Model Works Intuitively**
-2. **Component Identity Preserved Through Extraction**
-3. **TipTap Editing Feels Natural with Component Markers**
-4. **Component Data Flows to SmartSuite Successfully**
-5. **Architecture Scales to Production Requirements**
+### Immutable Production Requirements
+1. **Paragraph=Component Model** - Every paragraph typed becomes a numbered component
+2. **Single Editor Interface** - ONE TipTap editor (not component-by-component)
+3. **Component Persistence** - Stable IDs throughout system lifecycle
+4. **SmartSuite Integration** - Components sync to video production tables
+5. **Collaborative Review** - Google Docs-like commenting for client review and edit direction
+6. **Offline Capability** - Camera operators must work without internet connection
 
-## Technology Stack (MVP-Specific)
+## Technology Stack
 
-### Frontend Stack
-```yaml
-Core:
-  - React 18+ with TypeScript (strict mode)
-  - Vite for fast development cycles
-  - TipTap rich text editor with component extensions
-  - Y.js for document structure (single-user initially)
+### Frontend
+- **Framework:** React 18 + TypeScript (strict mode)
+- **Build:** Vite for fast HMR and optimal bundles
+- **Editor:** TipTap with custom component extensions
+- **State:** React hooks with context for global state
+- **Styling:** CSS3 with responsive design
 
-Styling:
-  - CSS3 with responsive design
-  - Professional appearance for stakeholder demos
-  - Component boundary visualization
+### Backend
+- **Database:** Supabase (PostgreSQL with RLS)
+- **Auth:** Supabase Auth with email/password
+- **Storage:** PostgreSQL for scripts and components
+- **API:** Supabase client SDK with real-time subscriptions
 
-Testing:
-  - Vitest for fast feedback loops
-  - Testing Library for component validation
-  - Focus on architectural soundness
-```
+### Integration
+- **SmartSuite:** Workspace s3qnmox1 (Projects: 68a8ff5237fde0bf797c05b3, Videos: 68b2437a8f1755b055e0a124)
+- **ElevenLabs:** Voice generation API (Phase 6)
 
-### Integration & Persistence
-```yaml
-SmartSuite:
-  - Workspace: s3qnmox1
-  - MVP Table: 68b2437a8f1755b055e0a124
-  - Manual sync with visual feedback
-  - Component extraction demonstration
+### Testing
+- **Framework:** Vitest with Testing Library
+- **Current Coverage:** 35 tests passing
+- **Focus:** Architecture validation over coverage metrics
 
-Supabase_Later:
-  - PostgreSQL for component storage
-  - Y.js document persistence
-  - Server-side component extraction functions
-  - (Added in later MVP phases)
-```
-
-## MVP-Adapted Development Methodology
-
-### Simplified TRACED Protocol
-- **T**est: Core architectural validation tests (not comprehensive coverage)
-- **R**eview: Self-review with critical engineering analysis
-- **A**nalyze: Reference parent project learnings before decisions
-- **C**onsult: Use parent project anti-patterns as guidance
-- **E**xecute: Simplified quality gates focused on architecture
-- **D**ocument: MVP-specific decisions and learnings
-
-### Quality Gates (Streamlined)
-```yaml
-MUST_PASS:
-  - TypeScript compilation with zero errors
-  - Core architectural tests passing
-  - TipTap editor functional and intuitive
-  - Component extraction working
-  - SmartSuite sync demonstrating data flow
-
-MVP_FOCUS:
-  - Architecture validation over feature completeness
-  - User experience validation over comprehensive testing
-  - Clear graduation path over production hardening
-```
-
-## Development Phases
-
-### Phase 1: Core Architecture (Days 1-3) ✅
-- [x] Basic TipTap editor with component structure
-- [x] Component marker visualization (C1, C2, C3...)
-- [x] SmartSuite integration framework
-- [x] TypeScript and build system operational
-- [ ] Component extraction from editor content
-- [ ] Visual feedback for component boundaries
-
-### Phase 2: Integration Validation (Days 4-5)
-- [ ] Y.js document structure integration
-- [ ] Component extraction to data structures
-- [ ] SmartSuite sync operational with real data
-- [ ] Component identity preservation verified
-- [ ] Error handling clear and immediate
-
-### Phase 3: User Experience Validation (Days 6-7)
-- [ ] Editing experience smooth and intuitive
-- [ ] Component boundaries clear but unobtrusive
-- [ ] Professional appearance for stakeholder demo
-- [ ] Performance baseline established
-- [ ] Workflow demonstration ready
-
-### Phase 4: Graduation Decision (Day 8)
-- [ ] Architecture proven sound
-- [ ] User experience validates approach
-- [ ] Technical foundation stable
-- [ ] Clear production implementation plan
-- [ ] Learnings documented for full build
-
-## Current File Structure
+## File Structure
 
 ```
-build/                              # Active MVP repository
+dev/                                 # Active production build
 ├── src/
 │   ├── components/
-│   │   ├── TipTapEditor.tsx        # ✅ Core editor component
-│   │   └── SmartSuiteSync.tsx      # ✅ Integration demo component
+│   │   ├── Editor/
+│   │   │   ├── TipTapEditor.tsx   # ✅ Core editor with component extraction
+│   │   │   └── EditorToolbar.tsx  # ✅ Formatting controls
+│   │   ├── Layout/
+│   │   │   ├── Navigation.tsx     # ✅ Project/video selection
+│   │   │   └── TabLayout.tsx      # 🚧 Script/Review/Scenes/Voice/Edit tabs
+│   │   └── SmartSuite/
+│   │       └── SyncPanel.tsx      # 🚧 Component sync interface
 │   ├── lib/
-│   │   └── smartsuite.ts           # ✅ SmartSuite integration logic
-│   ├── test/
-│   │   ├── setup.ts                # ✅ Test configuration
-│   │   └── App.test.tsx            # ✅ Basic component tests
-│   ├── App.tsx                     # ✅ Main application
-│   ├── App.css                     # ✅ Application styles
-│   ├── main.tsx                    # ✅ React entry point
-│   └── index.css                   # ✅ Base styles
-├── package.json                    # ✅ Dependencies and scripts
-├── vite.config.ts                  # ✅ Build configuration
-├── tsconfig.json                   # ✅ TypeScript configuration
-├── .eslintrc.cjs                   # ✅ Linting rules
-├── index.html                      # ✅ HTML template
-├── .env.example                    # ✅ Environment variables template
-└── CLAUDE.md                       # ✅ This file
+│   │   ├── supabase.ts            # ✅ Database client and auth
+│   │   ├── smartsuite.ts          # 🚧 API integration (switching to live)
+│   │   └── components.ts          # ✅ Component extraction logic
+│   ├── hooks/
+│   │   ├── useAutoSave.ts         # ✅ Debounced save with status
+│   │   └── useProjects.ts         # ✅ Project/video data fetching
+│   ├── types/
+│   │   └── index.ts               # ✅ TypeScript definitions
+│   └── App.tsx                    # ✅ Main application shell
+├── supabase/
+│   └── migrations/                # ✅ Database schema (5 tables)
+├── .env.example                   # ✅ Environment template
+└── CLAUDE.md                      # 📍 This file
 ```
 
-## SmartSuite Integration Configuration
+## Environment Configuration
 
-### Workspace Details
-```yaml
-Workspace_ID: s3qnmox1
-Prototype_Table: 68b2437a8f1755b055e0a124
-Sync_Pattern: Manual with visual feedback
-Data_Flow: TipTap Components → Extracted Data → SmartSuite Records
-Status_Tracking: Visual sync indicators and component count
-```
-
-### Environment Setup
 ```bash
-# Copy environment template
-cp .env.example .env
+# Supabase (Production)
+VITE_SUPABASE_URL=https://zbxvjyrbkycbfhwmmnmy.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=[your_anon_key]
 
-# Add your SmartSuite API key
-VITE_SMARTSUITE_API_KEY=your_api_key_here
+# SmartSuite (Production Workspace)
+VITE_SMARTSUITE_API_KEY=[your_api_key]
+VITE_SMARTSUITE_WORKSPACE_ID=s3qnmox1
+VITE_SMARTSUITE_PROJECTS_TABLE=68a8ff5237fde0bf797c05b3
+VITE_SMARTSUITE_VIDEOS_TABLE=68b2437a8f1755b055e0a124
+
+# ElevenLabs (Future)
+VITE_ELEVENLABS_API_KEY=[future_implementation]
 ```
 
 ## Development Commands
 
-### Setup & Development
 ```bash
-# Install dependencies
-npm install
+# Initial Setup
+npm install                    # Install dependencies
+cp .env.example .env          # Configure environment
+npm run supabase:types        # Generate TypeScript types
 
-# Start development server
-npm run dev          # Starts at http://localhost:3000
+# Development
+npm run dev                   # Start dev server (http://localhost:5173)
+npm run test                  # Run test suite
+npm run test:watch           # Watch mode for TDD
 
-# Run tests
-npm run test         # Single run for validation
-npm run test:watch   # Watch mode for development
+# Quality Gates
+npm run typecheck            # TypeScript validation
+npm run lint                 # ESLint checks
+npm run lint:fix            # Auto-fix issues
+npm run validate            # All checks (must pass before commit)
 
-# Code quality
-npm run lint         # ESLint checking
-npm run lint:fix     # Auto-fix linting issues
-npm run typecheck    # TypeScript validation
-npm run validate     # Run all quality checks
+# Build
+npm run build               # Production build
+npm run preview            # Preview production build
 ```
 
-### MVP Validation Workflow
-```bash
-# 1. Validate core architecture
-npm run validate     # Must pass all quality gates
+## Implementation Roadmap
 
-# 2. Start development server
-npm run dev
+### ✅ Completed
+- Core paragraph=component architecture
+- TipTap editor with component extraction
+- Supabase integration with auth
+- Project/video navigation
+- Auto-save functionality
+- Component identity preservation
 
-# 3. Test component extraction
-# - Edit content in TipTap editor
-# - Observe component extraction in SmartSuite sync panel
-# - Verify component numbering (C1, C2, C3...)
+### 🚧 Current Phase (1): SmartSuite Integration (2-3 days)
+- [ ] Switch from mock data to live API
+- [ ] Implement one-way sync (SmartSuite → App)
+- [ ] Add component upload to SmartSuite
+- [ ] Visual sync status indicators
 
-# 4. Test SmartSuite integration
-# - Click "Test Connection"
-# - Verify workspace and table connection
-# - Click "Sync Components"
-# - Observe sync status and feedback
-```
+### 📋 Upcoming Phases
+2. **Workflow Implementation** (7-8 days) - All 5 workflow tabs
+3. **Collaborative Comments** (5-6 days) - Google Docs-like system
+4. **Offline Capability** (4-5 days) - PWA for field work
+5. **Access Control** (3-4 days) - Role-based permissions
+6. **Voice Generation** (2 days) - ElevenLabs integration
+7. **Quality Assurance** (3 days) - Performance validation
+8. **Security Hardening** (3-4 days) - Production security
+9. **Deployment Prep** (3 days) - Documentation and handoff
 
-## Success Criteria Validation
+**Total Timeline:** 35-45 days to production readiness
 
-### Architecture Validation Checklist
-- [ ] **Single TipTap Editor:** One unified editing interface (not component-by-component)
-- [ ] **Component Boundaries:** Clear visual separation without editing complexity
-- [ ] **Component Identity:** Stable C1, C2, C3... numbering throughout
-- [ ] **Content Extraction:** Paragraphs reliably convert to component data
-- [ ] **SmartSuite Flow:** Components sync to correct table with proper structure
+## Architecture Principles
 
-### User Experience Validation
-- [ ] **Google Docs-like:** Smooth typing, familiar formatting, intuitive interface
-- [ ] **Professional Appearance:** Suitable for client/stakeholder demonstrations
-- [ ] **Component Clarity:** Component boundaries obvious but unobtrusive
-- [ ] **Feedback Systems:** Clear visual indicators for sync status and operations
-- [ ] **Performance Baseline:** Responsive editing with <50ms perceived latency
+### ✅ Validated Patterns (Keep Using)
+1. **Single TipTap Editor** - Unified editing experience
+2. **Server-Side Extraction** - Components extracted by database
+3. **Atomic Saves** - All-or-nothing persistence
+4. **Direct Error Reporting** - Immediate visibility during development
+5. **Component ID Stability** - C1 remains C1 forever
 
-### Technical Foundation
-- [ ] **Clean Architecture:** Single source of truth with clear data flow
-- [ ] **TypeScript Safety:** Full type coverage with zero compilation errors
-- [ ] **Test Coverage:** Core architectural patterns validated
-- [ ] **Error Handling:** Development-friendly immediate error visibility
-- [ ] **Graduation Path:** Clear steps to production-ready implementation
+### ❌ Anti-Patterns (Never Implement)
+1. **Component-by-Component UI** - Creates state management hell
+2. **Multiple Sources of Truth** - Causes synchronization issues
+3. **Circuit Breaker Masking** - Hides real problems
+4. **Client-Side Extraction** - Unreliable and complex
+5. **Silent Failures** - Always validate and report
 
-## Parent Project Anti-Patterns (AVOID)
+## Quality Standards
 
-### ❌ NEVER IMPLEMENT
-1. **Component-by-Component Editing UI** (creates complex state management)
-2. **Multiple Sources of Truth** (Y.js document is THE source)
-3. **Circuit Breaker Error Masking** (development needs immediate errors)
-4. **Migration File Accumulation** (clean schema approach)
-5. **Silent Failure Logging** (validate operations, don't assume success)
-6. **Client-Side Component Extraction** (server-side processing)
+### Every Commit Must
+- ✅ Pass TypeScript compilation (zero errors)
+- ✅ Pass ESLint checks (zero warnings)
+- ✅ Pass all existing tests
+- ✅ Include clear commit message
+- ✅ Maintain component ID stability
 
-### ✅ VALIDATED PATTERNS
-1. **Single TipTap Editor with Y.js Structure**
-2. **Server-Side Component Intelligence**
-3. **Direct Persistence (development) → Circuit Breakers (production)**
-4. **Component Identity Preservation Throughout Workflow**
-5. **Manual Integration → Automatic (production)**
+### Before Phase Completion
+- ✅ All acceptance criteria met
+- ✅ User-facing features tested manually
+- ✅ Performance acceptable (<50ms typing latency)
+- ✅ No console errors or warnings
+- ✅ Documentation updated
 
-## Graduation to Production
+## Current Development Priorities
 
-### Success Triggers
-If MVP validates:
-- Architecture is sound and intuitive
-- User experience meets Google Docs standard
-- Component flow works reliably
-- SmartSuite integration demonstrates feasibility
-- Performance baseline acceptable
+### Immediate (Today)
+1. Complete SmartSuite API connection switch
+2. Test with production workspace data
+3. Verify component sync to production tables
 
-### Production Implementation Plan
-1. **Real-Time Collaboration:** Full Y.js implementation with presence indicators
-2. **Supabase Integration:** Complete database schema with component extraction
-3. **Circuit Breaker Resilience:** Production-grade error handling
-4. **Role-Based Access Control:** 5-role system (Admin, Internal, Freelancer, Client, Viewer)
-5. **Full TRACED Methodology:** Comprehensive testing and quality gates
-6. **Tab Navigation:** Complete workflow (Script, Review, Scenes, Voice, Direction)
+### This Week
+1. Achieve Phase 1 completion (SmartSuite Integration)
+2. Begin Phase 2 (Workflow Implementation)
+3. Gather user feedback on current functionality
 
-### Learning Documentation
-All MVP learnings will be captured in:
-- `/Volumes/HestAI-Projects/eav-orchestrator-prototype/coordination/docs/`
-- Cross-referenced with parent project failures
-- Architecture decision records for production guidance
+### Decision Points
+- After Phase 1: Is SmartSuite integration sustainable?
+- After Phase 3: Is collaboration pattern working?
+- After Phase 7: Ready for production deployment?
+
+## Known Issues & Workarounds
+
+### Current Issues
+- **Auto-refresh race condition** - Multiple project fetches on mount
+- **SmartSuite mock data** - Still using test data, switching to live API
+
+### Resolved Issues
+- ✅ Edge Functions crash (switched to client-side)
+- ✅ ESLint suppressions (cleaned up with reset)
+- ✅ RLS policies blocking saves (fixed permissions)
+
+## Team Notes
+
+**User Feedback:** *"Working really well. Better than I could have thought."* - After initial demo
+
+**Architecture Status:** Core model proven successful. The paragraph=component approach works intuitively and maintains stability throughout the workflow.
+
+**Next Milestone:** Complete SmartSuite production integration and verify component flow to production tables.
 
 ---
 
-## Development Team Notes
-
-**Current Status:** Workspace created, basic architecture operational
-**Next Milestone:** Component extraction and SmartSuite sync validation
-**Decision Point:** Day 8 - Graduate to production vs iterate architecture
-**Quality Focus:** Architecture validation over feature completeness
-
-**Key Principle:** This MVP exists to prove the architecture works before investing in production features. Every decision should validate the core paragraph=component model.
+**Key Principle:** This is a PRODUCTION BUILD. Every line of code, every architectural decision, and every feature must meet production standards. We've proven the architecture works - now we're building the complete system with zero technical debt.
 
 ---
 
-**Repository Status:** ✅ Initialized and operational
-**Development Environment:** Ready for `npm install && npm run dev`
-**Validation Framework:** Core tests operational with `npm run validate`
+*For detailed requirements see: `.coord/workflow-docs/000-EAV_ORCHESTRATOR_PRODUCTION_FOUNDATION-D1-NORTH-STAR.md`*
+*For project context see: `.coord/PROJECT-CONTEXT.md`*
+*For roadmap see: `.coord/PROJECT-ROADMAP.md`*
