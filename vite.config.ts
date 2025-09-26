@@ -1,8 +1,12 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // Load env file based on `mode` in the current working directory
+  const env = loadEnv(mode, process.cwd(), '')
+
+  return {
   plugins: [react()],
   server: {
     port: 3001,
@@ -15,7 +19,15 @@ export default defineConfig({
         configure: (proxy, _options) => {
           proxy.on('proxyReq', (proxyReq, req, _res) => {
             // Add SmartSuite headers for development
-            const apiKey = process.env.VITE_SMARTSUITE_API_KEY || '';
+            const apiKey = env.VITE_SMARTSUITE_API_KEY || '';
+
+            // Debug: Log API key status (not the key itself)
+            if (!apiKey) {
+              console.error('[Dev Proxy] WARNING: No API key found!');
+            } else {
+              console.log(`[Dev Proxy] API key loaded (${apiKey.substring(0, 8)}...)`);
+            }
+
             proxyReq.setHeader('Authorization', `Token ${apiKey}`);
             proxyReq.setHeader('ACCOUNT-ID', 's3qnmox1');
             proxyReq.setHeader('Content-Type', 'application/json');
@@ -35,5 +47,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true
+  }
   }
 })
