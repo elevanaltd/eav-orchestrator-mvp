@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
             if (!apiKey) {
               console.error('[Dev Proxy] WARNING: No API key found!');
             } else {
-              console.log(`[Dev Proxy] API key loaded (${apiKey.substring(0, 8)}...)`);
+              console.log('[Dev Proxy] API key loaded');
             }
 
             proxyReq.setHeader('Authorization', `Token ${apiKey}`);
