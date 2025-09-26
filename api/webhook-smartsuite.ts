@@ -187,13 +187,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Update sync metadata to show success
+    // First get current sync_count to increment it
+    const { data: currentMeta } = await supabase
+      .from('sync_metadata')
+      .select('sync_count')
+      .eq('id', 'singleton')
+      .single();
+
     await supabase
       .from('sync_metadata')
       .upsert({
         id: 'singleton',
         status: 'idle',
         last_sync_completed_at: new Date().toISOString(),
-        sync_count: supabase.rpc('increment_sync_count')
+        sync_count: (currentMeta?.sync_count || 0) + 1
       });
 
     // Return success response
