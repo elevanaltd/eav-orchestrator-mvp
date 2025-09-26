@@ -45,6 +45,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     console.log('Starting manual sync from SmartSuite');
 
+    // Check required environment variables
+    if (!SMARTSUITE_API_KEY || !WORKSPACE_ID || !PROJECTS_TABLE_ID || !VIDEOS_TABLE_ID) {
+      console.error('Missing required SmartSuite environment variables');
+      return res.status(500).json({
+        error: 'Server configuration error - missing SmartSuite credentials'
+      });
+    }
+
     // Update sync metadata
     await supabase
       .from('sync_metadata')
