@@ -37,6 +37,39 @@ export function NavigationSidebar({
   const [error, setError] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // DEBUG: Client access debugging
+  useEffect(() => {
+    const debugClientAccess = async () => {
+      console.log('=== CLIENT ACCESS DEBUG ===');
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Current user:', user?.email);
+
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+      console.log('User role:', profile?.role);
+
+      if (profile?.role === 'client') {
+        const { data: clientAccess } = await supabase
+          .from('user_clients')
+          .select('*')
+          .eq('user_id', user?.id);
+        console.log('Client access entries:', clientAccess);
+
+        // Check if any projects match
+        const { data: allProjects } = await supabase
+          .from('projects')
+          .select('id, title, client_filter');
+        console.log('All projects with filters:', allProjects);
+      }
+      console.log('=== END DEBUG ===');
+    };
+
+    debugClientAccess();
+  }, []);
+
   // Auto-refresh state
   const [isVisible, setIsVisible] = useState(!document.hidden);
 

@@ -13,7 +13,11 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "typecheck": "tsc --noEmit",
-    "validate": "npm run lint && npm run typecheck && npm run test"
+    "validate": "npm run lint && npm run typecheck && npm run test",
+    "supabase:types": "npx supabase gen types typescript --project-id zbxvjyrbkycbfhwmmnmy --schema public > src/types/database.types.ts",
+    "supabase:link": "npx supabase link --project-ref zbxvjyrbkycbfhwmmnmy",
+    "supabase:pull": "npx supabase db pull",
+    "db:update": "npm run supabase:pull && npm run supabase:types"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
