@@ -12,7 +12,8 @@
 import type { Tables } from '../types/database.types';
 
 // SmartSuite API Configuration
-const SMARTSUITE_API_BASE = 'https://api.smartsuite.com/api/v1';
+// Use proxy in both dev (Vite) and production (Vercel)
+const SMARTSUITE_API_BASE = '/api/smartsuite/api/v1';
 const WORKSPACE_ID = import.meta.env.VITE_SMARTSUITE_WORKSPACE_ID || 's3qnmox1';
 const PROJECTS_TABLE_ID = import.meta.env.VITE_SMARTSUITE_PROJECTS_TABLE || '68a8ff5237fde0bf797c05b3';
 const VIDEOS_TABLE_ID = import.meta.env.VITE_SMARTSUITE_VIDEOS_TABLE || '68b2437a8f1755b055e0a124';
@@ -48,14 +49,11 @@ interface SmartSuiteComponent {
 }
 
 export class SmartSuiteAPI {
-  private apiKey: string;
   private headers: HeadersInit;
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_SMARTSUITE_API_KEY || '';
+    // Headers are handled by the proxy, just need Content-Type
     this.headers = {
-      'Authorization': `Token ${this.apiKey}`,
-      'Account-Id': WORKSPACE_ID,
       'Content-Type': 'application/json'
     };
   }
@@ -98,7 +96,7 @@ export class SmartSuiteAPI {
           method: 'POST',
           headers: this.headers,
           body: JSON.stringify({
-            sort: [{ field_id: 'title', direction: 'asc' }]
+            sort: [{ field: 'title', direction: 'asc' }]
           })
         }
       );
@@ -138,11 +136,11 @@ export class SmartSuiteAPI {
           headers: this.headers,
           body: JSON.stringify({
             filter: {
-              field_id: 'project_id',
+              field: 'project_id',
               operator: 'is',
               value: projectId
             },
-            sort: [{ field_id: 'title', direction: 'asc' }]
+            sort: [{ field: 'title', direction: 'asc' }]
           })
         }
       );
