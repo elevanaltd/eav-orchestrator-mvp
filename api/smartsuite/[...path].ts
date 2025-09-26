@@ -2,9 +2,11 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 /**
  * Vercel API Route: SmartSuite Proxy
- * Securely proxies requests to SmartSuite API
+ * Replaces Vite dev proxy for production deployment
  *
- * Security Note: API key stored in Vercel environment variables only
+ * Route: /api/smartsuite/[...path]
+ * Example: /api/smartsuite/api/v1/applications/list
+ * Proxies to: https://api.smartsuite.com/api/v1/applications/list
  */
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

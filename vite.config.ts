@@ -6,7 +6,22 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3001,
-    host: true
+    host: true,
+    proxy: {
+      '/api/smartsuite': {
+        target: 'https://api.smartsuite.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/smartsuite/, ''),
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // Add SmartSuite headers (correct format from knowledge base)
+            proxyReq.setHeader('Authorization', `Token ${process.env.VITE_SMARTSUITE_API_KEY || ''}`);
+            proxyReq.setHeader('ACCOUNT-ID', 's3qnmox1');
+            proxyReq.setHeader('Content-Type', 'application/json');
+          });
+        }
+      }
+    }
   },
   test: {
     globals: true,
