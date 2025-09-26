@@ -111,11 +111,11 @@ export class SmartSuiteAPI {
       return data.items.map((item: any) => ({
         id: item.id,
         title: item.title || '',
-        eav_code: item.eav_code || '',
+        eav_code: item.eavcode || '', // Fixed: actual field is 'eavcode' not 'eav_code'
         client_filter: item.client_filter || null,
-        due_date: item.due_date || null,
-        created_at: item.created_at || null,
-        updated_at: item.updated_at || null
+        due_date: item.projdue456?.to_date?.date || null, // Fixed: actual field is 'projdue456' with nested structure
+        created_at: item.firstCreated?.on || null, // Fixed: actual field is 'firstCreated.on'
+        updated_at: item.lastUpdated?.on || null // Fixed: actual field is 'lastUpdated.on'
       }));
     } catch (error) {
       console.error('Error fetching projects:', error);
