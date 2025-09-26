@@ -39,20 +39,21 @@ describe('SmartSuiteAPI', () => {
       (global.fetch as any).mockResolvedValueOnce({
         ok: true,
         status: 200,
-        statusText: 'OK'
+        statusText: 'OK',
+        headers: new Map([['content-type', 'application/json']]),
+        json: async () => [{ name: 'Test Solution', id: 'solution123' }]
       });
 
       const result = await api.testConnection();
 
       expect(result.success).toBe(true);
-      expect(result.message).toBe('Connected to SmartSuite workspace');
+      expect(result.message).toBe('Connected to SmartSuite workspace - Found 1 solutions');
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.smartsuite.com/api/v1/applications/68a8ff5237fde0bf797c05b3',
+        '/api/smartsuite/api/v1/solutions/', // CORRECTED: use proxy URL for testConnection
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            'Authorization': 'Token test-api-key',
-            'Account-Id': 's3qnmox1'
+            'Content-Type': 'application/json'
           })
         })
       );
@@ -62,7 +63,9 @@ describe('SmartSuiteAPI', () => {
       (global.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 401,
-        statusText: 'Unauthorized'
+        statusText: 'Unauthorized',
+        headers: new Map([['content-type', 'application/json']]),
+        text: async () => 'Unauthorized access'
       });
 
       const result = await api.testConnection();
@@ -88,20 +91,20 @@ describe('SmartSuiteAPI', () => {
           {
             id: 'proj123456789012345678901',
             title: 'Test Project',
-            eav_code: 'EAV001',
+            eavcode: 'EAV001', // CORRECTED: use "eavcode" field
             client_filter: 'client-a',
-            due_date: '2025-12-31',
-            created_at: '2025-01-01',
-            updated_at: '2025-01-15'
+            projdue456: { date: '2025-12-31' }, // CORRECTED: use "projdue456" object field
+            first_created: { date: '2025-01-01' }, // CORRECTED: use "first_created" object field
+            last_updated: { date: '2025-01-15' } // CORRECTED: use "last_updated" object field
           },
           {
             id: 'proj223456789012345678901',
             title: 'Another Project',
-            eav_code: 'EAV002',
+            eavcode: 'EAV002', // CORRECTED: use "eavcode" field
             client_filter: 'client-b',
-            due_date: null,
-            created_at: '2025-01-02',
-            updated_at: '2025-01-16'
+            projdue456: null, // CORRECTED: use "projdue456" field
+            first_created: { date: '2025-01-02' }, // CORRECTED: use "first_created" object field
+            last_updated: { date: '2025-01-16' } // CORRECTED: use "last_updated" object field
           }
         ]
       };
@@ -121,11 +124,11 @@ describe('SmartSuiteAPI', () => {
         client_filter: 'client-a'
       });
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.smartsuite.com/api/v1/applications/68a8ff5237fde0bf797c05b3/records/list/',
+        '/api/smartsuite/api/v1/applications/68a8ff5237fde0bf797c05b3/records/list/',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({
-            sort: [{ field_id: 'title', direction: 'asc' }]
+            sort: [{ field: 'title', direction: 'asc' }]
           })
         })
       );
@@ -178,16 +181,20 @@ describe('SmartSuiteAPI', () => {
           {
             id: 'vid1234567890123456789012',
             title: 'Video 1',
-            production_type: 'interview',
-            main_stream_status: 'editing',
-            vo_stream_status: 'pending'
+            prodtype01: 'interview', // CORRECTED: use "prodtype01" field
+            main_status: { value: 'editing' }, // CORRECTED: use "main_status" object field
+            vo_status: { value: 'pending' }, // CORRECTED: use "vo_status" object field
+            first_created: { date: '2025-01-01' },
+            last_updated: { date: '2025-01-01' }
           },
           {
             id: 'vid2234567890123456789012',
             title: 'Video 2',
-            production_type: 'documentary',
-            main_stream_status: 'complete',
-            vo_stream_status: 'complete'
+            prodtype01: 'documentary', // CORRECTED: use "prodtype01" field
+            main_status: { value: 'complete' }, // CORRECTED: use "main_status" object field
+            vo_status: { value: 'complete' }, // CORRECTED: use "vo_status" object field
+            first_created: { date: '2025-01-01' },
+            last_updated: { date: '2025-01-01' }
           }
         ]
       };
@@ -207,16 +214,16 @@ describe('SmartSuiteAPI', () => {
         production_type: 'interview'
       });
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.smartsuite.com/api/v1/applications/68b2437a8f1755b055e0a124/records/list/',
+        '/api/smartsuite/api/v1/applications/68b2437a8f1755b055e0a124/records/list/',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({
             filter: {
-              field_id: 'project_id',
-              operator: 'is',
-              value: projectId
+              field_id: 'projects_link', // CORRECTED: use "projects_link" field
+              operator: 'has_any_of', // CORRECTED: use "has_any_of" for array field
+              value: [projectId]
             },
-            sort: [{ field_id: 'title', direction: 'asc' }]
+            sort: [{ field: 'title', direction: 'asc' }]
           })
         })
       );
@@ -273,7 +280,7 @@ describe('SmartSuiteAPI', () => {
       // Verify the update call
       expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(global.fetch).toHaveBeenNthCalledWith(2,
-        `https://api.smartsuite.com/api/v1/applications/68b2437a8f1755b055e0a124/records/${videoId}/`,
+        `/api/smartsuite/api/v1/applications/68b2437a8f1755b055e0a124/records/${videoId}/`,
         expect.objectContaining({
           method: 'PATCH',
           body: JSON.stringify({
@@ -392,7 +399,9 @@ describe('SmartSuiteAPI', () => {
       (global.fetch as any).mockResolvedValueOnce({
         ok: false,
         status: 429,
-        statusText: 'Too Many Requests'
+        statusText: 'Too Many Requests',
+        headers: new Map([['content-type', 'application/json']]),
+        text: async () => 'Rate limit exceeded'
       });
 
       const result = await api.testConnection();
