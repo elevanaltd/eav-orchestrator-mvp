@@ -21,6 +21,7 @@ export type Database = {
           due_date: string | null
           eav_code: string
           id: string
+          project_phase: string | null
           title: string
           updated_at: string | null
         }
@@ -30,6 +31,7 @@ export type Database = {
           due_date?: string | null
           eav_code: string
           id: string
+          project_phase?: string | null
           title: string
           updated_at?: string | null
         }
@@ -39,6 +41,7 @@ export type Database = {
           due_date?: string | null
           eav_code?: string
           id?: string
+          project_phase?: string | null
           title?: string
           updated_at?: string | null
         }
@@ -198,41 +201,41 @@ export type Database = {
       videos: {
         Row: {
           created_at: string | null
+          eav_code: string | null
           id: string
           main_stream_status: string | null
           production_type: string | null
-          project_id: string | null
           title: string
           updated_at: string | null
           vo_stream_status: string | null
         }
         Insert: {
           created_at?: string | null
+          eav_code?: string | null
           id: string
           main_stream_status?: string | null
           production_type?: string | null
-          project_id?: string | null
           title: string
           updated_at?: string | null
           vo_stream_status?: string | null
         }
         Update: {
           created_at?: string | null
+          eav_code?: string | null
           id?: string
           main_stream_status?: string | null
           production_type?: string | null
-          project_id?: string | null
           title?: string
           updated_at?: string | null
           vo_stream_status?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "videos_project_id_fkey"
-            columns: ["project_id"]
+            foreignKeyName: "videos_eav_code_fkey"
+            columns: ["eav_code"]
             isOneToOne: false
             referencedRelation: "projects"
-            referencedColumns: ["id"]
+            referencedColumns: ["eav_code"]
           },
         ]
       }
@@ -246,6 +249,28 @@ export type Database = {
       }
     }
     Functions: {
+      check_client_access: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          can_see_projects: boolean
+          can_see_user_clients: boolean
+          client_filters: string[]
+          current_user_id: string
+          current_user_role: string
+        }[]
+      }
+      debug_client_access: {
+        Args: { user_uuid: string }
+        Returns: {
+          client_filters: string[]
+          matching_projects: Json
+          user_role: string
+        }[]
+      }
+      get_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       save_script_with_components: {
         Args: {
           p_components: Json

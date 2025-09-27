@@ -37,6 +37,7 @@ export interface SmartSuiteVideoRecord {
   id: string;
   title?: string;
   name?: string;
+  eav_code?: string[] | string; // Lookup field from project (comes as array)
   s75e825d24?: string; // Linked project ID field
   project_id?: string;
   production_type?: string;

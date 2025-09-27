@@ -128,16 +128,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const videosData = await videosResponse.json();
 
     // Transform and upsert videos
-    const videos = (videosData as SmartSuiteListResponse<SmartSuiteVideoRecord>).items.map((item) => ({
-      id: item.id,
-      project_id: item.s75e825d24 || null, // Linked field to project
-      title: item.title || item.name || 'Untitled',
-      production_type: item.production_type || null,
-      main_stream_status: item.main_stream_status || null,
-      vo_stream_status: item.vo_stream_status || null,
-      created_at: item.first_created?.on || new Date().toISOString(),
-      updated_at: item.last_updated?.on || new Date().toISOString()
-    }));
+    const videos = (videosData as SmartSuiteListResponse<SmartSuiteVideoRecord>).items.map((item) => {
+      // Extract eav_code - it comes as an array from SmartSuite (lookup field)
+      let eavCode = null;
+      if (Array.isArray(item.eav_code) && item.eav_code.length > 0) {
+        eavCode = item.eav_code[0];
+      } else if (typeof item.eav_code === 'string') {
+        eavCode = item.eav_code;
+      } else if (item.s75e825d24) {
+        // Fallback: map through project ID if eav_code not available
+        const linkedProject = projects.find(p => p.id === item.s75e825d24);
+        eavCode = linkedProject?.eav_code || null;
+      }
+
+      return {
+        id: item.id,
+        eav_code: eavCode,
+        title: item.title || item.name || 'Untitled',
+        production_type: item.production_type || null,
+        main_stream_status: item.main_stream_status || null,
+        vo_stream_status: item.vo_stream_status || null,
+        created_at: item.first_created?.on || new Date().toISOString(),
+        updated_at: item.last_updated?.on || new Date().toISOString()
+      };
+    });
 
     const { error: videosError } = await supabase
       .from('videos')

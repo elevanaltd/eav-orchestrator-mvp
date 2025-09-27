@@ -4,12 +4,13 @@ import { supabase } from '../lib/supabase';
 interface Project {
   id: string;
   title: string;
+  eav_code: string;
   due_date?: string;
 }
 
 interface Video {
   id: string;
-  project_id: string;
+  eav_code: string;
   title: string;
   main_stream_status?: string;
   vo_stream_status?: string;
@@ -50,15 +51,21 @@ export function TestDataPanel() {
     setLoading(true);
     setError('');
     try {
+      // Find project's eav_code
+      const project = projects.find(p => p.id === projectId);
+      if (!project?.eav_code) {
+        throw new Error('Project not found or missing EAV code');
+      }
+
       const { data, error } = await supabase
         .from('videos')
         .select('*')
-        .eq('project_id', projectId)
+        .eq('eav_code', project.eav_code)
         .order('title');
 
       if (error) throw error;
       setVideos(data || []);
-      console.log('Videos loaded for project:', projectId, data);
+      console.log('Videos loaded for project:', projectId, 'eav_code:', project.eav_code, data);
     } catch (err) {
       setError(`Failed to load videos: ${err}`);
       console.error('Load videos error:', err);

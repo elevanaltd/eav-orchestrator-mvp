@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
-import type { SmartSuiteProjectRecord, SmartSuiteVideoRecord, SmartSuiteWebhookPayload } from '../src/types/smartsuite.types';
+import type { SmartSuiteWebhookPayload } from '../src/types/smartsuite.types';
 
 /**
  * SmartSuite Webhook Handler
@@ -69,7 +69,7 @@ function verifyWebhookSignature(
  * Transform SmartSuite project record to Supabase schema
  * DYNAMIC MAPPING: Automatically maps any fields with matching names
  */
-function transformProject(record: any) {
+function transformProject(record: Record<string, unknown>) {
   // Log the exact structure we received
   console.log('transformProject received:', JSON.stringify(record));
 
@@ -110,7 +110,7 @@ function transformProject(record: any) {
  * Transform SmartSuite video record to Supabase schema
  * DYNAMIC MAPPING: Automatically maps any fields with matching names
  */
-function transformVideo(record: any) {
+function transformVideo(record: Record<string, unknown>) {
   console.log('transformVideo received:', JSON.stringify(record));
 
   // If fields already match Supabase schema (from webhook field selection)
@@ -118,10 +118,18 @@ function transformVideo(record: any) {
     // Start with all fields from the webhook
     const transformed = { ...record };
 
-    // eav_code field directly maps - no transformation needed
-    // The eav_code in videos links to the eav_code in projects
-    if (record.eav_code) {
+    // Handle eav_code - it comes as an array from SmartSuite (lookup field)
+    if (Array.isArray(record.eav_code) && record.eav_code.length > 0) {
+      // Extract the first value from the array
+      transformed.eav_code = record.eav_code[0];
+      console.log(`Video linked to project via EAV code: ${transformed.eav_code} (extracted from array)`);
+    } else if (typeof record.eav_code === 'string') {
+      // Already a string, use as-is
       console.log(`Video linked to project via EAV code: ${record.eav_code}`);
+    } else {
+      // No eav_code or invalid format
+      transformed.eav_code = null;
+      console.warn('Video has no valid eav_code');
     }
 
     // Ensure required fields have defaults
@@ -138,9 +146,16 @@ function transformVideo(record: any) {
   }
 
   // Legacy format support (if using full record dump from API)
+  let eavCode = null;
+  if (Array.isArray(record.eav_code) && record.eav_code.length > 0) {
+    eavCode = record.eav_code[0];
+  } else if (typeof record.eav_code === 'string') {
+    eavCode = record.eav_code;
+  }
+
   return {
     id: record.id,
-    eav_code: record.eav_code || null,  // Use eav_code consistently
+    eav_code: eavCode,  // Properly extracted from array if needed
     title: record.title || record.name || 'Untitled',
     production_type: record.production_type || null,
     main_stream_status: record.main_stream_status || null,
@@ -180,7 +195,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Parse webhook payload - handle multiple formats
   let event_type: string;
   let table_id: string;
-  let record: any;
+  let record: Record<string, unknown>;
   let webhook_id: string | undefined;
 
   // Check payload format

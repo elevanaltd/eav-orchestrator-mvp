@@ -3,12 +3,13 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 interface Project {
   id: string;
   title: string;
+  eav_code: string;
   due_date?: string;
 }
 
 interface Video {
   id: string;
-  project_id: string;
+  eav_code: string;
   title: string;
   main_stream_status?: string;
   vo_stream_status?: string;
@@ -41,8 +42,8 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
 
   const handleSetSelectedProject = (project: Project | null) => {
     setSelectedProject(project);
-    // Clear video selection when switching projects (unless it's the same project)
-    if (selectedVideo && project?.id !== selectedVideo.project_id) {
+    // Clear video selection when switching projects (unless it's the same project's eav_code)
+    if (selectedVideo && project?.eav_code !== selectedVideo.eav_code) {
       setSelectedVideo(null);
     }
   };
