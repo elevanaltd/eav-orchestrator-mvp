@@ -139,14 +139,33 @@ export function NavigationSidebar({
     setError('');
 
     try {
-      const { data, error } = await supabase
+      // First, fetch all projects that meet the phase criteria
+      const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .select('*')
+        .not('project_phase', 'in', '("Completed","Not Proceeded With")')
         .order('title');
 
-      if (error) throw error;
-      setProjects(data || []);
-      console.log('Navigation: Projects loaded:', data);
+      if (projectError) throw projectError;
+
+      // Then, fetch all videos to determine which projects have videos
+      const { data: videoData, error: videoError } = await supabase
+        .from('videos')
+        .select('eav_code')
+        .not('eav_code', 'is', null);
+
+      if (videoError) throw videoError;
+
+      // Create a set of eav_codes that have videos
+      const eavCodesWithVideos = new Set(videoData?.map(v => v.eav_code) || []);
+
+      // Filter projects to only those with videos
+      const projectsWithVideosData = (projectData || []).filter(project =>
+        project.eav_code && eavCodesWithVideos.has(project.eav_code)
+      );
+
+      setProjects(projectsWithVideosData);
+      console.log('Navigation: Projects loaded (filtered):', projectsWithVideosData);
     } catch (err) {
       setError(`Failed to load projects: ${err}`);
       console.error('Navigation: Load projects error:', err);
@@ -204,7 +223,8 @@ export function NavigationSidebar({
       }
 
       if (!project?.eav_code) {
-        console.warn(`Project ${validatedProjectId} has no eav_code, cannot load videos`);
+        // This should not happen since we're now filtering projects without videos
+        console.debug(`Project ${validatedProjectId} has no eav_code, skipping video load`);
         if (!isRefresh) {
           setLoading(false);
         }
