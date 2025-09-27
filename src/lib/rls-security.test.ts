@@ -12,11 +12,16 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database.types';
 
 // Test environment configuration
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://zbxvjyrbkycbfhwmmnmy.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL || 'https://zbxvjyrbkycbfhwmmnmy.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
-// Skip tests if environment not configured (check for non-empty string)
-const skipIfNoEnv = SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.length > 0 ? describe : describe.skip;
+// Skip tests if environment not configured
+// These are integration tests that require actual Supabase credentials
+const hasValidKey = SUPABASE_ANON_KEY &&
+                   SUPABASE_ANON_KEY.length > 0 &&
+                   SUPABASE_ANON_KEY !== 'undefined' &&
+                   SUPABASE_ANON_KEY !== 'null';
+const skipIfNoEnv = hasValidKey ? describe : describe.skip;
 
 // Test user credentials (should be set up in test environment)
 const ADMIN_EMAIL = 'test-admin@elevana.com';
