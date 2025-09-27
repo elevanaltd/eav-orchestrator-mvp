@@ -41,7 +41,8 @@ export function NavigationSidebar({
   useEffect(() => {
     const debugClientAccess = async () => {
       console.log('=== CLIENT ACCESS DEBUG ===');
-      const { data: { user } } = await supabase.auth.getUser();
+      const result = await supabase.auth.getUser();
+      const user = result?.data?.user;
       console.log('Current user:', user?.email);
 
       const { data: profile } = await supabase
