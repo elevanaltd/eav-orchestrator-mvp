@@ -49,16 +49,19 @@ function verifyWebhookSignature(
     return false;
   }
 
-  // Calculate expected signature
-  const expectedSignature = crypto
-    .createHmac('sha256', webhookSecret)
-    .update(payload)
-    .digest('hex');
+  // SmartSuite sends the raw secret as the signature, not HMAC
+  // Use timing-safe comparison to prevent timing attacks
 
-  // Timing-safe comparison to prevent timing attacks
+  // Check if lengths match first (prevents timing attack on length)
+  if (signature.length !== webhookSecret.length) {
+    console.log('Signature length mismatch');
+    return false;
+  }
+
+  // Timing-safe comparison of the raw secret
   return crypto.timingSafeEqual(
     Buffer.from(signature),
-    Buffer.from(expectedSignature)
+    Buffer.from(webhookSecret)
   );
 }
 
@@ -150,46 +153,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: `Method ${req.method} not allowed - webhook expects POST` });
   }
 
-  // Debug: Log all headers to see what SmartSuite is sending
-  console.log('Received headers:', JSON.stringify(req.headers, null, 2));
-
-  // Verify webhook signature (optional for testing)
+  // Verify webhook signature (SmartSuite sends raw secret, not HMAC)
   const signature = req.headers['x-smartsuite-signature'] as string;
   const payload = JSON.stringify(req.body);
 
-  // Debug: Log signature details
-  if (signature) {
-    console.log('Signature received:', signature);
-    console.log('Signature length:', signature.length);
-  }
-
   // Only verify signature if both secret and signature are provided
   if (process.env.SMARTSUITE_WEBHOOK_SECRET && signature) {
-    // Log what we're comparing
-    const webhookSecret = process.env.SMARTSUITE_WEBHOOK_SECRET;
-    console.log('Webhook secret configured, length:', webhookSecret.length);
-    console.log('First 10 chars of secret:', webhookSecret.substring(0, 10) + '...');
-
     if (!verifyWebhookSignature(payload, signature)) {
-      console.error('Invalid webhook signature - debugging info:');
-
-      // Debug: Show what the expected signature would be
-      const expectedSignature = crypto
-        .createHmac('sha256', webhookSecret)
-        .update(payload)
-        .digest('hex');
-      console.error('Expected HMAC signature:', expectedSignature);
-      console.error('Received signature:', signature);
-      console.error('Do they match?', signature === expectedSignature);
-
-      // Maybe SmartSuite is sending the raw secret?
-      if (signature === webhookSecret) {
-        console.warn('SmartSuite sent the raw secret, not HMAC! Allowing for now...');
-        // For now, accept raw secret as valid
-      } else {
-        return res.status(401).json({ error: 'Invalid signature' });
-      }
+      console.error('Invalid webhook signature');
+      return res.status(401).json({ error: 'Invalid signature' });
     }
+    console.log('✅ Webhook signature verified');
   } else if (process.env.SMARTSUITE_WEBHOOK_SECRET && !signature) {
     console.warn('⚠️ Webhook secret configured but no signature provided - allowing for testing');
   } else if (!process.env.SMARTSUITE_WEBHOOK_SECRET) {
