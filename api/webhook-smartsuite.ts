@@ -67,6 +67,9 @@ function verifyWebhookSignature(
  * DYNAMIC MAPPING: Automatically maps any fields with matching names
  */
 function transformProject(record: any) {
+  // Log the exact structure we received
+  console.log('transformProject received:', JSON.stringify(record));
+
   // If fields already match Supabase schema (from webhook), pass ALL fields through
   if (record.eav_code !== undefined) {
     // Start with all fields from the webhook (they already match Supabase)
@@ -174,6 +177,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // NEW FORMAT: Explicit table routing - most reliable!
     // Handle both "record" and "fields" property names
     record = req.body.record || req.body.fields;
+
+    // CRITICAL FIX: Ensure 'id' field exists (handle both 'id' and 'ID')
+    if (!record.id && record.ID) {
+      console.log('Found uppercase ID field, converting to lowercase');
+      record.id = record.ID;
+      delete record.ID;
+    }
+
+    // If SmartSuite sends different field names, normalize them
+    if (!record.id && record.record_id) {
+      console.log('Found record_id field, mapping to id');
+      record.id = record.record_id;
+      delete record.record_id;
+    }
+
     table_id = req.body.table; // SmartSuite tells us which table
     event_type = req.body.event_type || 'record.updated';
     webhook_id = req.body.webhook_id || 'smartsuite-automation';
@@ -265,6 +283,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .eq('id', project.id);
       } else {
         // Create or update project
+        console.log(`Attempting upsert for project:`, {
+          id: project.id,
+          eav_code: project.eav_code,
+          title: project.title
+        });
+
+        // First, check if this ID exists
+        const { data: existingProject, error: fetchError } = await supabase
+          .from('projects')
+          .select('id, eav_code')
+          .eq('id', project.id)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          console.error('Error checking existing project:', fetchError);
+        }
+
+        if (existingProject) {
+          console.log('Found existing project with this ID:', existingProject);
+        } else {
+          console.log('No existing project with this ID - will INSERT new record');
+
+          // Check if eav_code already exists with different ID
+          const { data: conflictProject } = await supabase
+            .from('projects')
+            .select('id, eav_code')
+            .eq('eav_code', project.eav_code)
+            .single();
+
+          if (conflictProject) {
+            console.error(`CONFLICT: eav_code ${project.eav_code} already exists with different ID: ${conflictProject.id}`);
+            console.error(`Trying to insert with ID: ${project.id}`);
+          }
+        }
+
         result = await supabase
           .from('projects')
           .upsert(project, {
