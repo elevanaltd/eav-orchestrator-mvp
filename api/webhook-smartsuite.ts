@@ -72,11 +72,19 @@ function transformProject(record: any) {
     // Start with all fields from the webhook (they already match Supabase)
     const transformed = { ...record };
 
+    // CRITICAL: Ensure we have an ID field for upsert to work
+    if (!transformed.id) {
+      console.error('CRITICAL ERROR: No ID field in record! Record keys:', Object.keys(record));
+      console.error('Record data:', JSON.stringify(record));
+      throw new Error('Missing ID field - cannot determine if this is an update or insert');
+    }
+
     // Ensure required fields have defaults
     transformed.title = transformed.title || 'Untitled';
     transformed.created_at = transformed.created_at || new Date().toISOString();
     transformed.updated_at = transformed.updated_at || new Date().toISOString();
 
+    console.log(`Transforming project with ID: ${transformed.id}, eav_code: ${transformed.eav_code}`);
     return transformed;
   }
 
