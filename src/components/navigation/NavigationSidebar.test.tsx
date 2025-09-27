@@ -43,12 +43,34 @@ describe('NavigationSidebar Auto-Refresh', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
+    // Mock auth.getUser() for the debug function
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (mockSupabase.auth as any) = {
+      getUser: vi.fn().mockResolvedValue({
+        data: {
+          user: {
+            id: 'test-user-id',
+            email: 'test@example.com'
+          }
+        },
+        error: null
+      })
+    };
+
     // Mock successful Supabase responses
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (mockSupabase.from as any).mockImplementation((tableName: string) => {
       if (tableName === 'projects') {
         return {
           select: vi.fn().mockReturnValue({
+            not: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue(
+                Promise.resolve({
+                  data: mockProjects,
+                  error: null
+                })
+              )
+            }),
             order: vi.fn().mockReturnValue(
               Promise.resolve({
                 data: mockProjects,
@@ -60,6 +82,12 @@ describe('NavigationSidebar Auto-Refresh', () => {
       } else if (tableName === 'videos') {
         return {
           select: vi.fn().mockReturnValue({
+            not: vi.fn().mockReturnValue(
+              Promise.resolve({
+                data: mockVideos,
+                error: null
+              })
+            ),
             eq: vi.fn().mockReturnValue({
               order: vi.fn().mockReturnValue(
                 Promise.resolve({
@@ -67,6 +95,26 @@ describe('NavigationSidebar Auto-Refresh', () => {
                   error: null
                 })
               )
+            })
+          })
+        };
+      } else if (tableName === 'user_profiles') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'test-user-id', role: 'admin' },
+                error: null
+              })
+            })
+          })
+        };
+      } else if (tableName === 'user_clients') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: [],
+              error: null
             })
           })
         };
