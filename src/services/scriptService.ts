@@ -53,14 +53,15 @@ export async function loadScriptForVideo(videoId: string): Promise<Script> {
     const validatedVideoId = validateVideoId(videoId);
 
     // First, try to find existing script
+    // Using maybeSingle() to avoid 406 error when no rows exist
     const { data: existingScript, error: fetchError } = await supabase
       .from('scripts')
       .select('*')
       .eq('video_id', validatedVideoId)
-      .single();
+      .maybeSingle();
 
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      // PGRST116 is "no rows returned", which is expected for new videos
+    if (fetchError) {
+      // Any error here is unexpected since maybeSingle handles no rows gracefully
       throw new ScriptServiceError(`Failed to fetch script: ${fetchError.message}`, fetchError.code);
     }
 
