@@ -5,6 +5,7 @@ interface Project {
   title: string;
   eav_code: string;
   due_date?: string;
+  project_phase?: string | null;
 }
 
 interface Video {

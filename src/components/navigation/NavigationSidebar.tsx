@@ -139,14 +139,33 @@ export function NavigationSidebar({
     setError('');
 
     try {
-      const { data, error } = await supabase
+      // First, fetch all projects that meet the phase criteria
+      const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .select('*')
+        .not('project_phase', 'in', '("Completed","Not Proceeded With")')
         .order('title');
 
-      if (error) throw error;
-      setProjects(data || []);
-      console.log('Navigation: Projects loaded:', data);
+      if (projectError) throw projectError;
+
+      // Then, fetch all videos to determine which projects have videos
+      const { data: videoData, error: videoError } = await supabase
+        .from('videos')
+        .select('eav_code')
+        .not('eav_code', 'is', null);
+
+      if (videoError) throw videoError;
+
+      // Create a set of eav_codes that have videos
+      const eavCodesWithVideos = new Set(videoData?.map(v => v.eav_code) || []);
+
+      // Filter projects to only those with videos
+      const projectsWithVideosData = (projectData || []).filter(project =>
+        project.eav_code && eavCodesWithVideos.has(project.eav_code)
+      );
+
+      setProjects(projectsWithVideosData);
+      console.log('Navigation: Projects loaded (filtered):', projectsWithVideosData);
     } catch (err) {
       setError(`Failed to load projects: ${err}`);
       console.error('Navigation: Load projects error:', err);
@@ -169,14 +188,47 @@ export function NavigationSidebar({
       // SECURITY: Validate projectId before database operation
       const validatedProjectId = validateProjectId(projectId);
 
-      // Find the project's eav_code
-      const project = projects.find(p => p.id === validatedProjectId);
+      // Find the project's eav_code - if projects aren't loaded yet, wait a moment
+      let project = projects.find(p => p.id === validatedProjectId);
+
+      // If project not found and this isn't a refresh, it might be a race condition
+      if (!project && !isRefresh) {
+        console.log(`Project ${validatedProjectId} not yet in local state, fetching fresh project data...`);
+
+        // Fetch the specific project directly from database
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', validatedProjectId)
+          .single();
+
+        if (projectError || !projectData) {
+          console.error(`Failed to fetch project ${validatedProjectId}:`, projectError);
+          if (!isRefresh) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Update local projects state with this project
+        setProjects(prevProjects => {
+          const exists = prevProjects.some(p => p.id === projectData.id);
+          if (!exists) {
+            return [...prevProjects, projectData];
+          }
+          return prevProjects;
+        });
+
+        project = projectData;
+      }
+
       if (!project?.eav_code) {
-        console.warn(`Project ${validatedProjectId} not found in local state, skipping video load`);
+        // This should not happen since we're now filtering projects without videos
+        console.debug(`Project ${validatedProjectId} has no eav_code, skipping video load`);
         if (!isRefresh) {
           setLoading(false);
         }
-        return; // Just return early instead of throwing error
+        return;
       }
 
       const { data, error } = await supabase

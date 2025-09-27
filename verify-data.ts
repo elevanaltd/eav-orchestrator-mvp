@@ -42,7 +42,7 @@ async function verifyDataRelationships() {
   console.log(`Found ${videos?.length || 0} videos:`);
 
   // Group videos by eav_code
-  const videosByEavCode = new Map<string, any[]>();
+  const videosByEavCode = new Map<string, typeof videos>();
   videos?.forEach(v => {
     if (v.eav_code) {
       if (!videosByEavCode.has(v.eav_code)) {

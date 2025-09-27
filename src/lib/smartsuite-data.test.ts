@@ -66,10 +66,10 @@ describe('SmartSuiteData', () => {
 
   describe('fetchVideosForProject', () => {
     it('should fetch videos for a specific project', async () => {
-      const projectId = 'project123';
+      const projectEavCode = 'EAV001';
       const mockVideos = [
-        { id: 'v1', title: 'Video 1', project_id: projectId },
-        { id: 'v2', title: 'Video 2', project_id: projectId }
+        { id: 'v1', title: 'Video 1', eav_code: projectEavCode },
+        { id: 'v2', title: 'Video 2', eav_code: projectEavCode }
       ];
 
       const orderMock = vi.fn().mockResolvedValue({
@@ -89,11 +89,11 @@ describe('SmartSuiteData', () => {
         select: selectMock
       } as any);
 
-      const result = await smartSuiteData.fetchVideosForProject(projectId);
+      const result = await smartSuiteData.fetchVideosForProject(projectEavCode);
 
       expect(supabase.from).toHaveBeenCalledWith('videos');
       expect(selectMock).toHaveBeenCalledWith('*');
-      expect(eqMock).toHaveBeenCalledWith('project_id', projectId);
+      expect(eqMock).toHaveBeenCalledWith('eav_code', projectEavCode);
       expect(result).toEqual(mockVideos);
     });
   });
