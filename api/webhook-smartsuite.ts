@@ -72,11 +72,19 @@ function transformProject(record: any) {
     // Start with all fields from the webhook (they already match Supabase)
     const transformed = { ...record };
 
+    // CRITICAL: Ensure we have an ID field for upsert to work
+    if (!transformed.id) {
+      console.error('CRITICAL ERROR: No ID field in record! Record keys:', Object.keys(record));
+      console.error('Record data:', JSON.stringify(record));
+      throw new Error('Missing ID field - cannot determine if this is an update or insert');
+    }
+
     // Ensure required fields have defaults
     transformed.title = transformed.title || 'Untitled';
     transformed.created_at = transformed.created_at || new Date().toISOString();
     transformed.updated_at = transformed.updated_at || new Date().toISOString();
 
+    console.log(`Transforming project with ID: ${transformed.id}, eav_code: ${transformed.eav_code}`);
     return transformed;
   }
 
@@ -162,14 +170,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let webhook_id: string | undefined;
 
   // Check payload format
-  if (req.body.table && req.body.record) {
+  if (req.body.table && (req.body.record || req.body.fields)) {
     // NEW FORMAT: Explicit table routing - most reliable!
-    record = req.body.record;
+    // Handle both "record" and "fields" property names
+    record = req.body.record || req.body.fields;
     table_id = req.body.table; // SmartSuite tells us which table
     event_type = req.body.event_type || 'record.updated';
     webhook_id = req.body.webhook_id || 'smartsuite-automation';
 
     console.log(`Webhook using explicit table routing: ${req.body.table}`);
+    console.log(`Record ID received: ${record.id}`);
+    console.log(`Record has fields:`, Object.keys(record));
   } else if (req.body.record && req.body.event_type) {
     // Full format with event_type and record wrapper
     ({ event_type, table_id, record, webhook_id } = req.body as SmartSuiteWebhookPayload);
