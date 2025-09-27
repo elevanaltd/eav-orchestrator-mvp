@@ -247,6 +247,16 @@ export type Database = {
         }
         Relationships: []
       }
+      debug_user_access: {
+        Row: {
+          accessible_projects: number | null
+          accessible_videos: number | null
+          client_filters: string[] | null
+          user_id: string | null
+          user_role: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       check_client_access: {

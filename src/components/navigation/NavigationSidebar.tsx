@@ -164,6 +164,11 @@ export function NavigationSidebar({
         project.eav_code && eavCodesWithVideos.has(project.eav_code)
       );
 
+      // Debug: Check what we're actually getting
+      console.log('Raw project data from Supabase:', projectData);
+      console.log('EAV codes with videos:', Array.from(eavCodesWithVideos));
+      console.log('Projects after filtering:', projectsWithVideosData);
+
       setProjects(projectsWithVideosData);
       console.log('Navigation: Projects loaded (filtered):', projectsWithVideosData);
     } catch (err) {
@@ -223,8 +228,11 @@ export function NavigationSidebar({
       }
 
       if (!project?.eav_code) {
-        // This should not happen since we're now filtering projects without videos
-        console.debug(`Project ${validatedProjectId} has no eav_code, skipping video load`);
+        // This can happen if the project data is incomplete or not synced properly
+        console.warn(`Project ${validatedProjectId} has no eav_code, skipping video load`, {
+          project,
+          isRefresh
+        });
         if (!isRefresh) {
           setLoading(false);
         }
