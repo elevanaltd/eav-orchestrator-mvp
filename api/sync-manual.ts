@@ -128,15 +128,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const videosData = await videosResponse.json();
 
     // Transform and upsert videos
-    // Need to map project ID to eav_code
     const videos = (videosData as SmartSuiteListResponse<SmartSuiteVideoRecord>).items.map((item) => {
-      // Find the project's eav_code from the project ID
-      const linkedProjectId = item.s75e825d24 || null;
-      const linkedProject = projects.find(p => p.id === linkedProjectId);
+      // Extract eav_code - it comes as an array from SmartSuite (lookup field)
+      let eavCode = null;
+      if (Array.isArray(item.eav_code) && item.eav_code.length > 0) {
+        eavCode = item.eav_code[0];
+      } else if (typeof item.eav_code === 'string') {
+        eavCode = item.eav_code;
+      } else if (item.s75e825d24) {
+        // Fallback: map through project ID if eav_code not available
+        const linkedProject = projects.find(p => p.id === item.s75e825d24);
+        eavCode = linkedProject?.eav_code || null;
+      }
 
       return {
         id: item.id,
-        eav_code: linkedProject?.eav_code || null, // Use project's eav_code
+        eav_code: eavCode,
         title: item.title || item.name || 'Untitled',
         production_type: item.production_type || null,
         main_stream_status: item.main_stream_status || null,

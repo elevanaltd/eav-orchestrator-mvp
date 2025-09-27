@@ -172,7 +172,11 @@ export function NavigationSidebar({
       // Find the project's eav_code
       const project = projects.find(p => p.id === validatedProjectId);
       if (!project?.eav_code) {
-        throw new Error('Project not found or missing EAV code');
+        console.warn(`Project ${validatedProjectId} not found in local state, skipping video load`);
+        if (!isRefresh) {
+          setLoading(false);
+        }
+        return; // Just return early instead of throwing error
       }
 
       const { data, error } = await supabase
