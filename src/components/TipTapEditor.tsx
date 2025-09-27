@@ -215,6 +215,9 @@ export const TipTapEditor: React.FC = () => {
 
     setIsLoading(true);
     try {
+      // Debug: Log the attempt
+      console.log('DEBUG: Loading script for video:', selectedVideo.id);
+
       const script = await loadScriptForVideo(selectedVideo.id);
       setCurrentScript(script);
 
@@ -235,6 +238,36 @@ export const TipTapEditor: React.FC = () => {
       setLastSaved(new Date(script.updated_at));
     } catch (error) {
       console.error('Failed to load script:', error);
+
+      // Type-safe error details extraction
+      interface ErrorWithDetails extends Error {
+        code?: string;
+        details?: unknown;
+        status?: number;
+      }
+
+      const errorDetails = error instanceof Error ? {
+        message: error.message,
+        code: (error as ErrorWithDetails).code,
+        details: (error as ErrorWithDetails).details,
+        status: (error as ErrorWithDetails).status
+      } : {
+        message: String(error),
+        code: undefined,
+        details: undefined,
+        status: undefined
+      };
+
+      console.error('Error details:', errorDetails);
+
+      // Check for specific error types
+      if (errorDetails.message?.includes('406') || errorDetails.status === 406) {
+        console.error('406 Not Acceptable Error - Check:');
+        console.error('1. Vercel env var: VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY');
+        console.error('2. RLS policies for scripts table');
+        console.error('3. User authentication status');
+      }
+
       setSaveStatus('error');
     } finally {
       setIsLoading(false);

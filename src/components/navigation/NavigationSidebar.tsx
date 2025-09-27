@@ -169,14 +169,46 @@ export function NavigationSidebar({
       // SECURITY: Validate projectId before database operation
       const validatedProjectId = validateProjectId(projectId);
 
-      // Find the project's eav_code
-      const project = projects.find(p => p.id === validatedProjectId);
+      // Find the project's eav_code - if projects aren't loaded yet, wait a moment
+      let project = projects.find(p => p.id === validatedProjectId);
+
+      // If project not found and this isn't a refresh, it might be a race condition
+      if (!project && !isRefresh) {
+        console.log(`Project ${validatedProjectId} not yet in local state, fetching fresh project data...`);
+
+        // Fetch the specific project directly from database
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', validatedProjectId)
+          .single();
+
+        if (projectError || !projectData) {
+          console.error(`Failed to fetch project ${validatedProjectId}:`, projectError);
+          if (!isRefresh) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Update local projects state with this project
+        setProjects(prevProjects => {
+          const exists = prevProjects.some(p => p.id === projectData.id);
+          if (!exists) {
+            return [...prevProjects, projectData];
+          }
+          return prevProjects;
+        });
+
+        project = projectData;
+      }
+
       if (!project?.eav_code) {
-        console.warn(`Project ${validatedProjectId} not found in local state, skipping video load`);
+        console.warn(`Project ${validatedProjectId} has no eav_code, cannot load videos`);
         if (!isRefresh) {
           setLoading(false);
         }
-        return; // Just return early instead of throwing error
+        return;
       }
 
       const { data, error } = await supabase
