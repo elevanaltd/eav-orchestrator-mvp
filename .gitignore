@@ -49,3 +49,23 @@ temp/
 # Vitest
 coverage/
 .coord
+
+# Supabase temporary files
+supabase/.temp/
+.supabase/
+
+# Development artifacts
+scripts/temp/
+scripts/output/
+*.tmp
+
+# Database backups and dumps
+*.sql.backup
+*.dump
+
+# Package manager files
+package-lock.json.backup
+.pnpm-debug.log*
+
+# TypeScript incremental builds
+*.tsbuildinfo
