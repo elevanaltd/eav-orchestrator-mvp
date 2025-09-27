@@ -149,7 +149,7 @@ npm run preview            # Preview production build
 - [x] Webhook endpoint receives SmartSuite changes
 - [x] Real-time sync via SmartSuite automations
 - [x] Manual sync button as fallback option
-- [ ] Configure SmartSuite webhook automations
+- [x] Configure SmartSuite webhook automations
 
 ### 📋 Upcoming Phases
 2. **Workflow Implementation** (7-8 days) - All 5 workflow tabs
@@ -216,12 +216,43 @@ npm run preview            # Preview production build
 
 ### Current Issues
 - **Auto-refresh race condition** - Multiple project fetches on mount
-- **SmartSuite mock data** - Still using test data, switching to live API
+- **Bundle size** - 923KB, needs code-splitting for optimization
 
-### Resolved Issues
+### Resolved Issues (2025-09-27)
+- ✅ **406 Error on Scripts** - Fixed by using `.maybeSingle()` instead of `.single()` for queries that might return 0 rows
+- ✅ **RLS Policies** - Migration 20250927130000 properly handles admin/client access
+- ✅ **NavigationSidebar warnings** - Improved error handling for missing eav_code
 - ✅ Edge Functions crash (switched to client-side)
 - ✅ ESLint suppressions (cleaned up with reset)
 - ✅ RLS policies blocking saves (fixed permissions)
+
+## Important Database Query Patterns
+
+### Avoiding 406 Errors
+When querying for records that might not exist:
+```typescript
+// ❌ WRONG - Will throw 406 if no rows found
+const { data, error } = await supabase
+  .from('table')
+  .select('*')
+  .eq('id', someId)
+  .single();  // Expects exactly 1 row
+
+// ✅ CORRECT - Handles 0 or 1 rows gracefully
+const { data, error } = await supabase
+  .from('table')
+  .select('*')
+  .eq('id', someId)
+  .maybeSingle();  // Returns null if no rows, data if 1 row
+```
+
+### RLS Policy Structure
+The current RLS policies follow this pattern:
+- **Admin users**: Full access (SELECT, INSERT, UPDATE, DELETE) on all tables
+- **Client users**: Read-only (SELECT) on projects/videos/scripts they're assigned to via `user_clients` table
+- **Anonymous users**: No access to any data
+
+Always test with both service key (bypasses RLS) and anon key (enforces RLS) when debugging access issues.
 
 ## Team Notes
 
