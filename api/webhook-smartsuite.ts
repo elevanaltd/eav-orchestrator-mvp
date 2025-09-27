@@ -178,6 +178,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Handle both "record" and "fields" property names
     record = req.body.record || req.body.fields;
 
+    // CRITICAL FIX: Trim whitespace from ALL fields (SmartSuite may add spaces)
+    Object.keys(record).forEach(key => {
+      if (typeof record[key] === 'string') {
+        record[key] = record[key].trim();
+      }
+    });
+
     // CRITICAL FIX: Ensure 'id' field exists (handle both 'id' and 'ID')
     if (!record.id && record.ID) {
       console.log('Found uppercase ID field, converting to lowercase');
