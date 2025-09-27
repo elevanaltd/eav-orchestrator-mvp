@@ -162,14 +162,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let webhook_id: string | undefined;
 
   // Check payload format
-  if (req.body.table && req.body.record) {
+  if (req.body.table && (req.body.record || req.body.fields)) {
     // NEW FORMAT: Explicit table routing - most reliable!
-    record = req.body.record;
+    // Handle both "record" and "fields" property names
+    record = req.body.record || req.body.fields;
     table_id = req.body.table; // SmartSuite tells us which table
     event_type = req.body.event_type || 'record.updated';
     webhook_id = req.body.webhook_id || 'smartsuite-automation';
 
     console.log(`Webhook using explicit table routing: ${req.body.table}`);
+    console.log(`Record ID received: ${record.id}`);
+    console.log(`Record has fields:`, Object.keys(record));
   } else if (req.body.record && req.body.event_type) {
     // Full format with event_type and record wrapper
     ({ event_type, table_id, record, webhook_id } = req.body as SmartSuiteWebhookPayload);
