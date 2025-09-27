@@ -91,20 +91,20 @@ describe('SmartSuiteAPI', () => {
           {
             id: 'proj123456789012345678901',
             title: 'Test Project',
-            eav_code: 'EAV001',
+            eavcode: 'EAV001',  // SmartSuite uses 'eavcode' not 'eav_code'
             client_filter: 'client-a',
-            due_date: '2025-12-31',
-            created_at: '2025-01-01',
-            updated_at: '2025-01-15'
+            projdue456: { to_date: { date: '2025-12-31' } },  // SmartSuite date structure
+            firstCreated: { on: '2025-01-01' },
+            lastUpdated: { on: '2025-01-15' }
           },
           {
             id: 'proj223456789012345678901',
             title: 'Another Project',
-            eav_code: 'EAV002',
+            eavcode: 'EAV002',
             client_filter: 'client-b',
-            due_date: null,
-            created_at: '2025-01-02',
-            updated_at: '2025-01-16'
+            projdue456: null,
+            firstCreated: { on: '2025-01-02' },
+            lastUpdated: { on: '2025-01-16' }
           }
         ]
       };

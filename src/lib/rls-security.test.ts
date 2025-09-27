@@ -15,8 +15,8 @@ import type { Database } from '../types/database.types';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://zbxvjyrbkycbfhwmmnmy.supabase.co';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
-// Skip tests if environment not configured
-const skipIfNoEnv = SUPABASE_ANON_KEY ? describe : describe.skip;
+// Skip tests if environment not configured (check for non-empty string)
+const skipIfNoEnv = SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.length > 0 ? describe : describe.skip;
 
 // Test user credentials (should be set up in test environment)
 const ADMIN_EMAIL = 'test-admin@elevana.com';
