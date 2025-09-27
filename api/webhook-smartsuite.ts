@@ -49,16 +49,19 @@ function verifyWebhookSignature(
     return false;
   }
 
-  // Calculate expected signature
-  const expectedSignature = crypto
-    .createHmac('sha256', webhookSecret)
-    .update(payload)
-    .digest('hex');
+  // SmartSuite sends the raw secret as the signature, not HMAC
+  // Use timing-safe comparison to prevent timing attacks
 
-  // Timing-safe comparison to prevent timing attacks
+  // Check if lengths match first (prevents timing attack on length)
+  if (signature.length !== webhookSecret.length) {
+    console.log('Signature length mismatch');
+    return false;
+  }
+
+  // Timing-safe comparison of the raw secret
   return crypto.timingSafeEqual(
     Buffer.from(signature),
-    Buffer.from(expectedSignature)
+    Buffer.from(webhookSecret)
   );
 }
 
@@ -67,6 +70,9 @@ function verifyWebhookSignature(
  * DYNAMIC MAPPING: Automatically maps any fields with matching names
  */
 function transformProject(record: any) {
+  // Log the exact structure we received
+  console.log('transformProject received:', JSON.stringify(record));
+
   // If fields already match Supabase schema (from webhook), pass ALL fields through
   if (record.eav_code !== undefined) {
     // Start with all fields from the webhook (they already match Supabase)
@@ -105,15 +111,17 @@ function transformProject(record: any) {
  * DYNAMIC MAPPING: Automatically maps any fields with matching names
  */
 function transformVideo(record: any) {
+  console.log('transformVideo received:', JSON.stringify(record));
+
   // If fields already match Supabase schema (from webhook field selection)
-  if (record.project_id !== undefined || record.projects_link !== undefined) {
-    // Start with all fields from the webhook (they already match Supabase)
+  if (record.eav_code !== undefined || record.title !== undefined) {
+    // Start with all fields from the webhook
     const transformed = { ...record };
 
-    // Handle project link field name variations
-    if (record.projects_link && !record.project_id) {
-      transformed.project_id = record.projects_link;
-      delete transformed.projects_link;
+    // eav_code field directly maps - no transformation needed
+    // The eav_code in videos links to the eav_code in projects
+    if (record.eav_code) {
+      console.log(`Video linked to project via EAV code: ${record.eav_code}`);
     }
 
     // Ensure required fields have defaults
@@ -121,13 +129,18 @@ function transformVideo(record: any) {
     transformed.created_at = transformed.created_at || new Date().toISOString();
     transformed.updated_at = transformed.updated_at || new Date().toISOString();
 
+    // Clean up any legacy project_id field if it exists
+    if (transformed.project_id) {
+      delete transformed.project_id;
+    }
+
     return transformed;
   }
 
   // Legacy format support (if using full record dump from API)
   return {
     id: record.id,
-    project_id: record.project_id || record.s75e825d24 || null,
+    eav_code: record.eav_code || null,  // Use eav_code consistently
     title: record.title || record.name || 'Untitled',
     production_type: record.production_type || null,
     main_stream_status: record.main_stream_status || null,
@@ -147,7 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: `Method ${req.method} not allowed - webhook expects POST` });
   }
 
-  // Verify webhook signature (optional for testing)
+  // Verify webhook signature (SmartSuite sends raw secret, not HMAC)
   const signature = req.headers['x-smartsuite-signature'] as string;
   const payload = JSON.stringify(req.body);
 
@@ -157,6 +170,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('Invalid webhook signature');
       return res.status(401).json({ error: 'Invalid signature' });
     }
+    console.log('✅ Webhook signature verified');
   } else if (process.env.SMARTSUITE_WEBHOOK_SECRET && !signature) {
     console.warn('⚠️ Webhook secret configured but no signature provided - allowing for testing');
   } else if (!process.env.SMARTSUITE_WEBHOOK_SECRET) {
@@ -174,6 +188,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // NEW FORMAT: Explicit table routing - most reliable!
     // Handle both "record" and "fields" property names
     record = req.body.record || req.body.fields;
+
+    // CRITICAL FIX: Trim whitespace from ALL fields (SmartSuite may add spaces)
+    Object.keys(record).forEach(key => {
+      if (typeof record[key] === 'string') {
+        record[key] = record[key].trim();
+      }
+    });
+
+    // CRITICAL FIX: Ensure 'id' field exists (handle both 'id' and 'ID')
+    if (!record.id && record.ID) {
+      console.log('Found uppercase ID field, converting to lowercase');
+      record.id = record.ID;
+      delete record.ID;
+    }
+
+    // If SmartSuite sends different field names, normalize them
+    if (!record.id && record.record_id) {
+      console.log('Found record_id field, mapping to id');
+      record.id = record.record_id;
+      delete record.record_id;
+    }
+
     table_id = req.body.table; // SmartSuite tells us which table
     event_type = req.body.event_type || 'record.updated';
     webhook_id = req.body.webhook_id || 'smartsuite-automation';
@@ -265,6 +301,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .eq('id', project.id);
       } else {
         // Create or update project
+        console.log(`Attempting upsert for project:`, {
+          id: project.id,
+          eav_code: project.eav_code,
+          title: project.title
+        });
+
+        // First, check if this ID exists
+        const { data: existingProject, error: fetchError } = await supabase
+          .from('projects')
+          .select('id, eav_code')
+          .eq('id', project.id)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          console.error('Error checking existing project:', fetchError);
+        }
+
+        if (existingProject) {
+          console.log('Found existing project with this ID:', existingProject);
+        } else {
+          console.log('No existing project with this ID - will INSERT new record');
+
+          // Check if eav_code already exists with different ID
+          const { data: conflictProject } = await supabase
+            .from('projects')
+            .select('id, eav_code')
+            .eq('eav_code', project.eav_code)
+            .single();
+
+          if (conflictProject) {
+            console.error(`CONFLICT: eav_code ${project.eav_code} already exists with different ID: ${conflictProject.id}`);
+            console.error(`Trying to insert with ID: ${project.id}`);
+          }
+        }
+
         result = await supabase
           .from('projects')
           .upsert(project, {
