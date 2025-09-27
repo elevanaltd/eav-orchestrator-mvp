@@ -111,15 +111,25 @@ function transformProject(record: any) {
  * DYNAMIC MAPPING: Automatically maps any fields with matching names
  */
 function transformVideo(record: any) {
+  console.log('transformVideo received:', JSON.stringify(record));
+
   // If fields already match Supabase schema (from webhook field selection)
-  if (record.project_id !== undefined || record.projects_link !== undefined) {
-    // Start with all fields from the webhook (they already match Supabase)
+  if (record.project_eav_code !== undefined || record.project !== undefined) {
+    // Start with all fields from the webhook
     const transformed = { ...record };
 
-    // Handle project link field name variations
-    if (record.projects_link && !record.project_id) {
-      transformed.project_id = record.projects_link;
-      delete transformed.projects_link;
+    // Map project field (which contains title) to extract EAV code
+    if (record.project && !record.project_eav_code) {
+      // Extract EAV code from project title like "EAV002 - Nottingham (MTVH)"
+      const eavMatch = record.project.match(/^(EAV\d+)/);
+      if (eavMatch) {
+        transformed.project_eav_code = eavMatch[1];
+        console.log(`Extracted EAV code: ${eavMatch[1]} from project: ${record.project}`);
+      } else {
+        console.error(`Could not extract EAV code from project: ${record.project}`);
+        transformed.project_eav_code = null;
+      }
+      delete transformed.project;
     }
 
     // Ensure required fields have defaults
@@ -133,7 +143,7 @@ function transformVideo(record: any) {
   // Legacy format support (if using full record dump from API)
   return {
     id: record.id,
-    project_id: record.project_id || record.s75e825d24 || null,
+    project_eav_code: record.project_eav_code || null,
     title: record.title || record.name || 'Untitled',
     production_type: record.production_type || null,
     main_stream_status: record.main_stream_status || null,
