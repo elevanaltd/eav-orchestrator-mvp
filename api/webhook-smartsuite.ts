@@ -114,17 +114,14 @@ function transformVideo(record: any) {
   console.log('transformVideo received:', JSON.stringify(record));
 
   // If fields already match Supabase schema (from webhook field selection)
-  if (record.eav_code !== undefined || record.project_id !== undefined) {
+  if (record.eav_code !== undefined || record.title !== undefined) {
     // Start with all fields from the webhook
     const transformed = { ...record };
 
-    // Map eav_code to project_id (since videos table uses project_id as foreign key)
+    // eav_code field directly maps - no transformation needed
     // The eav_code in videos links to the eav_code in projects
     if (record.eav_code) {
-      // We need to use the EAV code to find the project ID
-      // For now, just store the EAV code in project_id field
-      transformed.project_id = record.eav_code;
-      console.log(`Using EAV code as project reference: ${record.eav_code}`);
+      console.log(`Video linked to project via EAV code: ${record.eav_code}`);
     }
 
     // Ensure required fields have defaults
@@ -132,13 +129,18 @@ function transformVideo(record: any) {
     transformed.created_at = transformed.created_at || new Date().toISOString();
     transformed.updated_at = transformed.updated_at || new Date().toISOString();
 
+    // Clean up any legacy project_id field if it exists
+    if (transformed.project_id) {
+      delete transformed.project_id;
+    }
+
     return transformed;
   }
 
   // Legacy format support (if using full record dump from API)
   return {
     id: record.id,
-    project_id: record.project_id || record.eav_code || null,
+    eav_code: record.eav_code || null,  // Use eav_code consistently
     title: record.title || record.name || 'Untitled',
     production_type: record.production_type || null,
     main_stream_status: record.main_stream_status || null,
