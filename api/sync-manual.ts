@@ -128,16 +128,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const videosData = await videosResponse.json();
 
     // Transform and upsert videos
-    const videos = (videosData as SmartSuiteListResponse<SmartSuiteVideoRecord>).items.map((item) => ({
-      id: item.id,
-      project_id: item.s75e825d24 || null, // Linked field to project
-      title: item.title || item.name || 'Untitled',
-      production_type: item.production_type || null,
-      main_stream_status: item.main_stream_status || null,
-      vo_stream_status: item.vo_stream_status || null,
-      created_at: item.first_created?.on || new Date().toISOString(),
-      updated_at: item.last_updated?.on || new Date().toISOString()
-    }));
+    // Need to map project ID to eav_code
+    const videos = (videosData as SmartSuiteListResponse<SmartSuiteVideoRecord>).items.map((item) => {
+      // Find the project's eav_code from the project ID
+      const linkedProjectId = item.s75e825d24 || null;
+      const linkedProject = projects.find(p => p.id === linkedProjectId);
+
+      return {
+        id: item.id,
+        eav_code: linkedProject?.eav_code || null, // Use project's eav_code
+        title: item.title || item.name || 'Untitled',
+        production_type: item.production_type || null,
+        main_stream_status: item.main_stream_status || null,
+        vo_stream_status: item.vo_stream_status || null,
+        created_at: item.first_created?.on || new Date().toISOString(),
+        updated_at: item.last_updated?.on || new Date().toISOString()
+      };
+    });
 
     const { error: videosError } = await supabase
       .from('videos')

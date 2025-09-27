@@ -105,7 +105,8 @@ export function NavigationSidebar({
       // Return the same state (no change needed)
       return currentExpanded;
     });
-  }, []); // Empty dependency array - no external dependencies needed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-refresh projects when component is visible
   useEffect(() => {
@@ -168,21 +169,27 @@ export function NavigationSidebar({
       // SECURITY: Validate projectId before database operation
       const validatedProjectId = validateProjectId(projectId);
 
+      // Find the project's eav_code
+      const project = projects.find(p => p.id === validatedProjectId);
+      if (!project?.eav_code) {
+        throw new Error('Project not found or missing EAV code');
+      }
+
       const { data, error } = await supabase
         .from('videos')
         .select('*')
-        .eq('project_id', validatedProjectId)
+        .eq('eav_code', project.eav_code)
         .order('title');
 
       if (error) throw error;
 
       // Update videos state - merge with existing videos from other projects
       setVideos(prevVideos => [
-        ...prevVideos.filter(v => v.project_id !== validatedProjectId),
+        ...prevVideos.filter(v => v.eav_code !== project.eav_code),
         ...(data || [])
       ]);
 
-      console.log('Navigation: Videos loaded for project:', validatedProjectId, data);
+      console.log('Navigation: Videos loaded for project:', validatedProjectId, 'eav_code:', project.eav_code, data);
     } catch (err) {
       if (err instanceof ValidationError) {
         setError(`Invalid project ID: ${err.message}`);
@@ -243,7 +250,9 @@ export function NavigationSidebar({
   };
 
   const getProjectVideos = (projectId: string) => {
-    return videos.filter(video => video.project_id === projectId);
+    const project = projects.find(p => p.id === projectId);
+    if (!project?.eav_code) return [];
+    return videos.filter(video => video.eav_code === project.eav_code);
   };
 
   return (
@@ -337,7 +346,7 @@ export function NavigationSidebar({
                               className={`nav-video-item ${isVideoSelected ? 'nav-video-item--selected' : ''}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleVideoClick(video.id, video.project_id);
+                                handleVideoClick(video.id, project.id);
                               }}
                             >
                               <div className={`nav-video-status ${getStatusDot(video.main_stream_status, video.vo_stream_status)}`}></div>

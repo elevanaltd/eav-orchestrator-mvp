@@ -31,12 +31,13 @@ export class SmartSuiteData {
   /**
    * Fetch videos for a specific project from Supabase
    * Frontend only reads from Supabase - single source of truth
+   * Note: This now uses eav_code for the relationship
    */
-  async fetchVideosForProject(projectId: string): Promise<Tables<'videos'>[]> {
+  async fetchVideosForProject(projectEavCode: string): Promise<Tables<'videos'>[]> {
     const { data, error } = await supabase
       .from('videos')
       .select('*')
-      .eq('project_id', projectId)
+      .eq('eav_code', projectEavCode)
       .order('created_at', { ascending: false });
 
     if (error) {

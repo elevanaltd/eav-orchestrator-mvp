@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
-import type { SmartSuiteProjectRecord, SmartSuiteVideoRecord, SmartSuiteWebhookPayload } from '../src/types/smartsuite.types';
+import type { SmartSuiteWebhookPayload } from '../src/types/smartsuite.types';
 
 /**
  * SmartSuite Webhook Handler
@@ -69,7 +69,7 @@ function verifyWebhookSignature(
  * Transform SmartSuite project record to Supabase schema
  * DYNAMIC MAPPING: Automatically maps any fields with matching names
  */
-function transformProject(record: any) {
+function transformProject(record: Record<string, unknown>) {
   // Log the exact structure we received
   console.log('transformProject received:', JSON.stringify(record));
 
@@ -110,7 +110,7 @@ function transformProject(record: any) {
  * Transform SmartSuite video record to Supabase schema
  * DYNAMIC MAPPING: Automatically maps any fields with matching names
  */
-function transformVideo(record: any) {
+function transformVideo(record: Record<string, unknown>) {
   console.log('transformVideo received:', JSON.stringify(record));
 
   // If fields already match Supabase schema (from webhook field selection)
@@ -180,7 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Parse webhook payload - handle multiple formats
   let event_type: string;
   let table_id: string;
-  let record: any;
+  let record: Record<string, unknown>;
   let webhook_id: string | undefined;
 
   // Check payload format
