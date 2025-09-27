@@ -51,12 +51,11 @@ describe('SmartSuiteAPI', () => {
       expect(result.success).toBe(true);
       expect(result.message).toBe('Connected to SmartSuite workspace');
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.smartsuite.com/api/v1/applications/68a8ff5237fde0bf797c05b3',
+        '/api/smartsuite/api/v1/applications/68a8ff5237fde0bf797c05b3',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
-            'Authorization': 'Token test-api-key',
-            'Account-Id': 's3qnmox1'
+            'Content-Type': 'application/json'
           })
         })
       );
@@ -125,11 +124,11 @@ describe('SmartSuiteAPI', () => {
         client_filter: 'client-a'
       });
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.smartsuite.com/api/v1/applications/68a8ff5237fde0bf797c05b3/records/list/',
+        '/api/smartsuite/api/v1/applications/68a8ff5237fde0bf797c05b3/records/list/',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({
-            sort: [{ field_id: 'title', direction: 'asc' }]
+            sort: [{ field: 'title', direction: 'asc' }]
           })
         })
       );
@@ -211,16 +210,16 @@ describe('SmartSuiteAPI', () => {
         production_type: 'interview'
       });
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.smartsuite.com/api/v1/applications/68b2437a8f1755b055e0a124/records/list/',
+        '/api/smartsuite/api/v1/applications/68b2437a8f1755b055e0a124/records/list/',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({
             filter: {
-              field_id: 'project_id',
+              field: 'project_id',
               operator: 'is',
               value: projectId
             },
-            sort: [{ field_id: 'title', direction: 'asc' }]
+            sort: [{ field: 'title', direction: 'asc' }]
           })
         })
       );
@@ -277,7 +276,7 @@ describe('SmartSuiteAPI', () => {
       // Verify the update call
       expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(global.fetch).toHaveBeenNthCalledWith(2,
-        `https://api.smartsuite.com/api/v1/applications/68b2437a8f1755b055e0a124/records/${videoId}/`,
+        `/api/smartsuite/api/v1/applications/68b2437a8f1755b055e0a124/records/${videoId}/`,
         expect.objectContaining({
           method: 'PATCH',
           body: JSON.stringify({
