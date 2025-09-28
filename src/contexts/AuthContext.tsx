@@ -36,35 +36,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Function to load user profile
-  const loadUserProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
+  // Function to load user profile - simplified
+  const loadUserProfile = useCallback(async (userId: string, userEmail?: string, userName?: string) => {
+    try {
+      // First try to get existing profile
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()  // Use maybeSingle to avoid 406 errors
 
-    if (error) {
-      console.error('Failed to load user profile:', error)
-      // If profile doesn't exist, create one with admin role for development
-      if (error.code === 'PGRST116') {
-        const { data: newProfile } = await supabase
+      if (data) {
+        setUserProfile(data)
+      } else if (userEmail) {
+        // Create profile if it doesn't exist
+        console.log('Creating user profile for:', userEmail)
+        const { data: newProfile, error: insertError } = await supabase
           .from('user_profiles')
           .insert({
             id: userId,
-            email: currentUser?.email || '',
-            display_name: currentUser?.user_metadata?.full_name || currentUser?.email || '',
+            email: userEmail,
+            display_name: userName || userEmail,
             role: 'admin' // Default to admin for development
           })
           .select()
           .single()
 
-        setUserProfile(newProfile)
+        if (insertError) {
+          console.error('Error creating user profile:', insertError)
+        } else {
+          setUserProfile(newProfile)
+        }
       }
-    } else {
-      setUserProfile(data)
+    } catch (err) {
+      console.error('Error in loadUserProfile:', err)
     }
-  }, [currentUser?.email, currentUser?.user_metadata])
+  }, [])
 
   useEffect(() => {
     // Get initial session
@@ -74,7 +81,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Load user profile if we have a user
       if (session?.user) {
-        await loadUserProfile(session.user.id)
+        await loadUserProfile(
+          session.user.id,
+          session.user.email,
+          session.user.user_metadata?.full_name
+        )
       }
 
       setLoading(false)
@@ -89,7 +100,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Load user profile when user signs in
         if (session?.user) {
-          await loadUserProfile(session.user.id)
+          await loadUserProfile(
+            session.user.id,
+            session.user.email,
+            session.user.user_metadata?.full_name
+          )
         } else {
           setUserProfile(null)
         }
