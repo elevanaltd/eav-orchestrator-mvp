@@ -16,6 +16,7 @@ import { Node } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
+import { useAuth } from '../contexts/AuthContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
@@ -126,6 +127,7 @@ const ParagraphComponentTracker = Extension.create({
 export const TipTapEditor: React.FC = () => {
   const { selectedVideo } = useNavigation();
   const { updateScriptStatus, clearScriptStatus } = useScriptStatus();
+  const { userProfile } = useAuth();
 
   // Script management state
   const [currentScript, setCurrentScript] = useState<Script | null>(null);
@@ -214,6 +216,12 @@ export const TipTapEditor: React.FC = () => {
   const handleSave = useCallback(async () => {
     if (!currentScript || !editor) return;
 
+    // Don't save readonly placeholder scripts
+    if (currentScript.id.startsWith('readonly-')) {
+      console.log('Cannot save readonly script placeholder');
+      return;
+    }
+
     setSaveStatus('saving');
     try {
       const plainText = editor.getText();
@@ -242,12 +250,16 @@ export const TipTapEditor: React.FC = () => {
         // Debug: Log the attempt
         console.log('DEBUG: Loading script for video:', selectedVideo.id);
 
-        const script = await loadScriptForVideo(selectedVideo.id);
+        const script = await loadScriptForVideo(selectedVideo.id, userProfile?.role);
 
         // Only update state if component is still mounted
         if (!mounted) return;
 
         setCurrentScript(script);
+
+        // Set editor editability based on whether script is readonly
+        const isReadonly = script.id.startsWith('readonly-');
+        editor.setEditable(!isReadonly);
 
         // Initialize editor content from Y.js state or plain text
         // TODO: When Y.js is integrated, deserialize from yjs_state

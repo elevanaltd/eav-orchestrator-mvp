@@ -13,6 +13,19 @@ import { TipTapEditor } from './TipTapEditor';
 import { NavigationProvider } from '../contexts/NavigationContext';
 import { ScriptStatusProvider } from '../contexts/ScriptStatusContext';
 
+// Mock the auth context
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: vi.fn(() => ({
+    currentUser: { id: 'user-123', email: 'test@example.com' },
+    userProfile: { id: 'user-123', email: 'test@example.com', role: 'admin', display_name: 'Test User', created_at: '2024-01-01' },
+    signIn: vi.fn(),
+    signUp: vi.fn(),
+    logout: vi.fn(),
+    loading: false
+  })),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
+}));
+
 // Mock the script service
 vi.mock('../services/scriptService', () => ({
   loadScriptForVideo: vi.fn().mockResolvedValue({

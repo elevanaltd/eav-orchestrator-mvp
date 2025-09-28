@@ -47,7 +47,7 @@ export interface ScriptServiceErrorInterface {
  * Creates a new script if one doesn't exist
  * Loads components from the normalized script_components table
  */
-export async function loadScriptForVideo(videoId: string): Promise<Script> {
+export async function loadScriptForVideo(videoId: string, userRole?: string | null): Promise<Script> {
   try {
     // SECURITY: Validate input before database operation
     const validatedVideoId = validateVideoId(videoId);
@@ -89,6 +89,23 @@ export async function loadScriptForVideo(videoId: string): Promise<Script> {
         ...existingScript,
         components: transformedComponents
       };
+    }
+
+    // Check if user has permission to create scripts
+    if (userRole !== 'admin') {
+      // Return a read-only placeholder for non-admin users
+      console.log('Non-admin user cannot create scripts. Returning read-only placeholder.');
+      return {
+        id: `readonly-${validatedVideoId}`,
+        video_id: validatedVideoId,
+        yjs_state: null,
+        plain_text: 'This script has not been created yet. Please ask an administrator to create the script for this video.',
+        component_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        components: [],
+        readonly: true // Flag to indicate this is a placeholder
+      } as Script & { readonly: boolean };
     }
 
     // Create new script for video (Y.js state will be initialized by editor)

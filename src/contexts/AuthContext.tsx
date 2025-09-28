@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: userId,
             email: userEmail,
             display_name: userName || userEmail,
-            role: 'admin' // Default to admin for development
+            role: 'client' // Default to client for security
           })
           .select()
           .single()
