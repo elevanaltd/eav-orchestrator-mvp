@@ -4,7 +4,7 @@ import { useScriptStatus } from '../contexts/ScriptStatusContext'
 import '../styles/Header.css'
 
 export function Header() {
-  const { currentUser, logout } = useAuth()
+  const { currentUser, userProfile, logout } = useAuth()
   const { scriptStatus } = useScriptStatus()
 
   const handleLogout = () => {
@@ -66,7 +66,14 @@ export function Header() {
         <div className="header-right">
           {currentUser && (
             <div className="user-controls">
-              <span className="user-email">{currentUser.email}</span>
+              <span className="user-email">
+                {currentUser.email}
+                {userProfile && (
+                  <span style={{ marginLeft: '8px', opacity: 0.7, fontSize: '0.9em' }}>
+                    ({userProfile.role || 'no role'})
+                  </span>
+                )}
+              </span>
               <button
                 className="logout-button"
                 onClick={handleLogout}

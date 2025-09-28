@@ -2,8 +2,18 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
+interface UserProfile {
+  id: string
+  email: string
+  display_name: string | null
+  role: 'admin' | 'client' | null
+  created_at: string
+  client_filter?: string | null
+}
+
 interface AuthContextType {
   currentUser: User | null
+  userProfile: UserProfile | null
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>
   logout: () => Promise<void>
@@ -23,13 +33,50 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Function to load user profile
+  const loadUserProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      console.error('Failed to load user profile:', error)
+      // If profile doesn't exist, create one with admin role for development
+      if (error.code === 'PGRST116') {
+        const { data: newProfile } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: userId,
+            email: currentUser?.email || '',
+            display_name: currentUser?.user_metadata?.full_name || currentUser?.email || '',
+            role: 'admin' // Default to admin for development
+          })
+          .select()
+          .single()
+
+        setUserProfile(newProfile)
+      }
+    } else {
+      setUserProfile(data)
+    }
+  }
 
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setCurrentUser(session?.user ?? null)
+
+      // Load user profile if we have a user
+      if (session?.user) {
+        await loadUserProfile(session.user.id)
+      }
+
       setLoading(false)
     }
 
@@ -39,6 +86,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setCurrentUser(session?.user ?? null)
+
+        // Load user profile when user signs in
+        if (session?.user) {
+          await loadUserProfile(session.user.id)
+        } else {
+          setUserProfile(null)
+        }
+
         setLoading(false)
       }
     )
@@ -81,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextType = {
     currentUser,
+    userProfile,
     signIn,
     signUp,
     logout,
