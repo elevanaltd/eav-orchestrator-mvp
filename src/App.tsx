@@ -3,6 +3,9 @@ import { Suspense, lazy } from 'react'
 import { AuthProvider } from './contexts/AuthContext'
 import { NavigationProvider } from './contexts/NavigationContext'
 import { ScriptStatusProvider } from './contexts/ScriptStatusContext'
+
+// Critical-Engineer: consulted for Security vulnerability assessment
+// Implemented surgical security fixes using npm overrides for esbuild, undici, path-to-regexp
 import { Login } from './components/auth/Login'
 import { Signup } from './components/auth/Signup'
 import { PrivateRoute } from './components/auth/PrivateRoute'
