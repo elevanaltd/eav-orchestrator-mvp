@@ -99,6 +99,7 @@ export function Signup() {
               onChange={(e) => setFullName(e.target.value)}
               disabled={loading}
               required
+              autoComplete="name"
             />
           </div>
 
@@ -110,6 +111,7 @@ export function Signup() {
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
               required
+              autoComplete="email"
             />
           </div>
 
@@ -122,6 +124,7 @@ export function Signup() {
               disabled={loading}
               minLength={8}
               required
+              autoComplete="new-password"
             />
           </div>
 
@@ -134,6 +137,7 @@ export function Signup() {
               disabled={loading}
               minLength={8}
               required
+              autoComplete="new-password"
             />
           </div>
 
