@@ -19,6 +19,7 @@ interface ErrorBoundaryState {
   error: Error | null;
   errorInfo: ErrorInfo | null;
   retryCount: number;
+  clipboardMessage: string | null;
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -29,7 +30,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       hasError: false,
       error: null,
       errorInfo: null,
-      retryCount: 0
+      retryCount: 0,
+      clipboardMessage: null
     };
 
     this.retry = this.retry.bind(this);
@@ -72,7 +74,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       hasError: false,
       error: null,
       errorInfo: null,
-      retryCount: prevState.retryCount + 1
+      retryCount: prevState.retryCount + 1,
+      clipboardMessage: null
     }));
   }
 
@@ -192,24 +195,49 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 cursor: 'pointer',
                 textDecoration: 'underline'
               }}
-              onClick={() => {
+              onClick={async () => {
                 const errorDetails = {
                   message: this.state.error?.message,
                   timestamp: new Date().toISOString(),
                   userAgent: navigator.userAgent,
                   url: window.location.href
                 };
-                // Copy error details to clipboard for reporting
-                navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2)).catch(() => {
+
+                // Try to copy error details to clipboard for reporting
+                if (navigator.clipboard) {
+                  try {
+                    await navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2));
+                    this.setState({ clipboardMessage: 'Error details have been copied to your clipboard. Please provide this information when reporting the issue.' });
+                  } catch {
+                    // Fallback when clipboard API fails
+                    console.error('Error report details:', errorDetails);
+                    this.setState({ clipboardMessage: 'Failed to copy to clipboard. Error details have been logged to console. Please copy them manually.' });
+                  }
+                } else {
                   // Fallback for browsers without clipboard API
                   console.error('Error report details:', errorDetails);
-                });
-                alert('Error details have been copied to your clipboard. Please provide this information when reporting the issue.');
+                  this.setState({ clipboardMessage: 'Clipboard not available. Error details have been logged to console. Please copy them manually.' });
+                }
               }}
             >
               Report this issue
             </span>
           </div>
+
+          {/* Show clipboard operation feedback */}
+          {this.state.clipboardMessage && (
+            <div style={{
+              marginTop: '15px',
+              padding: '10px',
+              backgroundColor: this.state.clipboardMessage.includes('Failed') || this.state.clipboardMessage.includes('not available') ? '#ffebee' : '#e8f5e8',
+              border: `1px solid ${this.state.clipboardMessage.includes('Failed') || this.state.clipboardMessage.includes('not available') ? '#ffcdd2' : '#c8e6c9'}`,
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: this.state.clipboardMessage.includes('Failed') || this.state.clipboardMessage.includes('not available') ? '#d32f2f' : '#2e7d32'
+            }}>
+              {this.state.clipboardMessage}
+            </div>
+          )}
 
           {/* Show additional details in development mode */}
           {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
