@@ -33,6 +33,7 @@ describe('Header', () => {
 
   it('should display user email when user is authenticated', () => {
     mockUseAuth.mockReturnValue({
+      userProfile: null,
       currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
@@ -47,6 +48,7 @@ describe('Header', () => {
 
   it('should display logout button when user is authenticated', () => {
     mockUseAuth.mockReturnValue({
+      userProfile: null,
       currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
@@ -62,6 +64,7 @@ describe('Header', () => {
 
   it('should call logout function when logout button is clicked', () => {
     mockUseAuth.mockReturnValue({
+      userProfile: null,
       currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
@@ -79,6 +82,7 @@ describe('Header', () => {
 
   it('should have professional styling classes', () => {
     mockUseAuth.mockReturnValue({
+      userProfile: null,
       currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
@@ -94,6 +98,7 @@ describe('Header', () => {
 
   it('should display app title', () => {
     mockUseAuth.mockReturnValue({
+      userProfile: null,
       currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
@@ -108,6 +113,7 @@ describe('Header', () => {
 
   it('should display script status when provided', () => {
     mockUseAuth.mockReturnValue({
+      userProfile: null,
       currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
@@ -136,6 +142,7 @@ describe('Header', () => {
 
   it('should display different save status states', () => {
     mockUseAuth.mockReturnValue({
+      userProfile: null,
       currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),
@@ -177,6 +184,7 @@ describe('Header', () => {
 
   it('should not display script status when not provided', () => {
     mockUseAuth.mockReturnValue({
+      userProfile: null,
       currentUser: { id: '123', email: 'test@example.com' } as User,
       loading: false,
       signIn: vi.fn(),

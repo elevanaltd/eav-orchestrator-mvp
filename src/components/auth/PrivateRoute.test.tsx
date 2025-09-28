@@ -26,6 +26,7 @@ describe('PrivateRoute', () => {
   it('should show loading when auth is loading', () => {
     mockUseAuth.mockReturnValue({
       currentUser: null,
+      userProfile: null,
       loading: true,
       signIn: vi.fn(),
       signUp: vi.fn(),
@@ -45,6 +46,7 @@ describe('PrivateRoute', () => {
   it('should redirect to login when user is not authenticated', () => {
     mockUseAuth.mockReturnValue({
       currentUser: null,
+      userProfile: null,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
@@ -64,6 +66,7 @@ describe('PrivateRoute', () => {
   it('should render children when user is authenticated', () => {
     mockUseAuth.mockReturnValue({
       currentUser: { id: '123', email: 'test@example.com' } as User,
+      userProfile: null,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),

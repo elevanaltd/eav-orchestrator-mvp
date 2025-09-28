@@ -28,6 +28,7 @@ describe('App', () => {
   it('should render the app with auth provider', () => {
     mockUseAuth.mockReturnValue({
       currentUser: null,
+      userProfile: null,
       loading: false,
       signIn: vi.fn(),
       signUp: vi.fn(),
