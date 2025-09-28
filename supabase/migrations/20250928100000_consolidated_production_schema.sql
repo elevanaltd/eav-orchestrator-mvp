@@ -94,20 +94,6 @@ CREATE TABLE IF NOT EXISTS public.user_clients (
     CONSTRAINT user_clients_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES auth.users(id)
 );
 
--- Sync Metadata table - SmartSuite sync status tracking
-CREATE TABLE IF NOT EXISTS public.sync_metadata (
-    id text PRIMARY KEY DEFAULT 'singleton'::text,
-    status text DEFAULT 'idle'::text,
-    last_sync_started_at timestamptz,
-    last_sync_completed_at timestamptz,
-    last_error text,
-    sync_count integer DEFAULT 0,
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now(),
-    CONSTRAINT sync_metadata_id_check CHECK (id = 'singleton'::text),
-    CONSTRAINT sync_metadata_status_check CHECK (status = ANY (ARRAY['idle'::text, 'running'::text, 'error'::text]))
-);
-
 -- ============================================================================
 -- INDEXES FOR PERFORMANCE
 -- ============================================================================
