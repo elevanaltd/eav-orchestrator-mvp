@@ -8,6 +8,21 @@ export default defineConfig(({ mode }) => {
 
   return {
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor libraries
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-editor': ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/extension-collaboration', '@tiptap/extension-collaboration-cursor'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-router': ['react-router-dom'],
+          'vendor-utils': ['zod', 'dompurify', 'yjs']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 500
+  },
   server: {
     port: 3001,
     host: true,

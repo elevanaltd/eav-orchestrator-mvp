@@ -55,7 +55,7 @@ export function SmartSuiteSyncPanel() {
       setSyncResult(result);
       setLastSync(new Date().toLocaleTimeString());
 
-      console.log('Sync complete:', result);
+
 
       // In production, this would:
       // 1. Call SmartSuite API to get projects

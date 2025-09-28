@@ -1,5 +1,5 @@
-console.log('[App.tsx] Module loading...')
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { Suspense, lazy } from 'react'
 import { AuthProvider } from './contexts/AuthContext'
 import { NavigationProvider } from './contexts/NavigationContext'
 import { ScriptStatusProvider } from './contexts/ScriptStatusContext'
@@ -7,11 +7,20 @@ import { Login } from './components/auth/Login'
 import { Signup } from './components/auth/Signup'
 import { PrivateRoute } from './components/auth/PrivateRoute'
 import { Header } from './components/Header'
-import { NavigationSidebar } from './components/navigation/NavigationSidebar'
-import { TipTapEditor } from './components/TipTapEditor'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { SmartSuiteTest } from './components/SmartSuiteTest'
 import './App.css'
+
+// Lazy load heavy components for better bundle splitting
+const NavigationSidebar = lazy(() => import('./components/navigation/NavigationSidebar').then(module => ({ default: module.NavigationSidebar })))
+const TipTapEditor = lazy(() => import('./components/TipTapEditor').then(module => ({ default: module.TipTapEditor })))
+
+// Loading component for suspense fallbacks
+const ComponentLoader = ({ name }: { name: string }) => (
+  <div className="loading-component" style={{ padding: '20px', textAlign: 'center' }}>
+    Loading {name}...
+  </div>
+)
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
@@ -24,12 +33,16 @@ function MainApp() {
             <Header />
           </ErrorBoundary>
           <ErrorBoundary>
-            <NavigationSidebar />
+            <Suspense fallback={<ComponentLoader name="Navigation" />}>
+              <NavigationSidebar />
+            </Suspense>
           </ErrorBoundary>
           <div className="app-content">
             <ErrorBoundary>
               <SmartSuiteTest />
-              <TipTapEditor />
+              <Suspense fallback={<ComponentLoader name="Editor" />}>
+                <TipTapEditor />
+              </Suspense>
             </ErrorBoundary>
           </div>
         </div>
@@ -39,7 +52,6 @@ function MainApp() {
 }
 
 function App() {
-  console.log('[App] Main App component rendering...')
   return (
     <AuthProvider>
       <Router>

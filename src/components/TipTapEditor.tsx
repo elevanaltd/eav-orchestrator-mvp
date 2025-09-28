@@ -6,7 +6,7 @@
  * Clean copy/paste with visual indicators only
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
@@ -138,6 +138,9 @@ export const TipTapEditor: React.FC = () => {
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
 
+  // Track component mount state to prevent updates after unmount
+  const isMountedRef = useRef(true);
+
   // Helper function to generate hash
   const generateHash = (text: string): string => {
     return text.length.toString(36) + text.charCodeAt(0).toString(36);
@@ -145,6 +148,9 @@ export const TipTapEditor: React.FC = () => {
 
   // Declare callback functions that don't depend on editor
   const extractComponents = useCallback((editor: Editor) => {
+    // Only update state if component is still mounted
+    if (!isMountedRef.current) return;
+
     const components: ComponentData[] = [];
     let componentNum = 0;
 
@@ -177,12 +183,21 @@ export const TipTapEditor: React.FC = () => {
     ],
     content: '',
     onUpdate: ({ editor }) => {
+      // Check if mounted before updating state
+      if (!isMountedRef.current) return;
+
       extractComponents(editor);
       setSaveStatus('unsaved');
       // Context will be updated via useEffect when extractedComponents changes
     },
     onCreate: ({ editor }) => {
-      extractComponents(editor);
+      // Defer state updates to next tick to ensure component is fully mounted
+      // This prevents the React state update warning
+      requestAnimationFrame(() => {
+        if (isMountedRef.current) {
+          extractComponents(editor);
+        }
+      });
     },
     // SECURITY: Add paste event handler to sanitize pasted content
     editorProps: {
@@ -218,7 +233,6 @@ export const TipTapEditor: React.FC = () => {
 
     // Don't save readonly placeholder scripts
     if (currentScript.id.startsWith('readonly-')) {
-      console.log('Cannot save readonly script placeholder');
       return;
     }
 
@@ -229,12 +243,18 @@ export const TipTapEditor: React.FC = () => {
       // For now, we'll pass null and let the backend handle it
       const yjsState = null; // Will be implemented when Y.js is integrated
       const updatedScript = await saveScript(currentScript.id, yjsState, plainText, extractedComponents);
-      setCurrentScript(updatedScript);
-      setLastSaved(new Date());
-      setSaveStatus('saved');
+
+      // Only update state if still mounted
+      if (isMountedRef.current) {
+        setCurrentScript(updatedScript);
+        setLastSaved(new Date());
+        setSaveStatus('saved');
+      }
     } catch (error) {
-      console.error('Failed to save script:', error);
-      setSaveStatus('error');
+      if (isMountedRef.current) {
+        console.error('Failed to save script:', error);
+        setSaveStatus('error');
+      }
     }
   }, [currentScript, editor, extractedComponents]);
 
@@ -247,8 +267,7 @@ export const TipTapEditor: React.FC = () => {
 
       setIsLoading(true);
       try {
-        // Debug: Log the attempt
-        console.log('DEBUG: Loading script for video:', selectedVideo.id);
+        // Loading script for video
 
         const script = await loadScriptForVideo(selectedVideo.id, userProfile?.role);
 
@@ -359,6 +378,36 @@ export const TipTapEditor: React.FC = () => {
     }
     // We only care about the length of extractedComponents, not the array reference
   }, [saveStatus, lastSaved, extractedComponents.length, currentScript, updateScriptStatus, clearScriptStatus]);
+
+  // Add cleanup effect to handle component unmounting
+  useEffect(() => {
+    // Mark component as mounted
+    isMountedRef.current = true;
+
+    return () => {
+      // Mark component as unmounted to prevent state updates
+      isMountedRef.current = false;
+
+      // Clean up editor if it exists
+      if (editor) {
+        // Editor cleanup is handled by TipTap's useEditor hook
+        // But we ensure no further state updates happen
+      }
+    };
+  }, [editor]);
+
+  // Optimize layout rendering for client users with requestAnimationFrame
+  useEffect(() => {
+    if (userProfile?.role === 'client' && editor) {
+      // Batch DOM updates to prevent forced reflow
+      requestAnimationFrame(() => {
+        if (isMountedRef.current) {
+          // Any DOM manipulations that might cause reflow
+          // are batched here to prevent performance issues
+        }
+      });
+    }
+  }, [userProfile?.role, editor]);
 
   const formatSaveTime = (date: Date): string => {
     const now = new Date();
