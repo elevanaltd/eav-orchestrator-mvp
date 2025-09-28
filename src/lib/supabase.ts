@@ -19,7 +19,21 @@ if (!supabaseAnonKey) {
 console.log('Supabase client initializing with:', {
   url: supabaseUrl,
   hasKey: !!supabaseAnonKey,
-  keySource: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ? 'publishable' : 'anon'
+  keySource: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ? 'publishable' : 'anon',
+  keyLength: supabaseAnonKey?.length
 })
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Test the client immediately
+console.log('[Supabase] Client created, testing connection...')
+supabase.auth.getSession()
+  .then((result) => {
+    console.log('[Supabase] Initial connection test successful:', {
+      hasSession: !!result.data.session,
+      error: result.error?.message
+    })
+  })
+  .catch((err) => {
+    console.error('[Supabase] Initial connection test failed:', err)
+  })

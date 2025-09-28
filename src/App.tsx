@@ -1,3 +1,4 @@
+console.log('[App.tsx] Module loading...')
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { NavigationProvider } from './contexts/NavigationContext'
@@ -38,6 +39,7 @@ function MainApp() {
 }
 
 function App() {
+  console.log('[App] Main App component rendering...')
   return (
     <AuthProvider>
       <Router>

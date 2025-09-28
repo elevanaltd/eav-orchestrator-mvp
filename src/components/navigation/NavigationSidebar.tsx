@@ -41,7 +41,8 @@ export function NavigationSidebar({
   useEffect(() => {
     const debugClientAccess = async () => {
       console.log('=== CLIENT ACCESS DEBUG ===');
-      const { data: { user } } = await supabase.auth.getUser();
+      const result = await supabase.auth.getUser();
+      const user = result?.data?.user;
       console.log('Current user:', user?.email);
 
       const { data: profile } = await supabase
@@ -196,8 +197,8 @@ export function NavigationSidebar({
       // Find the project's eav_code - if projects aren't loaded yet, wait a moment
       let project = projects.find(p => p.id === validatedProjectId);
 
-      // If project not found and this isn't a refresh, it might be a race condition
-      if (!project && !isRefresh) {
+      // If project not found, fetch it from database (for both refresh and non-refresh cases)
+      if (!project) {
         console.log(`Project ${validatedProjectId} not yet in local state, fetching fresh project data...`);
 
         // Fetch the specific project directly from database
@@ -215,24 +216,30 @@ export function NavigationSidebar({
           return;
         }
 
-        // Update local projects state with this project
-        setProjects(prevProjects => {
-          const exists = prevProjects.some(p => p.id === projectData.id);
-          if (!exists) {
-            return [...prevProjects, projectData];
-          }
-          return prevProjects;
-        });
+        // Only update local projects state if this is not a refresh
+        // (during refresh, projects are being updated elsewhere)
+        if (!isRefresh) {
+          setProjects(prevProjects => {
+            const exists = prevProjects.some(p => p.id === projectData.id);
+            if (!exists) {
+              return [...prevProjects, projectData];
+            }
+            return prevProjects;
+          });
+        }
 
         project = projectData;
       }
 
       if (!project?.eav_code) {
         // This can happen if the project data is incomplete or not synced properly
-        console.warn(`Project ${validatedProjectId} has no eav_code, skipping video load`, {
-          project,
-          isRefresh
-        });
+        // Only warn if we actually found a project but it has no eav_code
+        if (project) {
+          console.warn(`Project ${validatedProjectId} exists but has no eav_code, cannot load videos`, {
+            project,
+            isRefresh
+          });
+        }
         if (!isRefresh) {
           setLoading(false);
         }
