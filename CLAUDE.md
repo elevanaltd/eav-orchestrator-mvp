@@ -216,7 +216,12 @@ npm run preview            # Preview production build
 
 ### Current Issues
 - **Auto-refresh race condition** - Multiple project fetches on mount
-- **Bundle size** - 923KB, needs code-splitting for optimization
+- **Bundle size** - 924KB total (49KB main app + 875KB vendors), already optimally code-split with manual chunks:
+  - vendor-react: 314KB (React/ReactDOM)
+  - vendor-editor: 303KB (TipTap editor components)
+  - vendor-supabase: 124KB (Supabase client)
+  - vendor-utils: 73KB (Zod, DOMPurify, Y.js)
+  - vendor-router: 32KB (React Router)
 
 ### Resolved Issues (2025-09-27)
 - ✅ **406 Error on Scripts** - Fixed by using `.maybeSingle()` instead of `.single()` for queries that might return 0 rows
