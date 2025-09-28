@@ -394,7 +394,8 @@ export const TipTapEditor: React.FC = () => {
         // But we ensure no further state updates happen
       }
     };
-  }, [editor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run on mount/unmount
 
   // Optimize layout rendering for client users with requestAnimationFrame
   useEffect(() => {

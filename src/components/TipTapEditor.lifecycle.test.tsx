@@ -435,4 +435,33 @@ describe('TipTapEditor Lifecycle Issues - FIXED', () => {
       });
     });
   });
+
+  describe('Mount Tracking useEffect Dependency - FIXED', () => {
+    it('should verify mount tracking useEffect has empty dependency array', async () => {
+      // CONTRACT: Mount tracking useEffect should have empty dependency array []
+      // This is a source code validation test to ensure the fix is implemented
+
+      // Read the actual source code to verify the fix
+      // This is more reliable than complex mocking for this specific issue
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const editorSourcePath = path.default.join(__dirname, 'TipTapEditor.tsx');
+      const sourceCode = fs.default.readFileSync(editorSourcePath, 'utf8');
+
+      // Find the mount tracking useEffect
+      const mountTrackingRegex = /useEffect\(\s*\(\)\s*=>\s*\{[\s\S]*?isMountedRef\.current\s*=\s*true[\s\S]*?\},\s*\[(.*?)\]\s*\)/;
+      const match = sourceCode.match(mountTrackingRegex);
+
+      // CONTRACT: Should find the useEffect and it should have empty dependency array
+      expect(match).toBeTruthy();
+      if (match) {
+        const dependencyArray = match[1].trim();
+        // CONTRACT: Dependency array should be empty (just whitespace/comments)
+        // Empty string or just whitespace/comments indicates []
+        const hasEmptyDependencyArray = dependencyArray === '' || /^[\s/*]*$/.test(dependencyArray);
+        expect(hasEmptyDependencyArray).toBe(true);
+      }
+    });
+  });
 });
