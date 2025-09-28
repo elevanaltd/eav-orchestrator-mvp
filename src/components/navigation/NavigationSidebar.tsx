@@ -37,39 +37,6 @@ export function NavigationSidebar({
   const [error, setError] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // DEBUG: Client access debugging
-  useEffect(() => {
-    const debugClientAccess = async () => {
-      console.log('=== CLIENT ACCESS DEBUG ===');
-      const result = await supabase.auth.getUser();
-      const user = result?.data?.user;
-      console.log('Current user:', user?.email);
-
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single();
-      console.log('User role:', profile?.role);
-
-      if (profile?.role === 'client') {
-        const { data: clientAccess } = await supabase
-          .from('user_clients')
-          .select('*')
-          .eq('user_id', user?.id);
-        console.log('Client access entries:', clientAccess);
-
-        // Check if any projects match
-        const { data: allProjects } = await supabase
-          .from('projects')
-          .select('id, title, client_filter');
-        console.log('All projects with filters:', allProjects);
-      }
-      console.log('=== END DEBUG ===');
-    };
-
-    debugClientAccess();
-  }, []);
 
   // Auto-refresh state
   const [isVisible, setIsVisible] = useState(!document.hidden);
@@ -166,12 +133,12 @@ export function NavigationSidebar({
       );
 
       // Debug: Check what we're actually getting
-      console.log('Raw project data from Supabase:', projectData);
-      console.log('EAV codes with videos:', Array.from(eavCodesWithVideos));
-      console.log('Projects after filtering:', projectsWithVideosData);
+
+
+
 
       setProjects(projectsWithVideosData);
-      console.log('Navigation: Projects loaded (filtered):', projectsWithVideosData);
+
     } catch (err) {
       setError(`Failed to load projects: ${err}`);
       console.error('Navigation: Load projects error:', err);
@@ -199,7 +166,7 @@ export function NavigationSidebar({
 
       // If project not found, fetch it from database (for both refresh and non-refresh cases)
       if (!project) {
-        console.log(`Project ${validatedProjectId} not yet in local state, fetching fresh project data...`);
+
 
         // Fetch the specific project directly from database
         const { data: projectData, error: projectError } = await supabase
@@ -260,7 +227,7 @@ export function NavigationSidebar({
         ...(data || [])
       ]);
 
-      console.log('Navigation: Videos loaded for project:', validatedProjectId, 'eav_code:', project.eav_code, data);
+
     } catch (err) {
       if (err instanceof ValidationError) {
         setError(`Invalid project ID: ${err.message}`);

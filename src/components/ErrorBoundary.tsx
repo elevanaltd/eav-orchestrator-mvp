@@ -199,8 +199,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   userAgent: navigator.userAgent,
                   url: window.location.href
                 };
-                console.log('Error report details:', errorDetails);
-                alert('Error details have been logged to the console. Please provide this information when reporting the issue.');
+                // Copy error details to clipboard for reporting
+                navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2)).catch(() => {
+                  // Fallback for browsers without clipboard API
+                  console.error('Error report details:', errorDetails);
+                });
+                alert('Error details have been copied to your clipboard. Please provide this information when reporting the issue.');
               }}
             >
               Report this issue

@@ -94,7 +94,7 @@ export async function loadScriptForVideo(videoId: string, userRole?: string | nu
     // Check if user has permission to create scripts
     if (userRole !== 'admin') {
       // Return a read-only placeholder for non-admin users
-      console.log('Non-admin user cannot create scripts. Returning read-only placeholder.');
+
       return {
         id: `readonly-${validatedVideoId}`,
         video_id: validatedVideoId,

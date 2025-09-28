@@ -218,7 +218,6 @@ export const TipTapEditor: React.FC = () => {
 
     // Don't save readonly placeholder scripts
     if (currentScript.id.startsWith('readonly-')) {
-      console.log('Cannot save readonly script placeholder');
       return;
     }
 
@@ -247,8 +246,7 @@ export const TipTapEditor: React.FC = () => {
 
       setIsLoading(true);
       try {
-        // Debug: Log the attempt
-        console.log('DEBUG: Loading script for video:', selectedVideo.id);
+        // Loading script for video
 
         const script = await loadScriptForVideo(selectedVideo.id, userProfile?.role);
 

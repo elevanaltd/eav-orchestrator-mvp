@@ -19,7 +19,7 @@ export const SmartSuiteTest = () => {
       if (projectData.length > 0) {
         setProjects(projectData);
         setStatus(`✅ Found ${projectData.length} projects`);
-        console.log('Projects:', projectData);
+
 
         // Check sync status
         const syncStatus = await smartSuiteData.getSyncStatus();

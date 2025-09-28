@@ -39,7 +39,7 @@ export function TestDataPanel() {
 
       if (error) throw error;
       setProjects(data || []);
-      console.log('Projects loaded:', data);
+
     } catch (err) {
       setError(`Failed to load projects: ${err}`);
       console.error('Load projects error:', err);
@@ -65,7 +65,7 @@ export function TestDataPanel() {
 
       if (error) throw error;
       setVideos(data || []);
-      console.log('Videos loaded for project:', projectId, 'eav_code:', project.eav_code, data);
+
     } catch (err) {
       setError(`Failed to load videos: ${err}`);
       console.error('Load videos error:', err);

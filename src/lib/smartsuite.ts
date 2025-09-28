@@ -46,9 +46,9 @@ export class SmartSuiteIntegration {
   async testConnection(): Promise<boolean> {
     try {
       // Placeholder for actual SmartSuite API call
-      console.log('Testing SmartSuite connection...');
-      console.log('Workspace:', this.config.workspaceId);
-      console.log('Table:', this.config.prototypeTableId);
+
+
+
 
       // In prototype, simulate connection
       return new Promise((resolve) => {
@@ -65,8 +65,8 @@ export class SmartSuiteIntegration {
    */
   async syncComponents(components: ComponentData[]): Promise<SyncStatus> {
     try {
-      console.log('Syncing components to SmartSuite...');
-      console.log('Components to sync:', components.length);
+
+
 
       // In prototype, simulate sync operation
       return new Promise((resolve) => {
