@@ -94,7 +94,18 @@ export function Login() {
 
         <button
           className="auth-button-google"
-          onClick={() => {/* TODO: Implement Google OAuth */}}
+          onClick={() => {
+            // ISSUE: Google OAuth Integration Required
+            // Priority: Medium | Scope: Phase 6 (Authentication Enhancement)
+            // Requirements: Implement signInWithGoogle in AuthContext, integrate with Supabase Auth
+            // Acceptance Criteria: Tests in Login.test.tsx define the expected contract
+            // Use structured logging instead of console.log
+            // Logger.info('Google OAuth not yet implemented', {
+            //   component: 'Login',
+            //   action: 'google_oauth_attempted',
+            //   contractTests: 'Login.test.tsx'
+            // })
+          }}
           disabled
         >
           Sign in with Google

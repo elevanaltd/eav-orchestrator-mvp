@@ -239,9 +239,11 @@ export const TipTapEditor: React.FC = () => {
     setSaveStatus('saving');
     try {
       const plainText = editor.getText();
-      // TODO: Properly serialize Y.js state when Y.js is integrated
-      // For now, we'll pass null and let the backend handle it
-      const yjsState = null; // Will be implemented when Y.js is integrated
+      // ISSUE: Y.js Collaborative Editing Integration
+      // Priority: High | Scope: Phase 4 (Real-time Collaboration)
+      // Requirements: Implement Y.js serialization for collaborative state sync
+      // Dependencies: Y.js library, WebSocket infrastructure, conflict resolution
+      const yjsState = null; // Placeholder until Y.js integration in Phase 4
       const updatedScript = await saveScript(currentScript.id, yjsState, plainText, extractedComponents);
 
       // Only update state if still mounted
@@ -281,7 +283,10 @@ export const TipTapEditor: React.FC = () => {
         editor.setEditable(!isReadonly);
 
         // Initialize editor content from Y.js state or plain text
-        // TODO: When Y.js is integrated, deserialize from yjs_state
+        // ISSUE: Y.js State Deserialization
+        // Priority: High | Scope: Phase 4 (Real-time Collaboration)
+        // Requirements: Implement Y.js state deserialization for collaborative editing
+        // Note: Currently using plain_text fallback until Y.js integration
         if (script.plain_text) {
           // SECURITY: Use safe conversion to prevent XSS injection
           const safeContent = convertPlainTextToHTML(script.plain_text);
