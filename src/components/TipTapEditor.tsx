@@ -332,7 +332,7 @@ export const TipTapEditor: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [selectedVideo, editor, extractComponents]);
+  }, [selectedVideo, editor, extractComponents, userProfile?.role]);
 
   // Auto-save functionality with debouncing
   useEffect(() => {
