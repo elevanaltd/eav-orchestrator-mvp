@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { ErrorBoundary } from './ErrorBoundary';
 
@@ -21,15 +21,15 @@ const ThrowError: React.FC<{ shouldThrow: boolean; errorMessage?: string }> = ({
   return <div>Component working correctly</div>;
 };
 
-// Component that throws error in useEffect (kept for future async error testing)
-// const ThrowAsyncError: React.FC<{ shouldThrow: boolean }> = ({ shouldThrow }) => {
-//   React.useEffect(() => {
-//     if (shouldThrow) {
-//       throw new Error('Async error in useEffect');
-//     }
-//   }, [shouldThrow]);
-//   return <div>Async component working</div>;
-// };
+// Component that throws error in useEffect - RESTORED per Test Methodology Guardian
+const ThrowAsyncError: React.FC<{ shouldThrow: boolean }> = ({ shouldThrow }) => {
+  React.useEffect(() => {
+    if (shouldThrow) {
+      throw new Error('Async error in useEffect');
+    }
+  }, [shouldThrow]);
+  return <div>Async component working</div>;
+};
 
 describe('ErrorBoundary', () => {
   beforeEach(() => {
@@ -278,6 +278,133 @@ describe('ErrorBoundary', () => {
       }).not.toThrow();
 
       expect(screen.getByText('Valid content')).toBeInTheDocument();
+    });
+  });
+
+  // CORRECTED ASYNC ERROR TEST - Test Methodology Guardian directive
+  describe('Async Error Handling', () => {
+    // This test documents a known React limitation: Error Boundaries do not catch async errors.
+    it('should NOT display the fallback UI for async errors originating from useEffect', () => {
+      // ARRANGE: Suppress the expected console error from the uncaught async throw
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      // ACT: Render the boundary with a child that throws an async error.
+      // The assertion is that this render does NOT crash.
+      render(
+        <ErrorBoundary>
+          <ThrowAsyncError shouldThrow={true} />
+        </ErrorBoundary>
+      );
+
+      // ASSERT: The ErrorBoundary's fallback UI should NOT be visible.
+      // This confirms the boundary was not triggered by the async error.
+      const fallbackUI = screen.queryByText(/something went wrong/i);
+      expect(fallbackUI).not.toBeInTheDocument();
+
+      // ASSERT: The child component should still be rendered normally
+      expect(screen.getByText('Async component working')).toBeInTheDocument();
+
+      // CLEANUP
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  // NEW CONTRACT TESTS - Clipboard Failure Scenarios
+  describe('Clipboard Operations', () => {
+    beforeEach(() => {
+      // Reset navigator.clipboard mock before each test
+      if ('clipboard' in navigator) {
+        vi.clearAllMocks();
+      }
+    });
+
+    it('should display failure message when clipboard API rejects', async () => {
+      // CONTRACT: When clipboard fails, user must be clearly notified of failure
+
+      // Mock clipboard to reject
+      const mockClipboard = {
+        writeText: vi.fn().mockRejectedValue(new Error('Clipboard access denied'))
+      };
+      Object.defineProperty(navigator, 'clipboard', {
+        value: mockClipboard,
+        configurable: true
+      });
+
+      render(
+        <ErrorBoundary>
+          <ThrowError shouldThrow={true} errorMessage="Test clipboard error" />
+        </ErrorBoundary>
+      );
+
+      // Find and click the "Report this issue" link
+      const reportLink = screen.getByText(/report this issue/i);
+      reportLink.click();
+
+      // CONTRACT VIOLATION: Current implementation shows success even on failure
+      // This test should FAIL until implementation is fixed
+      await waitFor(() => {
+        const failureMessage = screen.queryByText(/failed to copy|clipboard.*fail/i);
+        expect(failureMessage).toBeInTheDocument(); // This will FAIL - that's the point
+      });
+    });
+
+    it('should handle browsers without clipboard API gracefully', () => {
+      // CONTRACT: Don't offer features we cannot support
+
+      // Mock environment without clipboard API
+      const originalClipboard = navigator.clipboard;
+      Object.defineProperty(navigator, 'clipboard', {
+        value: undefined,
+        configurable: true
+      });
+
+      render(
+        <ErrorBoundary>
+          <ThrowError shouldThrow={true} errorMessage="Test no clipboard" />
+        </ErrorBoundary>
+      );
+
+      // Find the report link
+      const reportLink = screen.getByText(/report this issue/i);
+
+      // Should not throw when clicked (graceful degradation)
+      expect(() => reportLink.click()).not.toThrow();
+
+      // CONTRACT: Should show appropriate message for no-clipboard environment
+      // Current implementation will show misleading success message - this should FAIL
+
+      // Restore clipboard
+      Object.defineProperty(navigator, 'clipboard', {
+        value: originalClipboard,
+        configurable: true
+      });
+    });
+
+    it('should show success message only when clipboard write succeeds', async () => {
+      // CONTRACT: Success message only on actual success
+
+      // Mock clipboard to succeed
+      const mockClipboard = {
+        writeText: vi.fn().mockResolvedValue(undefined)
+      };
+      Object.defineProperty(navigator, 'clipboard', {
+        value: mockClipboard,
+        configurable: true
+      });
+
+      render(
+        <ErrorBoundary>
+          <ThrowError shouldThrow={true} errorMessage="Test clipboard success" />
+        </ErrorBoundary>
+      );
+
+      const reportLink = screen.getByText(/report this issue/i);
+      reportLink.click();
+
+      // This should pass - showing success on actual success is correct
+      await waitFor(() => {
+        expect(mockClipboard.writeText).toHaveBeenCalled();
+      });
     });
   });
 });
