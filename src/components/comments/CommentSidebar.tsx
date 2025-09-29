@@ -212,10 +212,13 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     if (!currentUser) return;
 
     try {
-      // Import resolveComment function dynamically to work with module mocks in tests
-      const { resolveComment } = await import('../../lib/comments');
+      // Import resolve/unresolve functions dynamically to work with module mocks in tests
+      const { resolveComment, unresolveComment } = await import('../../lib/comments');
 
-      const result = await resolveComment(supabase, commentId, currentUser.id);
+      // Toggle based on current resolved state
+      const result = isCurrentlyResolved
+        ? await unresolveComment(supabase, commentId, currentUser.id)
+        : await resolveComment(supabase, commentId, currentUser.id);
 
       if (!result.success) {
         setError(result.error?.message || `Error ${isCurrentlyResolved ? 'reopening' : 'resolving'} comment`);

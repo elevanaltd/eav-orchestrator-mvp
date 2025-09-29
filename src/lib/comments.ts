@@ -400,6 +400,83 @@ export async function resolveComment(
 }
 
 /**
+ * Unresolve a comment (mark as unresolved)
+ */
+export async function unresolveComment(
+  supabase: SupabaseClient<Database>,
+  commentId: string,
+  _userId: string
+): Promise<CommentResult<CommentWithUser>> {
+  try {
+    const updatedAt = new Date().toISOString();
+
+    const { data: comment, error } = await supabase
+      .from('comments')
+      .update({
+        resolved_at: null,
+        resolved_by: null,
+        updated_at: updatedAt
+      })
+      .eq('id', commentId)
+      .select(`
+        id,
+        script_id,
+        user_id,
+        content,
+        start_position,
+        end_position,
+        parent_comment_id,
+        resolved_at,
+        resolved_by,
+        created_at,
+        updated_at
+      `)
+      .single();
+
+    if (error) {
+      return {
+        success: false,
+        error: {
+          code: 'DATABASE_ERROR',
+          message: error.message,
+          details: error
+        }
+      };
+    }
+
+    // Transform to application format
+    const commentWithUser: CommentWithUser = {
+      id: comment.id,
+      scriptId: comment.script_id,
+      userId: comment.user_id,
+      content: comment.content,
+      startPosition: comment.start_position,
+      endPosition: comment.end_position,
+      parentCommentId: comment.parent_comment_id,
+      resolvedAt: comment.resolved_at,
+      resolvedBy: comment.resolved_by,
+      createdAt: comment.created_at,
+      updatedAt: comment.updated_at,
+      user: undefined
+    };
+
+    return {
+      success: true,
+      data: commentWithUser
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        code: 'NETWORK_ERROR',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }
+    };
+  }
+}
+
+/**
  * Soft delete a comment (mark as deleted)
  */
 export async function deleteComment(
