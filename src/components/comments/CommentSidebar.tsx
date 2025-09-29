@@ -86,23 +86,32 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     return true; // 'all'
   });
 
-  // Group comments into threads
-  const commentThreads: CommentThread[] = [];
-  const threadMap = new Map<string, CommentThread>();
+  // Group comments into threads with numbering
+  const commentThreads: (CommentThread & { commentNumber: number })[] = [];
+  const threadMap = new Map<string, CommentThread & { commentNumber: number }>();
 
+  // First, collect all parent comments and sort by position
+  const parentComments = filteredComments
+    .filter(comment => !comment.parentCommentId)
+    .sort((a, b) => a.startPosition - b.startPosition);
+
+  parentComments.forEach((comment, index) => {
+    // Root comment with sequential numbering
+    const thread = {
+      id: comment.id,
+      parentComment: comment,
+      replies: [],
+      isResolved: !!comment.resolvedAt,
+      replyCount: 0,
+      commentNumber: index + 1, // Sequential numbering starting from 1
+    };
+    threadMap.set(comment.id, thread);
+    commentThreads.push(thread);
+  });
+
+  // Then add replies to their parent threads
   filteredComments.forEach(comment => {
-    if (!comment.parentCommentId) {
-      // Root comment
-      const thread: CommentThread = {
-        id: comment.id,
-        parentComment: comment,
-        replies: [],
-        isResolved: !!comment.resolvedAt,
-        replyCount: 0
-      };
-      threadMap.set(comment.id, thread);
-      commentThreads.push(thread);
-    } else {
+    if (comment.parentCommentId) {
       // Reply comment
       const parentThread = threadMap.get(comment.parentCommentId);
       if (parentThread) {
@@ -372,8 +381,24 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
               <article
                 role="article"
                 className={`comment-card ${thread.isResolved ? 'comment-resolved' : ''}`}
+                data-comment-id={thread.parentComment.id}
+                onMouseEnter={() => {
+                  // Highlight corresponding text when hovering comment
+                  const highlight = document.querySelector(`[data-comment-id="${thread.parentComment.id}"].comment-highlight`);
+                  if (highlight) {
+                    highlight.classList.add('highlight-hover');
+                  }
+                }}
+                onMouseLeave={() => {
+                  // Remove highlight when leaving comment
+                  const highlight = document.querySelector(`[data-comment-id="${thread.parentComment.id}"].comment-highlight`);
+                  if (highlight) {
+                    highlight.classList.remove('highlight-hover');
+                  }
+                }}
               >
                 <div className="comment-header">
+                  <div className="comment-number-badge">{thread.commentNumber}</div>
                   <span className="comment-author">{thread.parentComment.user?.email || 'Unknown'}</span>
                   <span className="comment-date">{new Date(thread.parentComment.createdAt).toLocaleDateString()}</span>
                 </div>
@@ -604,6 +629,19 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
           border-radius: 8px;
           padding: 12px;
           margin-bottom: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .comment-card:hover {
+          border-color: #3B82F6;
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+        }
+
+        .comment-card.highlight-hover {
+          border-color: #F59E0B;
+          background-color: #FFFBEB;
+          box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
         }
 
         .comment-reply {
@@ -618,9 +656,27 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
         .comment-header {
           display: flex;
+          align-items: center;
           justify-content: space-between;
           margin-bottom: 8px;
           font-size: 12px;
+          gap: 8px;
+        }
+
+        .comment-number-badge {
+          background: #3B82F6;
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+          flex-shrink: 0;
         }
 
         .comment-author {

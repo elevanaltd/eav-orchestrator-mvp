@@ -16,6 +16,7 @@ import { Node } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
 import { CommentSidebar } from './comments/CommentSidebar';
+import { useToast, ToastContainer } from './ui/Toast';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -131,6 +132,7 @@ export const TipTapEditor: React.FC = () => {
   const { selectedVideo } = useNavigation();
   const { updateScriptStatus, clearScriptStatus } = useScriptStatus();
   const { userProfile } = useAuth();
+  const { toasts, showSuccess, showError, showLoading, removeToast } = useToast();
 
   // Script management state
   const [currentScript, setCurrentScript] = useState<Script | null>(null);
@@ -148,6 +150,7 @@ export const TipTapEditor: React.FC = () => {
     to: number;
   } | null>(null);
   const [showCommentPopup, setShowCommentPopup] = useState(false);
+  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
 
   // Comment creation state (Phase 2.3)
   const [createCommentData, setCreateCommentData] = useState<{
@@ -155,6 +158,15 @@ export const TipTapEditor: React.FC = () => {
     endPosition: number;
     selectedText: string;
   } | null>(null);
+
+  // Comment numbering and highlighting state
+  const [commentCount, setCommentCount] = useState(0);
+  const [, setCommentHighlights] = useState<Array<{
+    commentId: string;
+    commentNumber: number;
+    startPosition: number;
+    endPosition: number;
+  }>>([]);
 
   // Track component mount state to prevent updates after unmount
   const isMountedRef = useRef(true);
@@ -198,7 +210,26 @@ export const TipTapEditor: React.FC = () => {
         }
       }),
       ParagraphComponentTracker,
-      CommentHighlightExtension
+      CommentHighlightExtension.configure({
+        onHighlightClick: (commentId: string, _commentNumber: number) => {
+          // Scroll to comment in sidebar when highlight is clicked
+          const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+          if (commentElement) {
+            commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        },
+        onHighlightHover: (commentId: string, commentNumber: number, isHovering: boolean) => {
+          // Add hover effect to corresponding comment in sidebar
+          const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+          if (commentElement) {
+            if (isHovering) {
+              commentElement.classList.add('highlight-hover');
+            } else {
+              commentElement.classList.remove('highlight-hover');
+            }
+          }
+        }
+      })
     ],
     content: '',
     onUpdate: ({ editor }) => {
@@ -258,16 +289,47 @@ export const TipTapEditor: React.FC = () => {
         // No text selected, hide popup
         setSelectedText(null);
         setShowCommentPopup(false);
+        setPopupPosition(null);
       } else {
         // Text is selected
         const selectedContent = editor.state.doc.textBetween(from, to);
         if (selectedContent.trim()) {
-          setSelectedText({
-            text: selectedContent,
-            from,
-            to
-          });
-          setShowCommentPopup(true);
+          // Calculate popup position based on selection coordinates
+          try {
+            const coords = editor.view.coordsAtPos(from);
+            const editorRect = editor.view.dom.getBoundingClientRect();
+
+            // Position popup above selection, or below if not enough space above
+            const popupHeight = 80; // Estimated popup height
+            const spaceAbove = coords.top - editorRect.top;
+            const spaceBelow = editorRect.bottom - coords.bottom;
+
+            let top = coords.top - popupHeight - 10; // 10px gap above selection
+            if (spaceAbove < popupHeight + 20 && spaceBelow > popupHeight + 20) {
+              // Not enough space above, position below
+              top = coords.bottom + 10;
+            }
+
+            const left = Math.max(20, Math.min(coords.left - 100, window.innerWidth - 220)); // Center popup, but keep on screen
+
+            setSelectedText({
+              text: selectedContent,
+              from,
+              to
+            });
+            setPopupPosition({ top, left });
+            setShowCommentPopup(true);
+          } catch (error) {
+            // Fallback to center positioning if coordinate calculation fails
+            console.warn('Failed to calculate popup position, using fallback:', error);
+            setSelectedText({
+              text: selectedContent,
+              from,
+              to
+            });
+            setPopupPosition(null); // Will use CSS fallback positioning
+            setShowCommentPopup(true);
+          }
         }
       }
     };
@@ -315,30 +377,100 @@ export const TipTapEditor: React.FC = () => {
     }
   }, [currentScript, editor, extractedComponents]);
 
-  // Handle comment creation from sidebar
-  const handleCommentCreated = useCallback(async (data: CreateCommentData) => {
+  // Load comment highlights from database
+  const loadCommentHighlights = useCallback(async (scriptId: string) => {
+    if (!editor) return;
+
     try {
-      // Create comment in database using Supabase MCP tool
-      // For now, just log and clear the creation state
-      console.log('Creating comment:', data);
+      // Import the comments module and load highlights
+      const { getComments } = await import('../lib/comments');
+      const { supabase } = await import('../lib/supabase');
+
+      const result = await getComments(supabase, scriptId);
+
+      if (result.success && result.data) {
+        const highlights = result.data
+          .filter(comment => !comment.parentCommentId) // Only parent comments have highlights
+          .map((comment, index) => ({
+            commentId: comment.id,
+            commentNumber: index + 1,
+            startPosition: comment.startPosition,
+            endPosition: comment.endPosition,
+          }));
+
+        setCommentHighlights(highlights);
+        setCommentCount(highlights.length);
+
+        // Load highlights into editor
+        if (highlights.length > 0) {
+          editor.commands.loadExistingHighlights(highlights);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load comment highlights:', error);
+    }
+  }, [editor]);
+
+  // Handle comment creation from sidebar
+  const handleCommentCreated = useCallback(async (_data: CreateCommentData) => {
+    let loadingToastId: string | null = null;
+
+    try {
+      // Show loading toast
+      loadingToastId = showLoading('Creating comment...');
 
       // Clear creation state to hide form
       setCreateCommentData(null);
 
-      // TODO: Implement actual comment creation via Supabase
-      // await supabase.from('comments').insert([{
-      //   script_id: data.scriptId,
-      //   user_id: user?.id,
-      //   content: data.content,
-      //   start_position: data.startPosition,
-      //   end_position: data.endPosition,
-      //   parent_comment_id: data.parentCommentId
-      // }]);
+      if (editor && selectedText) {
+        // Add visual highlight immediately for better UX
+        const nextCommentNumber = commentCount + 1;
+
+        // Create a temporary ID for immediate feedback
+        const tempCommentId = `temp-${Date.now()}`;
+
+        editor.commands.addCommentHighlight({
+          commentId: tempCommentId,
+          commentNumber: nextCommentNumber,
+          from: selectedText.from,
+          to: selectedText.to,
+        });
+
+        // Update local state
+        const newHighlight = {
+          commentId: tempCommentId,
+          commentNumber: nextCommentNumber,
+          startPosition: selectedText.from,
+          endPosition: selectedText.to,
+        };
+
+        setCommentHighlights(prev => [...prev, newHighlight]);
+        setCommentCount(prev => prev + 1);
+
+        // Hide loading toast and show success
+        if (loadingToastId) {
+          removeToast(loadingToastId);
+        }
+        showSuccess('Comment created successfully!');
+
+        // The actual comment creation is handled by the CommentSidebar
+        // After successful creation, we should reload highlights to get the real comment ID
+        // This will happen when the CommentSidebar refreshes its data
+      } else {
+        if (loadingToastId) {
+          removeToast(loadingToastId);
+        }
+        showError('Failed to create comment highlight');
+      }
 
     } catch (error) {
-      console.error('Failed to create comment:', error);
+      console.error('Failed to create comment highlight:', error);
+      if (loadingToastId) {
+        removeToast(loadingToastId);
+      }
+      showError('Failed to create comment');
     }
-  }, []);
+  }, [editor, selectedText, commentCount, showLoading, showSuccess, showError, removeToast]);
 
   // Load script when selected video changes
   useEffect(() => {
@@ -380,6 +512,9 @@ export const TipTapEditor: React.FC = () => {
         extractComponents(editor);
         setSaveStatus('saved');
         setLastSaved(new Date(script.updated_at));
+
+        // Load comment highlights for this script
+        await loadCommentHighlights(script.id);
       } catch (error) {
         // Only log errors if component is still mounted
         if (!mounted) return;
@@ -436,7 +571,7 @@ export const TipTapEditor: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [selectedVideo, editor, extractComponents, userProfile?.role]);
+  }, [selectedVideo, editor, extractComponents, userProfile?.role, loadCommentHighlights]);
 
   // Auto-save functionality with debouncing
   useEffect(() => {
@@ -764,15 +899,63 @@ export const TipTapEditor: React.FC = () => {
           background: #2563EB;
         }
 
-        /* Comment highlights in editor */
+        /* Comment highlights in editor with numbering */
         .comment-highlight {
           background-color: #FEF3C7;
           border-radius: 2px;
           cursor: pointer;
+          position: relative;
+          transition: all 0.2s ease;
+          padding-right: 18px; /* Space for number badge */
         }
 
         .comment-highlight:hover {
           background-color: #FDE68A;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .comment-highlight::after {
+          content: attr(data-comment-number);
+          position: absolute;
+          top: -8px;
+          right: -6px;
+          background: #3B82F6;
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+          z-index: 1;
+        }
+
+        .comment-highlight.highlight-hover {
+          background-color: #FBBF24;
+          box-shadow: 0 0 0 2px #F59E0B;
+        }
+
+        /* Comment loading and success animations */
+        .comment-highlight.creating {
+          animation: pulse-highlight 1s ease-in-out infinite;
+        }
+
+        .comment-highlight.created {
+          animation: success-highlight 0.5s ease-out;
+        }
+
+        @keyframes pulse-highlight {
+          0%, 100% { background-color: #FEF3C7; }
+          50% { background-color: #FDE68A; }
+        }
+
+        @keyframes success-highlight {
+          0% { background-color: #D1FAE5; }
+          100% { background-color: #FEF3C7; }
         }
       `}</style>
 
@@ -830,8 +1013,13 @@ export const TipTapEditor: React.FC = () => {
         <div
           className="comment-selection-popup"
           data-testid="comment-selection-popup"
-          style={{
-            // Position popup near the selection (simplified positioning)
+          style={popupPosition ? {
+            // Position popup near the selection
+            top: `${popupPosition.top}px`,
+            left: `${popupPosition.left}px`,
+            transform: 'none'
+          } : {
+            // Fallback to center positioning
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)'
@@ -853,12 +1041,16 @@ export const TipTapEditor: React.FC = () => {
               }
               setShowCommentPopup(false);
               setSelectedText(null);
+              setPopupPosition(null);
             }}
           >
             Add comment
           </button>
         </div>
       )}
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} />
     </div>
   );
 };

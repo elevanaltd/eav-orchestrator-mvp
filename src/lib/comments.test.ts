@@ -827,20 +827,28 @@ describe('Comments CRUD Functions - TDD Phase', () => {
       const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
 
       // Create a deep comment chain (6 levels)
-      const comments: { id: string }[] = [];
+      type CommentRow = Database['public']['Tables']['comments']['Row'];
+      const comments: CommentRow[] = [];
       let parentId: string | null = null;
 
       for (let level = 0; level < 6; level++) {
-        const { data: comment } = await supabaseClient.from('comments').insert({
-          script_id: TEST_SCRIPT_ID,
-          user_id: adminUserId,
-          content: `Level ${level} comment`,
-          start_position: level * 5,
-          end_position: level * 5 + 10,
-          parent_comment_id: parentId
-        }).select().single();
-        comments.push(comment!);
-        parentId = comment!.id;
+        const response = await supabaseClient
+          .from('comments')
+          .insert({
+            script_id: TEST_SCRIPT_ID,
+            user_id: adminUserId,
+            content: `Level ${level} comment`,
+            start_position: level * 5,
+            end_position: level * 5 + 10,
+            parent_comment_id: parentId
+          })
+          .select()
+          .single();
+
+        if (response.error || !response.data) throw new Error('Failed to create comment');
+        const newComment: CommentRow = response.data;
+        comments.push(newComment);
+        parentId = newComment.id;
       }
 
       // Delete root comment - should cascade through all 6 levels
