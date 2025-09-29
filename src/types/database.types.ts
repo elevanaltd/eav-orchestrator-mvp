@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      comments: {
+        Row: {
+          content: string
+          created_at: string
+          end_position: number
+          id: string
+          parent_comment_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          script_id: string
+          start_position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          end_position: number
+          id?: string
+          parent_comment_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          script_id: string
+          start_position: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          end_position?: number
+          id?: string
+          parent_comment_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          script_id?: string
+          start_position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client_filter: string | null
@@ -119,39 +176,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      sync_metadata: {
-        Row: {
-          created_at: string | null
-          id: string
-          last_error: string | null
-          last_sync_completed_at: string | null
-          last_sync_started_at: string | null
-          status: string | null
-          sync_count: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          last_error?: string | null
-          last_sync_completed_at?: string | null
-          last_sync_started_at?: string | null
-          status?: string | null
-          sync_count?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          last_error?: string | null
-          last_sync_completed_at?: string | null
-          last_sync_started_at?: string | null
-          status?: string | null
-          sync_count?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       user_clients: {
         Row: {
