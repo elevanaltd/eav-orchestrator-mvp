@@ -15,10 +15,12 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { Node } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
+import { CommentSidebar } from './comments/CommentSidebar';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
+import type { CreateCommentData } from '../types/comments';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
@@ -146,6 +148,13 @@ export const TipTapEditor: React.FC = () => {
     to: number;
   } | null>(null);
   const [showCommentPopup, setShowCommentPopup] = useState(false);
+
+  // Comment creation state (Phase 2.3)
+  const [createCommentData, setCreateCommentData] = useState<{
+    startPosition: number;
+    endPosition: number;
+    selectedText: string;
+  } | null>(null);
 
   // Track component mount state to prevent updates after unmount
   const isMountedRef = useRef(true);
@@ -305,6 +314,31 @@ export const TipTapEditor: React.FC = () => {
       }
     }
   }, [currentScript, editor, extractedComponents]);
+
+  // Handle comment creation from sidebar
+  const handleCommentCreated = useCallback(async (data: CreateCommentData) => {
+    try {
+      // Create comment in database using Supabase MCP tool
+      // For now, just log and clear the creation state
+      console.log('Creating comment:', data);
+
+      // Clear creation state to hide form
+      setCreateCommentData(null);
+
+      // TODO: Implement actual comment creation via Supabase
+      // await supabase.from('comments').insert([{
+      //   script_id: data.scriptId,
+      //   user_id: user?.id,
+      //   content: data.content,
+      //   start_position: data.startPosition,
+      //   end_position: data.endPosition,
+      //   parent_comment_id: data.parentCommentId
+      // }]);
+
+    } catch (error) {
+      console.error('Failed to create comment:', error);
+    }
+  }, []);
 
   // Load script when selected video changes
   useEffect(() => {
@@ -782,38 +816,14 @@ export const TipTapEditor: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Sidebar - For Testing */}
-      <div className="right-sidebar">
-        <div className="sidebar-header">
-          <h2 className="sidebar-title">Component Extraction (Testing)</h2>
-        </div>
-
-        <div className="testing-notice">
-          <strong>⚠️ Testing Only:</strong> This panel shows extracted components for validation. In production, this will be replaced with comments panel.
-        </div>
-
-        <div className="sidebar-content">
-          {extractedComponents.map((comp) => (
-            <div key={comp.number} className="component-item">
-              <div className="component-header">
-                <span className="component-number">C{comp.number}</span>
-                <span className="component-stats">{comp.wordCount} words</span>
-              </div>
-              <div className="component-content">
-                {comp.content}
-              </div>
-            </div>
-          ))}
-
-          {extractedComponents.length === 0 && (
-            <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
-              Start typing to see components extracted here
-            </div>
-          )}
-        </div>
-
-        {/* Script status now displayed in header */}
-      </div>
+      {/* Comments Sidebar - Phase 2.3 */}
+      {currentScript && (
+        <CommentSidebar
+          scriptId={currentScript.id}
+          createComment={createCommentData}
+          onCommentCreated={handleCommentCreated}
+        />
+      )}
 
       {/* Comment Selection Popup - Phase 2.2 */}
       {showCommentPopup && selectedText && (
@@ -833,8 +843,14 @@ export const TipTapEditor: React.FC = () => {
           <button
             className="comment-popup-button"
             onClick={() => {
-              // TODO: Implement comment creation
-              console.log('Create comment for:', selectedText);
+              if (selectedText) {
+                // Set up comment creation in sidebar
+                setCreateCommentData({
+                  startPosition: selectedText.from,
+                  endPosition: selectedText.to,
+                  selectedText: selectedText.text,
+                });
+              }
               setShowCommentPopup(false);
               setSelectedText(null);
             }}
