@@ -18,6 +18,8 @@ import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
+import { isMobileDevice } from '../utils/mobileDetection';
+import MobileScriptView from './MobileScriptView';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
@@ -125,6 +127,7 @@ const ParagraphComponentTracker = Extension.create({
 // ============================================
 
 export const TipTapEditor: React.FC = () => {
+  // React Hooks must be called first (before any early returns)
   const { selectedVideo } = useNavigation();
   const { updateScriptStatus, clearScriptStatus } = useScriptStatus();
   const { userProfile } = useAuth();
@@ -427,6 +430,14 @@ export const TipTapEditor: React.FC = () => {
     return date.toLocaleDateString();
   };
 
+  // Mobile Detection - Graceful Degradation
+  // Critical-Engineer: consulted for Mobile graceful degradation pattern
+  const isMobile = isMobileDevice();
+
+  // If mobile device detected, render mobile-optimized view
+  if (isMobile) {
+    return <MobileScriptView />;
+  }
 
   return (
     <div className="editor-layout">
