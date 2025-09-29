@@ -13,6 +13,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import type { CommentWithUser, CommentThread, CreateCommentData } from '../../types/comments';
+import { getComments, createComment as createCommentInDB } from '../../lib/comments';
 
 export interface CommentSidebarProps {
   scriptId: string;
@@ -31,7 +32,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   createComment,
   onCommentCreated
 }) => {
-  const { currentUser } = useAuth(); // eslint-disable-line @typescript-eslint/no-unused-vars -- Will be used for comment creation
+  const { currentUser } = useAuth();
   const [comments, setComments] = useState<CommentWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,25 +40,21 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Load comments from database
+  // Load comments from database using CRUD functions
   const loadComments = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from('comments')
-        .select('*')
-        .eq('script_id', scriptId)
-        .order('start_position', { ascending: true });
+      const result = await getComments(supabase, scriptId);
 
-      if (error) {
-        setError('Error loading comments');
-        console.error('Comment loading error:', error);
+      if (!result.success) {
+        setError(result.error?.message || 'Error loading comments');
+        console.error('Comment loading error:', result.error);
         return;
       }
 
-      setComments(data || []);
+      setComments(result.data || []);
     } catch (err) {
       setError('Error loading comments');
       console.error('Comment loading error:', err);
@@ -106,9 +103,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     }
   });
 
-  // Handle comment creation
+  // Handle comment creation using CRUD functions
   const handleCreateComment = async () => {
-    if (!createComment || !commentText.trim() || !onCommentCreated) return;
+    if (!createComment || !commentText.trim() || !currentUser) return;
 
     try {
       setSubmitting(true);
@@ -120,11 +117,25 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         parentCommentId: null,
       };
 
-      onCommentCreated(commentData);
+      // Create comment in database using CRUD function
+      const result = await createCommentInDB(supabase, commentData, currentUser.id);
+
+      if (!result.success) {
+        setError(result.error?.message || 'Error creating comment');
+        console.error('Comment creation error:', result.error);
+        return;
+      }
+
+      // Call the callback if provided (for parent component notifications)
+      if (onCommentCreated) {
+        onCommentCreated(commentData);
+      }
+
       setCommentText('');
-      await loadComments(); // Refresh comments
+      await loadComments(); // Refresh comments to show the new one
     } catch (err) {
       console.error('Error creating comment:', err);
+      setError('Error creating comment');
     } finally {
       setSubmitting(false);
     }

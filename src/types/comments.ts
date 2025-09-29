@@ -104,9 +104,9 @@ export interface CommentEvent {
 
 // Error types for comment operations
 export interface CommentError {
-  code: 'INVALID_POSITION' | 'PERMISSION_DENIED' | 'COMMENT_NOT_FOUND' | 'SCRIPT_NOT_FOUND' | 'NETWORK_ERROR';
+  code: 'INVALID_POSITION' | 'PERMISSION_DENIED' | 'COMMENT_NOT_FOUND' | 'SCRIPT_NOT_FOUND' | 'NETWORK_ERROR' | 'VALIDATION_ERROR' | 'DATABASE_ERROR';
   message: string;
-  details?: Record<string, unknown>;
+  details?: unknown; // Allow unknown type for database error details
 }
 
 // Comment validation rules

@@ -18,7 +18,9 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          deleted: boolean
           end_position: number
+          highlighted_text: string
           id: string
           parent_comment_id: string | null
           resolved_at: string | null
@@ -31,7 +33,9 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string
+          deleted?: boolean
           end_position: number
+          highlighted_text?: string
           id?: string
           parent_comment_id?: string | null
           resolved_at?: string | null
@@ -44,7 +48,9 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          deleted?: boolean
           end_position?: number
+          highlighted_text?: string
           id?: string
           parent_comment_id?: string | null
           resolved_at?: string | null

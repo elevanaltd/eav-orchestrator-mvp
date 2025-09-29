@@ -47,6 +47,9 @@ async function signInAsUser(client: SupabaseClient, email: string, password: str
   return data.user.id;
 }
 
+// Import the functions we need to test (will fail until implemented)
+import * as commentsLib from './comments';
+
 // Now run integration tests with proper infrastructure
 describe('Comments Infrastructure - Integration Tests', () => {
   // Single client to avoid GoTrueClient conflicts
@@ -461,6 +464,193 @@ describe('Comments Infrastructure - Integration Tests', () => {
       expect(error).toBeNull();
       expect(unresolvedComments).toHaveLength(1);
       expect(unresolvedComments?.[0]?.content).toBe('Unresolved comment');
+    });
+  });
+});
+
+// ============================================================================
+// COMMENTS CRUD FUNCTIONS - TDD TESTS (WILL FAIL UNTIL IMPLEMENTED)
+// ============================================================================
+
+describe('Comments CRUD Functions - TDD Phase', () => {
+  let supabaseClient: SupabaseClient<Database>;
+
+  beforeEach(async () => {
+    supabaseClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
+  });
+
+  afterEach(async () => {
+    // Cleanup test comments
+    try {
+      await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await supabaseClient.from('comments').delete().eq('script_id', TEST_SCRIPT_ID);
+    } catch {
+      // Cleanup might fail but that's OK
+    }
+    await supabaseClient.auth.signOut();
+  });
+
+  describe('createComment Function - TDD (WILL FAIL)', () => {
+    test('should create comment and return CommentWithUser type', async () => {
+      // This test WILL FAIL - function doesn't exist yet
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      const commentData = {
+        scriptId: TEST_SCRIPT_ID,
+        content: 'Test comment from CRUD function',
+        startPosition: 10,
+        endPosition: 25,
+        parentCommentId: null
+      };
+
+      // This will fail - commentsLib.createComment doesn't exist
+      const result = await commentsLib.createComment(supabaseClient, commentData, adminUserId);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.content).toBe('Test comment from CRUD function');
+      expect(result.data?.scriptId).toBe(TEST_SCRIPT_ID);
+      expect(result.data?.userId).toBe(adminUserId);
+    });
+
+    test('should validate required fields and return error', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      const invalidData = {
+        scriptId: '',
+        content: '',
+        startPosition: -1,
+        endPosition: -1,
+        parentCommentId: null
+      };
+
+      // This will fail - function doesn't exist
+      const result = await commentsLib.createComment(supabaseClient, invalidData, adminUserId);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  describe('getComments Function - TDD (WILL FAIL)', () => {
+    test('should fetch comments with user info and threading', async () => {
+      // Setup: Create test comment first
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Parent comment for CRUD test',
+        start_position: 5,
+        end_position: 15
+      });
+
+      // This will fail - function doesn't exist
+      const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1);
+      expect(result.data?.[0].content).toBe('Parent comment for CRUD test');
+      expect(result.data?.[0].user).toBeDefined();
+    });
+
+    test('should filter comments by resolved status', async () => {
+      // Setup: Create resolved and unresolved comments
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await supabaseClient.from('comments').insert([
+        {
+          script_id: TEST_SCRIPT_ID,
+          user_id: adminUserId,
+          content: 'Unresolved comment',
+          start_position: 0,
+          end_position: 10,
+          resolved_at: null
+        },
+        {
+          script_id: TEST_SCRIPT_ID,
+          user_id: adminUserId,
+          content: 'Resolved comment',
+          start_position: 15,
+          end_position: 25,
+          resolved_at: new Date().toISOString(),
+          resolved_by: adminUserId
+        }
+      ]);
+
+      // This will fail - function doesn't exist
+      const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID, { resolved: false });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(1);
+      expect(result.data?.[0].content).toBe('Unresolved comment');
+    });
+  });
+
+  describe('updateComment Function - TDD (WILL FAIL)', () => {
+    test('should update comment content and return updated comment', async () => {
+      // Setup: Create comment first
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+      const { data: comment } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Original content',
+        start_position: 0,
+        end_position: 10
+      }).select().single();
+
+      // This will fail - function doesn't exist
+      const result = await commentsLib.updateComment(
+        supabaseClient,
+        comment!.id,
+        { content: 'Updated content' },
+        adminUserId
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data?.content).toBe('Updated content');
+    });
+
+    test('should resolve comment with timestamp and user', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+      const { data: comment } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Comment to resolve',
+        start_position: 0,
+        end_position: 10
+      }).select().single();
+
+      // This will fail - function doesn't exist
+      const result = await commentsLib.resolveComment(supabaseClient, comment!.id, adminUserId);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.resolvedAt).toBeDefined();
+      expect(result.data?.resolvedBy).toBe(adminUserId);
+    });
+  });
+
+  describe('deleteComment Function - TDD (WILL FAIL)', () => {
+    test('should soft delete comment (mark as deleted)', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+      const { data: comment } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Comment to delete',
+        start_position: 0,
+        end_position: 10
+      }).select().single();
+
+      // This will fail - function doesn't exist
+      const result = await commentsLib.deleteComment(supabaseClient, comment!.id, adminUserId);
+
+      expect(result.success).toBe(true);
+
+      // Verify it's soft deleted (marked as deleted, not removed)
+      const { data: deletedComment } = await supabaseClient
+        .from('comments')
+        .select('*')
+        .eq('id', comment!.id)
+        .single();
+
+      expect(deletedComment!.deleted).toBe(true);
     });
   });
 });
