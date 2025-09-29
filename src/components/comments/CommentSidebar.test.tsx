@@ -17,6 +17,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Comment } from '../../types/comments';
 
+// Mock comments library
+vi.mock('../../lib/comments', () => ({
+  getComments: vi.fn(),
+  createComment: vi.fn(),
+  resolveComment: vi.fn(),
+  deleteComment: vi.fn(),
+}));
+
 // Mock Supabase
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -29,9 +37,9 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { id: 'user-1', email: 'test@example.com' } }),
 }));
 
-// Import component after mocks
+// Import component and mocks after all mocks are set up
 import { CommentSidebar } from './CommentSidebar';
-import { supabase } from '../../lib/supabase';
+import * as commentsLib from '../../lib/comments';
 
 // Sample test data
 const sampleComments: Comment[] = [
@@ -77,20 +85,15 @@ const sampleComments: Comment[] = [
 ];
 
 describe('CommentSidebar', () => {
-  const mockSupabaseFrom = supabase.from as ReturnType<typeof vi.fn>;
+  const mockGetComments = commentsLib.getComments as ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Setup default mock behavior
-    mockSupabaseFrom.mockReturnValue({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          order: vi.fn(() => Promise.resolve({
-            data: [],
-            error: null,
-          })),
-        })),
-      })),
+    // Setup default mock behavior - empty comments list
+    mockGetComments.mockResolvedValue({
+      success: true,
+      data: [],
+      error: null,
     });
   });
 
@@ -128,17 +131,7 @@ describe('CommentSidebar', () => {
 
   describe('Empty State', () => {
     it('should show empty state when no comments', async () => {
-      mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(() => Promise.resolve({
-              data: [],
-              error: null,
-            })),
-          })),
-        })),
-      });
-
+      // Already set up in beforeEach - empty comments list
       render(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
@@ -150,15 +143,10 @@ describe('CommentSidebar', () => {
 
   describe('Comment Display', () => {
     beforeEach(() => {
-      mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(() => Promise.resolve({
-              data: sampleComments,
-              error: null,
-            })),
-          })),
-        })),
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: sampleComments,
+        error: null,
       });
     });
 
@@ -209,15 +197,10 @@ describe('CommentSidebar', () => {
 
   describe('Filter Functionality', () => {
     beforeEach(() => {
-      mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(() => Promise.resolve({
-              data: sampleComments,
-              error: null,
-            })),
-          })),
-        })),
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: sampleComments,
+        error: null,
       });
     });
 
@@ -319,15 +302,10 @@ describe('CommentSidebar', () => {
 
   describe('Threading Actions', () => {
     beforeEach(() => {
-      mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(() => Promise.resolve({
-              data: sampleComments,
-              error: null,
-            })),
-          })),
-        })),
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: sampleComments,
+        error: null,
       });
     });
 
@@ -362,13 +340,8 @@ describe('CommentSidebar', () => {
 
   describe('Loading States', () => {
     it('should show loading state while fetching comments', () => {
-      mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(() => new Promise(() => {})), // Never resolves
-          })),
-        })),
-      });
+      // Mock that never resolves to show loading state
+      mockGetComments.mockReturnValue(new Promise(() => {}));
 
       render(<CommentSidebar scriptId="script-1" />);
 
@@ -378,15 +351,10 @@ describe('CommentSidebar', () => {
 
   describe('Error Handling', () => {
     it('should show error state when comments fail to load', async () => {
-      mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(() => Promise.resolve({
-              data: null,
-              error: { message: 'Database error' },
-            })),
-          })),
-        })),
+      mockGetComments.mockResolvedValue({
+        success: false,
+        data: null,
+        error: { code: 'DATABASE_ERROR', message: 'Database error' },
       });
 
       render(<CommentSidebar scriptId="script-1" />);
@@ -395,6 +363,342 @@ describe('CommentSidebar', () => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
         expect(screen.getByText(/error loading comments/i)).toBeInTheDocument();
       });
+    });
+  });
+
+  // TDD Phase 2.5 - Reply/Resolve/Delete Functionality Tests (WILL FAIL)
+  describe('Reply Functionality - TDD (WILL FAIL)', () => {
+    beforeEach(() => {
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: sampleComments,
+        error: null,
+      });
+    });
+
+    it('should show reply form when reply button is clicked', async () => {
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        const replyButtons = screen.getAllByRole('button', { name: /reply/i });
+        expect(replyButtons.length).toBeGreaterThan(0);
+      });
+
+      // Click first reply button
+      const replyButtons = screen.getAllByRole('button', { name: /reply/i });
+      fireEvent.click(replyButtons[0]);
+
+      // Should show reply form
+      expect(screen.getByRole('form', { name: /reply form/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /reply text/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /submit reply/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /cancel reply/i })).toBeInTheDocument();
+    });
+
+    it('should create reply comment with parent_comment_id set', async () => {
+      // Mock createComment function from comments.ts
+      vi.doMock('../../lib/comments', () => ({
+        getComments: vi.fn().mockResolvedValue({
+          success: true,
+          data: sampleComments,
+        }),
+        createComment: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            id: 'reply-comment-1',
+            parentCommentId: 'comment-1',
+            content: 'This is a reply',
+          },
+        }),
+      }));
+
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        const replyButtons = screen.getAllByRole('button', { name: /reply/i });
+        expect(replyButtons.length).toBeGreaterThan(0);
+      });
+
+      // Click reply button and submit reply
+      const replyButtons = screen.getAllByRole('button', { name: /reply/i });
+      fireEvent.click(replyButtons[0]);
+
+      const replyTextarea = screen.getByRole('textbox', { name: /reply text/i });
+      const submitReplyButton = screen.getByRole('button', { name: /submit reply/i });
+
+      fireEvent.change(replyTextarea, { target: { value: 'This is a reply' } });
+      fireEvent.click(submitReplyButton);
+
+      // Should call createComment with parentCommentId
+      const { createComment } = await import('../../lib/comments');
+      await waitFor(() => {
+        expect(createComment).toHaveBeenCalledWith(
+          expect.anything(), // supabase client
+          expect.objectContaining({
+            parentCommentId: 'comment-1',
+            content: 'This is a reply',
+          }),
+          'user-1' // current user id
+        );
+      });
+    });
+
+    it('should display nested replies under parent comment', async () => {
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        // Reply should be nested under parent
+        const parentComment = screen.getByText('This needs revision.');
+        const replyComment = screen.getByText('I agree with this change.');
+
+        expect(parentComment).toBeInTheDocument();
+        expect(replyComment).toBeInTheDocument();
+
+        // Reply should have proper CSS class for nesting
+        const replyCard = replyComment.closest('[role="article"]');
+        expect(replyCard).toHaveClass('comment-reply');
+      });
+    });
+
+    it('should cancel reply form when cancel button is clicked', async () => {
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        const replyButtons = screen.getAllByRole('button', { name: /reply/i });
+        fireEvent.click(replyButtons[0]);
+      });
+
+      const cancelButton = screen.getByRole('button', { name: /cancel reply/i });
+      fireEvent.click(cancelButton);
+
+      // Reply form should disappear
+      expect(screen.queryByRole('form', { name: /reply form/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Resolve Functionality - TDD (WILL FAIL)', () => {
+    beforeEach(() => {
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: sampleComments,
+        error: null,
+      });
+    });
+
+    it('should resolve comment when resolve button is clicked', async () => {
+      // Mock resolveComment function
+      vi.doMock('../../lib/comments', () => ({
+        getComments: vi.fn().mockResolvedValue({
+          success: true,
+          data: sampleComments,
+        }),
+        resolveComment: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            ...sampleComments[0],
+            resolvedAt: '2024-09-29T12:00:00Z',
+            resolvedBy: 'user-1',
+          },
+        }),
+      }));
+
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        const resolveButtons = screen.getAllByRole('button', { name: /resolve/i });
+        expect(resolveButtons.length).toBeGreaterThan(0);
+      });
+
+      // Click resolve button
+      const resolveButtons = screen.getAllByRole('button', { name: /resolve/i });
+      fireEvent.click(resolveButtons[0]);
+
+      // Should call resolveComment function
+      const { resolveComment } = await import('../../lib/comments');
+      await waitFor(() => {
+        expect(resolveComment).toHaveBeenCalledWith(
+          expect.anything(), // supabase client
+          'comment-1', // comment id
+          'user-1' // current user id
+        );
+      });
+    });
+
+    it('should show reopen button for resolved comments', async () => {
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        // Should have reopen button for resolved comment (comment-3)
+        expect(screen.getByRole('button', { name: /reopen/i })).toBeInTheDocument();
+      });
+    });
+
+    it('should unresolve comment when reopen button is clicked', async () => {
+      // Mock unresolve functionality
+      vi.doMock('../../lib/comments', () => ({
+        getComments: vi.fn().mockResolvedValue({
+          success: true,
+          data: sampleComments,
+        }),
+        resolveComment: vi.fn().mockResolvedValue({
+          success: true,
+          data: {
+            ...sampleComments[2],
+            resolvedAt: null,
+            resolvedBy: null,
+          },
+        }),
+      }));
+
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        const reopenButton = screen.getByRole('button', { name: /reopen/i });
+        expect(reopenButton).toBeInTheDocument();
+      });
+
+      // Click reopen button
+      const reopenButton = screen.getByRole('button', { name: /reopen/i });
+      fireEvent.click(reopenButton);
+
+      // Should call resolveComment with unresolve behavior
+      const { resolveComment } = await import('../../lib/comments');
+      await waitFor(() => {
+        expect(resolveComment).toHaveBeenCalledWith(
+          expect.anything(), // supabase client
+          'comment-3', // resolved comment id
+          'user-1' // current user id
+        );
+      });
+    });
+
+    it('should update UI to show resolved state visually', async () => {
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        const resolvedComment = screen.getByText('Fixed in new version.');
+        const resolvedCard = resolvedComment.closest('[role="article"]');
+        expect(resolvedCard).toHaveClass('comment-resolved');
+      });
+    });
+  });
+
+  describe('Delete Functionality - TDD (WILL FAIL)', () => {
+    beforeEach(() => {
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: sampleComments,
+        error: null,
+      });
+    });
+
+    it('should show delete button for comment author', async () => {
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        // Should have delete buttons for comments authored by current user
+        const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+        expect(deleteButtons.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should show confirmation dialog when delete button is clicked', async () => {
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+        expect(deleteButtons.length).toBeGreaterThan(0);
+      });
+
+      // Click delete button
+      const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+      fireEvent.click(deleteButtons[0]);
+
+      // Should show confirmation dialog
+      expect(screen.getByRole('dialog', { name: /delete comment/i })).toBeInTheDocument();
+      expect(screen.getByText(/are you sure you want to delete this comment/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /confirm delete/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /cancel delete/i })).toBeInTheDocument();
+    });
+
+    it('should delete comment when confirmed', async () => {
+      // Mock deleteComment function
+      vi.doMock('../../lib/comments', () => ({
+        getComments: vi.fn().mockResolvedValue({
+          success: true,
+          data: sampleComments,
+        }),
+        deleteComment: vi.fn().mockResolvedValue({
+          success: true,
+          data: true,
+        }),
+      }));
+
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+        fireEvent.click(deleteButtons[0]);
+      });
+
+      // Confirm deletion
+      const confirmButton = screen.getByRole('button', { name: /confirm delete/i });
+      fireEvent.click(confirmButton);
+
+      // Should call deleteComment function
+      const { deleteComment } = await import('../../lib/comments');
+      await waitFor(() => {
+        expect(deleteComment).toHaveBeenCalledWith(
+          expect.anything(), // supabase client
+          'comment-1', // comment id
+          'user-1' // current user id
+        );
+      });
+    });
+
+    it('should not show delete button for other users comments', async () => {
+      // Mock auth context with different user
+      vi.doMock('../../contexts/AuthContext', () => ({
+        useAuth: () => ({ currentUser: { id: 'user-3', email: 'other@example.com' } }),
+      }));
+
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        // Should not have delete buttons for comments not authored by current user
+        const deleteButtons = screen.queryAllByRole('button', { name: /delete/i });
+        expect(deleteButtons).toHaveLength(0);
+      });
+    });
+
+    it('should cancel deletion when cancel button is clicked', async () => {
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+        fireEvent.click(deleteButtons[0]);
+      });
+
+      // Cancel deletion
+      const cancelButton = screen.getByRole('button', { name: /cancel delete/i });
+      fireEvent.click(cancelButton);
+
+      // Dialog should disappear
+      expect(screen.queryByRole('dialog', { name: /delete comment/i })).not.toBeInTheDocument();
+    });
+
+    it('should preserve thread integrity when parent is deleted', async () => {
+      // This test ensures replies remain visible when parent is deleted
+      render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        // Both parent and reply should be visible initially
+        expect(screen.getByText('This needs revision.')).toBeInTheDocument();
+        expect(screen.getByText('I agree with this change.')).toBeInTheDocument();
+      });
+
+      // After parent deletion, reply should still be visible with placeholder for parent
+      // This will be implemented with "[Comment deleted]" placeholder
     });
   });
 });

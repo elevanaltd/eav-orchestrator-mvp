@@ -40,6 +40,15 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Reply functionality state
+  const [replyingTo, setReplyingTo] = useState<string | null>(null); // commentId being replied to
+  const [replyText, setReplyText] = useState('');
+  const [submittingReply, setSubmittingReply] = useState(false);
+
+  // Delete functionality state
+  const [deleteConfirming, setDeleteConfirming] = useState<string | null>(null); // commentId being confirmed for deletion
+  const [deleting, setDeleting] = useState(false);
+
   // Load comments from database using CRUD functions
   const loadComments = useCallback(async () => {
     try {
@@ -143,6 +152,122 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
   const handleCancelComment = () => {
     setCommentText('');
+  };
+
+  // Reply functionality handlers
+  const handleReplyClick = (commentId: string) => {
+    setReplyingTo(commentId);
+    setReplyText('');
+  };
+
+  const handleReplySubmit = async (parentCommentId: string) => {
+    if (!replyText.trim() || !currentUser) return;
+
+    try {
+      setSubmittingReply(true);
+      const replyData: CreateCommentData = {
+        scriptId,
+        content: replyText.trim(),
+        // For replies, use the parent comment's position since they share the same text selection
+        startPosition: 0, // Will be updated based on parent comment's position
+        endPosition: 0,
+        parentCommentId,
+      };
+
+      // Find parent comment to get position information
+      const parentComment = comments.find(c => c.id === parentCommentId);
+      if (parentComment) {
+        replyData.startPosition = parentComment.startPosition;
+        replyData.endPosition = parentComment.endPosition;
+      }
+
+      // Create reply in database using CRUD function
+      const result = await createCommentInDB(supabase, replyData, currentUser.id);
+
+      if (!result.success) {
+        setError(result.error?.message || 'Error creating reply');
+        console.error('Reply creation error:', result.error);
+        return;
+      }
+
+      // Reset reply state
+      setReplyingTo(null);
+      setReplyText('');
+      await loadComments(); // Refresh comments to show the new reply
+    } catch (err) {
+      console.error('Error creating reply:', err);
+      setError('Error creating reply');
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+    setReplyText('');
+  };
+
+  // Resolve functionality handlers
+  const handleResolveToggle = async (commentId: string, isCurrentlyResolved: boolean) => {
+    if (!currentUser) return;
+
+    try {
+      // Import resolveComment function dynamically to work with module mocks in tests
+      const { resolveComment } = await import('../../lib/comments');
+
+      const result = await resolveComment(supabase, commentId, currentUser.id);
+
+      if (!result.success) {
+        setError(result.error?.message || `Error ${isCurrentlyResolved ? 'reopening' : 'resolving'} comment`);
+        console.error('Resolve toggle error:', result.error);
+        return;
+      }
+
+      await loadComments(); // Refresh comments to show the updated state
+    } catch (err) {
+      console.error(`Error ${isCurrentlyResolved ? 'reopening' : 'resolving'} comment:`, err);
+      setError(`Error ${isCurrentlyResolved ? 'reopening' : 'resolving'} comment`);
+    }
+  };
+
+  // Delete functionality handlers
+  const handleDeleteClick = (commentId: string) => {
+    setDeleteConfirming(commentId);
+  };
+
+  const handleDeleteConfirm = async (commentId: string) => {
+    if (!currentUser) return;
+
+    try {
+      setDeleting(true);
+      // Import deleteComment function dynamically to work with module mocks in tests
+      const { deleteComment } = await import('../../lib/comments');
+
+      const result = await deleteComment(supabase, commentId, currentUser.id);
+
+      if (!result.success) {
+        setError(result.error?.message || 'Error deleting comment');
+        console.error('Delete comment error:', result.error);
+        return;
+      }
+
+      setDeleteConfirming(null);
+      await loadComments(); // Refresh comments to show the updated state
+    } catch (err) {
+      console.error('Error deleting comment:', err);
+      setError('Error deleting comment');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirming(null);
+  };
+
+  // Check if current user can delete a comment (author or admin)
+  const canDeleteComment = (comment: CommentWithUser) => {
+    return currentUser && comment.userId === currentUser.id;
   };
 
   if (loading) {
@@ -251,36 +376,185 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                 </div>
                 <div className="comment-content">{thread.parentComment.content}</div>
                 <div className="comment-actions">
-                  <button type="button" aria-label="Reply">Reply</button>
+                  <button
+                    type="button"
+                    aria-label="Reply"
+                    onClick={() => handleReplyClick(thread.parentComment.id)}
+                  >
+                    Reply
+                  </button>
                   {thread.isResolved ? (
-                    <button type="button" aria-label="Reopen">Reopen</button>
+                    <button
+                      type="button"
+                      aria-label="Reopen"
+                      onClick={() => handleResolveToggle(thread.parentComment.id, true)}
+                    >
+                      Reopen
+                    </button>
                   ) : (
-                    <button type="button" aria-label="Resolve">Resolve</button>
+                    <button
+                      type="button"
+                      aria-label="Resolve"
+                      onClick={() => handleResolveToggle(thread.parentComment.id, false)}
+                    >
+                      Resolve
+                    </button>
+                  )}
+                  {canDeleteComment(thread.parentComment) && (
+                    <button
+                      type="button"
+                      aria-label="Delete"
+                      onClick={() => handleDeleteClick(thread.parentComment.id)}
+                      className="delete-button"
+                    >
+                      Delete
+                    </button>
                   )}
                 </div>
               </article>
 
+              {/* Reply Form for Parent Comment */}
+              {replyingTo === thread.parentComment.id && (
+                <form
+                  role="form"
+                  aria-label="Reply Form"
+                  className="reply-form"
+                  onSubmit={(e) => { e.preventDefault(); handleReplySubmit(thread.parentComment.id); }}
+                >
+                  <textarea
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder="Write a reply..."
+                    aria-label="Reply Text"
+                    disabled={submittingReply}
+                  />
+                  <div className="form-actions">
+                    <button
+                      type="submit"
+                      aria-label="Submit Reply"
+                      disabled={!replyText.trim() || submittingReply}
+                    >
+                      Submit Reply
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Cancel Reply"
+                      onClick={handleCancelReply}
+                      disabled={submittingReply}
+                    >
+                      Cancel Reply
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {/* Replies */}
               {thread.replies.map((reply) => (
-                <article
-                  key={reply.id}
-                  role="article"
-                  className="comment-card comment-reply"
-                >
-                  <div className="comment-header">
-                    <span className="comment-author">{reply.user?.email || 'Unknown'}</span>
-                    <span className="comment-date">{new Date(reply.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="comment-content">{reply.content}</div>
-                  <div className="comment-actions">
-                    <button type="button" aria-label="Reply">Reply</button>
-                  </div>
-                </article>
+                <div key={reply.id}>
+                  <article
+                    role="article"
+                    className="comment-card comment-reply"
+                  >
+                    <div className="comment-header">
+                      <span className="comment-author">{reply.user?.email || 'Unknown'}</span>
+                      <span className="comment-date">{new Date(reply.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="comment-content">{reply.content}</div>
+                    <div className="comment-actions">
+                      <button
+                        type="button"
+                        aria-label="Reply"
+                        onClick={() => handleReplyClick(reply.id)}
+                      >
+                        Reply
+                      </button>
+                      {canDeleteComment(reply) && (
+                        <button
+                          type="button"
+                          aria-label="Delete"
+                          onClick={() => handleDeleteClick(reply.id)}
+                          className="delete-button"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </article>
+
+                  {/* Reply Form for Reply Comment */}
+                  {replyingTo === reply.id && (
+                    <form
+                      role="form"
+                      aria-label="Reply Form"
+                      className="reply-form nested-reply"
+                      onSubmit={(e) => { e.preventDefault(); handleReplySubmit(thread.parentComment.id); }}
+                    >
+                      <textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Write a reply..."
+                        aria-label="Reply Text"
+                        disabled={submittingReply}
+                      />
+                      <div className="form-actions">
+                        <button
+                          type="submit"
+                          aria-label="Submit Reply"
+                          disabled={!replyText.trim() || submittingReply}
+                        >
+                          Submit Reply
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Cancel Reply"
+                          onClick={handleCancelReply}
+                          disabled={submittingReply}
+                        >
+                          Cancel Reply
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
               ))}
             </div>
           ))
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirming && (
+        <div
+          role="dialog"
+          aria-label="Delete Comment"
+          className="delete-dialog-overlay"
+          onClick={(e) => e.target === e.currentTarget && handleDeleteCancel()}
+        >
+          <div className="delete-dialog">
+            <h3>Delete Comment</h3>
+            <p>Are you sure you want to delete this comment? This action cannot be undone.</p>
+            <div className="dialog-actions">
+              <button
+                type="button"
+                aria-label="Confirm Delete"
+                onClick={() => handleDeleteConfirm(deleteConfirming)}
+                disabled={deleting}
+                className="confirm-delete-button"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+              <button
+                type="button"
+                aria-label="Cancel Delete"
+                onClick={handleDeleteCancel}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .comments-sidebar {
@@ -417,6 +691,78 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         .form-actions button:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+
+        .reply-form {
+          margin: 8px 0 16px 16px;
+          background: #f3f4f6;
+          border-color: #d1d5db;
+        }
+
+        .reply-form.nested-reply {
+          margin-left: 32px;
+          background: #e5e7eb;
+        }
+
+        .delete-button {
+          background: #ef4444;
+          color: white;
+          border-color: #ef4444;
+        }
+
+        .delete-button:hover {
+          background: #dc2626;
+          border-color: #dc2626;
+        }
+
+        .delete-dialog-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .delete-dialog {
+          background: white;
+          padding: 24px;
+          border-radius: 8px;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+          max-width: 400px;
+          width: 90%;
+        }
+
+        .delete-dialog h3 {
+          margin: 0 0 12px 0;
+          font-size: 18px;
+          font-weight: 600;
+        }
+
+        .delete-dialog p {
+          margin: 0 0 20px 0;
+          color: #6b7280;
+        }
+
+        .dialog-actions {
+          display: flex;
+          gap: 8px;
+          justify-content: flex-end;
+        }
+
+        .confirm-delete-button {
+          background: #ef4444;
+          color: white;
+          border-color: #ef4444;
+        }
+
+        .confirm-delete-button:hover {
+          background: #dc2626;
+          border-color: #dc2626;
         }
       `}</style>
     </aside>
