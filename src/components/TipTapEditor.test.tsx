@@ -59,7 +59,9 @@ vi.mock('@tiptap/react', () => ({
         forEach: vi.fn()
       }
     },
-    getHTML: vi.fn().mockReturnValue('<p>Mock content</p>')
+    getHTML: vi.fn().mockReturnValue('<p>Mock content</p>'),
+    on: vi.fn(),
+    off: vi.fn()
   }),
   EditorContent: vi.fn(() => <div data-testid="editor-content">Editor Content</div>)
 }));

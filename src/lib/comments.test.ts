@@ -36,10 +36,7 @@ const UNAUTHORIZED_EMAIL = 'test-unauthorized@external.com';
 const UNAUTHORIZED_PASSWORD = 'test-unauthorized-password-123';
 
 // Test data - using existing test project/video/script created by setup script
-const TEST_CLIENT_FILTER = 'test-client-company';
-const TEST_EAV_CODE = 'EAV806';
-const TEST_PROJECT_ID = 'test-project-1759116164066';
-const TEST_VIDEO_ID = 'test-video-1759116164066';
+// Note: These test IDs are pre-created in the test database - only SCRIPT_ID is currently used
 const TEST_SCRIPT_ID = '0395f3f7-8eb7-4a1f-aa17-27d0d3a38680';
 
 // Helper function to sign in as specific user
@@ -66,7 +63,7 @@ describe('Comments Infrastructure - Integration Tests', () => {
     try {
       await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
       await supabaseClient.from('comments').delete().eq('script_id', TEST_SCRIPT_ID);
-    } catch (error) {
+    } catch {
       // Cleanup might fail if no admin access, but that's OK
     }
 
@@ -129,7 +126,7 @@ describe('Comments Infrastructure - Integration Tests', () => {
           content: 'Reply to parent comment',
           start_position: 5,
           end_position: 15,
-          parent_comment_id: parentComment?.id!
+          parent_comment_id: parentComment ? parentComment.id : ''
         })
         .select()
         .single();
@@ -163,7 +160,7 @@ describe('Comments Infrastructure - Integration Tests', () => {
           resolved_at: new Date().toISOString(),
           resolved_by: adminUserId
         })
-        .eq('id', comment?.id!)
+        .eq('id', comment ? comment.id : '')
         .select()
         .single();
 
@@ -178,7 +175,7 @@ describe('Comments Infrastructure - Integration Tests', () => {
       const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
 
       // Setup: Admin creates a comment
-      const { data: comment, error: createError } = await supabaseClient
+      const { error: createError } = await supabaseClient
         .from('comments')
         .insert({
           script_id: TEST_SCRIPT_ID,
@@ -299,7 +296,7 @@ describe('Comments Infrastructure - Integration Tests', () => {
     test('should validate position bounds (negative positions)', async () => {
       const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-      const { data, error } = await supabaseClient
+      const { error } = await supabaseClient
         .from('comments')
         .insert({
           script_id: TEST_SCRIPT_ID,
@@ -319,7 +316,7 @@ describe('Comments Infrastructure - Integration Tests', () => {
     test('should validate start_position < end_position', async () => {
       const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-      const { data, error } = await supabaseClient
+      const { error } = await supabaseClient
         .from('comments')
         .insert({
           script_id: TEST_SCRIPT_ID,
@@ -365,7 +362,7 @@ describe('Comments Infrastructure - Integration Tests', () => {
           content: 'Reply that should survive',
           start_position: 0,
           end_position: 10,
-          parent_comment_id: parentComment?.id!
+          parent_comment_id: parentComment ? parentComment.id : ''
         })
         .select()
         .single();
@@ -376,7 +373,7 @@ describe('Comments Infrastructure - Integration Tests', () => {
       const { error: deleteError } = await supabaseClient
         .from('comments')
         .delete()
-        .eq('id', parentComment?.id!);
+        .eq('id', parentComment ? parentComment.id : '');
 
       expect(deleteError).toBeNull();
 
@@ -384,7 +381,7 @@ describe('Comments Infrastructure - Integration Tests', () => {
       const { data: survivingReply, error: checkError } = await supabaseClient
         .from('comments')
         .select('*')
-        .eq('id', replyComment?.id!)
+        .eq('id', replyComment ? replyComment.id : '')
         .single();
 
       expect(checkError).toBeNull();

@@ -14,6 +14,7 @@ import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { Node } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
+import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -138,6 +139,14 @@ export const TipTapEditor: React.FC = () => {
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
 
+  // Comment selection state (Phase 2.2)
+  const [selectedText, setSelectedText] = useState<{
+    text: string;
+    from: number;
+    to: number;
+  } | null>(null);
+  const [showCommentPopup, setShowCommentPopup] = useState(false);
+
   // Track component mount state to prevent updates after unmount
   const isMountedRef = useRef(true);
 
@@ -179,7 +188,8 @@ export const TipTapEditor: React.FC = () => {
           }
         }
       }),
-      ParagraphComponentTracker
+      ParagraphComponentTracker,
+      CommentHighlightExtension
     ],
     content: '',
     onUpdate: ({ editor }) => {
@@ -225,6 +235,42 @@ export const TipTapEditor: React.FC = () => {
       }
     }
   });
+
+  // Text selection handler for comments (Phase 2.2)
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleSelectionUpdate = () => {
+      if (!isMountedRef.current) return;
+
+      const { from, to, empty } = editor.state.selection;
+
+      if (empty) {
+        // No text selected, hide popup
+        setSelectedText(null);
+        setShowCommentPopup(false);
+      } else {
+        // Text is selected
+        const selectedContent = editor.state.doc.textBetween(from, to);
+        if (selectedContent.trim()) {
+          setSelectedText({
+            text: selectedContent,
+            from,
+            to
+          });
+          setShowCommentPopup(true);
+        }
+      }
+    };
+
+    // Listen for selection updates using TipTap's event system
+    editor.on('selectionUpdate', handleSelectionUpdate);
+
+    return () => {
+      // Clean up the subscription
+      editor.off('selectionUpdate', handleSelectionUpdate);
+    };
+  }, [editor]);
 
   // Now define callbacks that depend on editor
 
@@ -645,6 +691,55 @@ export const TipTapEditor: React.FC = () => {
           white-space: nowrap;
           line-height: 1.4;
         }
+
+        /* Comment Selection Popup - Phase 2.2 */
+        .comment-selection-popup {
+          position: fixed;
+          background: white;
+          border: 1px solid #e5e5e5;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          padding: 12px;
+          z-index: 1000;
+          max-width: 200px;
+        }
+
+        .comment-popup-text {
+          font-size: 12px;
+          color: #666;
+          margin-bottom: 8px;
+          max-width: 180px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .comment-popup-button {
+          background: #3B82F6;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 6px 12px;
+          font-size: 12px;
+          cursor: pointer;
+          width: 100%;
+          transition: background-color 0.2s;
+        }
+
+        .comment-popup-button:hover {
+          background: #2563EB;
+        }
+
+        /* Comment highlights in editor */
+        .comment-highlight {
+          background-color: #FEF3C7;
+          border-radius: 2px;
+          cursor: pointer;
+        }
+
+        .comment-highlight:hover {
+          background-color: #FDE68A;
+        }
       `}</style>
 
       {/* Main Editor Area */}
@@ -719,6 +814,35 @@ export const TipTapEditor: React.FC = () => {
 
         {/* Script status now displayed in header */}
       </div>
+
+      {/* Comment Selection Popup - Phase 2.2 */}
+      {showCommentPopup && selectedText && (
+        <div
+          className="comment-selection-popup"
+          data-testid="comment-selection-popup"
+          style={{
+            // Position popup near the selection (simplified positioning)
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        >
+          <div className="comment-popup-text" title={selectedText.text}>
+            "{selectedText.text}"
+          </div>
+          <button
+            className="comment-popup-button"
+            onClick={() => {
+              // TODO: Implement comment creation
+              console.log('Create comment for:', selectedText);
+              setShowCommentPopup(false);
+              setSelectedText(null);
+            }}
+          >
+            Add comment
+          </button>
+        </div>
+      )}
     </div>
   );
 };
