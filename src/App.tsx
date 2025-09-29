@@ -17,7 +17,6 @@ import './App.css'
 // Lazy load heavy components for better bundle splitting
 const NavigationSidebar = lazy(() => import('./components/navigation/NavigationSidebar').then(module => ({ default: module.NavigationSidebar })))
 const TipTapEditor = lazy(() => import('./components/TipTapEditor').then(module => ({ default: module.TipTapEditor })))
-const MobileNavigationManager = lazy(() => import('./components/navigation/MobileNavigationManager').then(module => ({ default: module.MobileNavigationManager })))
 
 // Loading component for suspense fallbacks
 const ComponentLoader = ({ name }: { name: string }) => (
@@ -35,11 +34,6 @@ function MainApp() {
         <div className="app-layout">
           <ErrorBoundary>
             <Header />
-          </ErrorBoundary>
-          <ErrorBoundary>
-            <Suspense fallback={<ComponentLoader name="Mobile Navigation" />}>
-              <MobileNavigationManager />
-            </Suspense>
           </ErrorBoundary>
           <ErrorBoundary>
             <Suspense fallback={<ComponentLoader name="Navigation" />}>
@@ -69,22 +63,6 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route
             path="/"
-            element={
-              <PrivateRoute>
-                <MainApp />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/project/:projectId"
-            element={
-              <PrivateRoute>
-                <MainApp />
-              </PrivateRoute>
-            }
-          />
-          <Route
-            path="/project/:projectId/video/:videoId"
             element={
               <PrivateRoute>
                 <MainApp />
