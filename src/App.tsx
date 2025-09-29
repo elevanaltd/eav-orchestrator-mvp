@@ -12,6 +12,8 @@ import { PrivateRoute } from './components/auth/PrivateRoute'
 import { Header } from './components/Header'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { SmartSuiteTest } from './components/SmartSuiteTest'
+import { DesktopRequired } from './components/DesktopRequired'
+import { isMobileDevice } from './utils/mobileDetection'
 import './App.css'
 
 // Lazy load heavy components for better bundle splitting
@@ -28,6 +30,14 @@ const ComponentLoader = ({ name }: { name: string }) => (
 // Critical-Engineer: consulted for Security vulnerability assessment
 
 function MainApp() {
+  // Check if user is on mobile device
+  const isMobile = isMobileDevice()
+
+  // Show professional mobile fallback for mobile users
+  if (isMobile) {
+    return <DesktopRequired />
+  }
+
   return (
     <NavigationProvider>
       <ScriptStatusProvider>
