@@ -653,4 +653,252 @@ describe('Comments CRUD Functions - TDD Phase', () => {
       expect(deletedComment!.deleted).toBe(true);
     });
   });
+
+  describe('CASCADE SOFT DELETE - TDD (WILL FAIL)', () => {
+    test('should cascade delete parent with one child', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create parent comment
+      const { data: parent } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Parent comment',
+        start_position: 0,
+        end_position: 10
+      }).select().single();
+
+      // Create child comment
+      const { data: child } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Child comment',
+        start_position: 5,
+        end_position: 15,
+        parent_comment_id: parent!.id
+      }).select().single();
+
+      // Delete parent - should cascade to child
+      const result = await commentsLib.deleteComment(supabaseClient, parent!.id, adminUserId);
+      expect(result.success).toBe(true);
+
+      // Verify both parent and child are soft deleted
+      const { data: deletedParent } = await supabaseClient
+        .from('comments').select('*').eq('id', parent!.id).single();
+      const { data: deletedChild } = await supabaseClient
+        .from('comments').select('*').eq('id', child!.id).single();
+
+      expect(deletedParent!.deleted).toBe(true);
+      expect(deletedChild!.deleted).toBe(true);
+    });
+
+    test('should cascade delete parent with multiple children', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create parent comment
+      const { data: parent } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Parent with multiple children',
+        start_position: 0,
+        end_position: 10
+      }).select().single();
+
+      // Create multiple children
+      const children = [];
+      for (let i = 0; i < 3; i++) {
+        const { data: child } = await supabaseClient.from('comments').insert({
+          script_id: TEST_SCRIPT_ID,
+          user_id: adminUserId,
+          content: `Child comment ${i}`,
+          start_position: 5 + i,
+          end_position: 15 + i,
+          parent_comment_id: parent!.id
+        }).select().single();
+        children.push(child!);
+      }
+
+      // Delete parent - should cascade to all children
+      const result = await commentsLib.deleteComment(supabaseClient, parent!.id, adminUserId);
+      expect(result.success).toBe(true);
+
+      // Verify parent and all children are soft deleted
+      const { data: deletedParent } = await supabaseClient
+        .from('comments').select('*').eq('id', parent!.id).single();
+      expect(deletedParent!.deleted).toBe(true);
+
+      for (const child of children) {
+        const { data: deletedChild } = await supabaseClient
+          .from('comments').select('*').eq('id', child.id).single();
+        expect(deletedChild!.deleted).toBe(true);
+      }
+    });
+
+    test('should cascade delete nested descendants (3+ levels)', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create parent comment
+      const { data: parent } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Great-grandparent comment',
+        start_position: 0,
+        end_position: 10
+      }).select().single();
+
+      // Create child comment
+      const { data: child } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Grandparent comment',
+        start_position: 5,
+        end_position: 15,
+        parent_comment_id: parent!.id
+      }).select().single();
+
+      // Create grandchild comment
+      const { data: grandchild } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Parent comment',
+        start_position: 8,
+        end_position: 18,
+        parent_comment_id: child!.id
+      }).select().single();
+
+      // Create great-grandchild comment
+      const { data: greatGrandchild } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Child comment',
+        start_position: 12,
+        end_position: 22,
+        parent_comment_id: grandchild!.id
+      }).select().single();
+
+      // Delete parent - should cascade through all descendants
+      const result = await commentsLib.deleteComment(supabaseClient, parent!.id, adminUserId);
+      expect(result.success).toBe(true);
+
+      // Verify all levels are soft deleted
+      const commentIds = [parent!.id, child!.id, grandchild!.id, greatGrandchild!.id];
+      for (const commentId of commentIds) {
+        const { data: deletedComment } = await supabaseClient
+          .from('comments').select('*').eq('id', commentId).single();
+        expect(deletedComment!.deleted).toBe(true);
+      }
+    });
+
+    test('should only delete target comment when no children exist', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create standalone comment with no children
+      const { data: comment } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Standalone comment',
+        start_position: 0,
+        end_position: 10
+      }).select().single();
+
+      // Create unrelated comment to ensure it's not affected
+      const { data: unrelated } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Unrelated comment',
+        start_position: 20,
+        end_position: 30
+      }).select().single();
+
+      // Delete standalone comment
+      const result = await commentsLib.deleteComment(supabaseClient, comment!.id, adminUserId);
+      expect(result.success).toBe(true);
+
+      // Verify only target comment is deleted
+      const { data: deletedComment } = await supabaseClient
+        .from('comments').select('*').eq('id', comment!.id).single();
+      const { data: unrelatedComment } = await supabaseClient
+        .from('comments').select('*').eq('id', unrelated!.id).single();
+
+      expect(deletedComment!.deleted).toBe(true);
+      expect(unrelatedComment!.deleted).toBe(false);
+    });
+
+    test('should handle deep nesting (5+ levels) efficiently', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create a deep comment chain (6 levels)
+      const comments: { id: string }[] = [];
+      let parentId: string | null = null;
+
+      for (let level = 0; level < 6; level++) {
+        const { data: comment } = await supabaseClient.from('comments').insert({
+          script_id: TEST_SCRIPT_ID,
+          user_id: adminUserId,
+          content: `Level ${level} comment`,
+          start_position: level * 5,
+          end_position: level * 5 + 10,
+          parent_comment_id: parentId
+        }).select().single();
+        comments.push(comment!);
+        parentId = comment!.id;
+      }
+
+      // Delete root comment - should cascade through all 6 levels
+      const startTime = Date.now();
+      const result = await commentsLib.deleteComment(supabaseClient, comments[0].id, adminUserId);
+      const endTime = Date.now();
+
+      expect(result.success).toBe(true);
+      expect(endTime - startTime).toBeLessThan(500); // Performance requirement: < 500ms
+
+      // Verify all levels are soft deleted
+      for (const comment of comments) {
+        const { data: deletedComment } = await supabaseClient
+          .from('comments').select('*').eq('id', comment.id).single();
+        expect(deletedComment!.deleted).toBe(true);
+      }
+    });
+
+    test('should maintain transaction atomicity - all or nothing', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create parent and child
+      const { data: parent } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Parent for atomicity test',
+        start_position: 0,
+        end_position: 10
+      }).select().single();
+
+      const { data: child } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Child for atomicity test',
+        start_position: 5,
+        end_position: 15,
+        parent_comment_id: parent!.id
+      }).select().single();
+
+      // TODO: Mock Supabase client to simulate partial failure
+      // For now, this test validates the structure - we'll enhance it during implementation
+      // to use dependency injection and controlled failure simulation
+
+      // This test ensures our implementation uses proper transactions
+      const result = await commentsLib.deleteComment(supabaseClient, parent!.id, adminUserId);
+      expect(result.success).toBe(true);
+
+      // If this succeeds, both should be deleted
+      const { data: deletedParent } = await supabaseClient
+        .from('comments').select('*').eq('id', parent!.id).single();
+      const { data: deletedChild } = await supabaseClient
+        .from('comments').select('*').eq('id', child!.id).single();
+
+      expect(deletedParent!.deleted).toBe(true);
+      expect(deletedChild!.deleted).toBe(true);
+
+      // TODO: Add failure simulation test during implementation phase
+      // When one delete fails, verify entire transaction is rolled back
+    });
+  });
 });

@@ -289,6 +289,12 @@ export type Database = {
       }
     }
     Functions: {
+      cascade_soft_delete_comments: {
+        Args: { comment_ids: string[] }
+        Returns: {
+          deleted_count: number
+        }[]
+      }
       check_client_access: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -305,6 +311,12 @@ export type Database = {
           client_filters: string[]
           matching_projects: Json
           user_role: string
+        }[]
+      }
+      get_comment_descendants: {
+        Args: { parent_id: string }
+        Returns: {
+          id: string
         }[]
       }
       get_user_role: {

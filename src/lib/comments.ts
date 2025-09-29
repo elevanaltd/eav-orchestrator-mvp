@@ -477,7 +477,8 @@ export async function unresolveComment(
 }
 
 /**
- * Soft delete a comment (mark as deleted)
+ * CASCADE SOFT DELETE - Delete comment and all descendant comments
+ * Maintains thread integrity by preventing orphaned replies
  */
 export async function deleteComment(
   supabase: SupabaseClient<Database>,
@@ -485,22 +486,68 @@ export async function deleteComment(
   userId: string
 ): Promise<CommentResult<boolean>> {
   try {
-    const { error } = await supabase
+    // First verify the user owns the parent comment
+    const { data: parentComment, error: parentError } = await supabase
       .from('comments')
-      .update({
-        deleted: true,
-        updated_at: new Date().toISOString()
-      })
+      .select('id, user_id')
       .eq('id', commentId)
-      .eq('user_id', userId); // User can only delete their own comments
+      .eq('user_id', userId)
+      .single();
 
-    if (error) {
+    if (parentError) {
+      return {
+        success: false,
+        error: {
+          code: 'COMMENT_NOT_FOUND',
+          message: 'Comment not found or you do not have permission to delete it',
+          details: parentError
+        }
+      };
+    }
+
+    if (!parentComment) {
+      return {
+        success: false,
+        error: {
+          code: 'PERMISSION_DENIED',
+          message: 'You can only delete your own comments'
+        }
+      };
+    }
+
+    // Get all descendants that need to be deleted
+    const descendantIds = await getCommentDescendants(supabase, commentId);
+
+    // Create array of all comment IDs to delete (parent + descendants)
+    const allIdsToDelete = [commentId, ...descendantIds];
+
+    // Try optimized database function first for better performance
+    let updateError = null;
+    try {
+      const { error: dbFuncError } = await supabase.rpc('cascade_soft_delete_comments', {
+        comment_ids: allIdsToDelete
+      });
+      updateError = dbFuncError;
+    } catch (dbError) {
+      // Fallback to client-side batch update if database function fails
+      console.warn('Database function failed, using client-side update:', dbError);
+      const { error: batchError } = await supabase
+        .from('comments')
+        .update({
+          deleted: true,
+          updated_at: new Date().toISOString()
+        })
+        .in('id', allIdsToDelete);
+      updateError = batchError;
+    }
+
+    if (updateError) {
       return {
         success: false,
         error: {
           code: 'DATABASE_ERROR',
-          message: error.message,
-          details: error
+          message: updateError.message,
+          details: updateError
         }
       };
     }
@@ -515,9 +562,61 @@ export async function deleteComment(
       success: false,
       error: {
         code: 'NETWORK_ERROR',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        details: error
       }
     };
+  }
+}
+
+/**
+ * Get all descendant comment IDs for cascade delete operations
+ * Uses optimized database function for single-query recursive descent
+ */
+async function getCommentDescendants(
+  supabase: SupabaseClient<Database>,
+  commentId: string
+): Promise<string[]> {
+  try {
+    // Use optimized database function for single-query recursive descent
+    const { data, error } = await supabase.rpc('get_comment_descendants', {
+      parent_id: commentId
+    });
+
+    if (error) {
+      throw new Error(`Failed to get comment descendants: ${error.message}`);
+    }
+
+    return data ? data.map((row: { id: string }) => row.id) : [];
+  } catch (dbError) {
+    // Fallback to client-side recursive approach if database function fails
+    console.warn('Database function failed, using client-side approach:', dbError);
+
+    const descendants: string[] = [];
+    const toProcess: string[] = [commentId];
+
+    while (toProcess.length > 0) {
+      const currentBatch = toProcess.splice(0);
+
+      // Get direct children of current batch
+      const { data: children, error } = await supabase
+        .from('comments')
+        .select('id')
+        .in('parent_comment_id', currentBatch)
+        .eq('deleted', false);
+
+      if (error) {
+        throw new Error(`Failed to get comment descendants: ${error.message}`);
+      }
+
+      if (children && children.length > 0) {
+        const childIds = children.map(child => child.id);
+        descendants.push(...childIds);
+        toProcess.push(...childIds);
+      }
+    }
+
+    return descendants;
   }
 }
 
