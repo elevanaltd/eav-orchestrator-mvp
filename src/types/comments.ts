@@ -13,7 +13,7 @@ export type CommentUpdate = Database['public']['Tables']['comments']['Update'];
 export interface Comment {
   id: string;
   scriptId: string;
-  userId: string | null;
+  userId: string; // NOT NULL in database - must be required
   content: string;
   startPosition: number;
   endPosition: number;
