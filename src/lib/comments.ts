@@ -16,10 +16,12 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database.types';
 import type {
   CommentWithUser,
+  CommentWithRecovery,
   CreateCommentData,
   CommentFilters,
   CommentError
 } from '../types/comments';
+import { batchRecoverCommentPositions } from './comments-position-recovery';
 
 // Session-scoped cache for user profiles to avoid repeated queries
 const userProfileCache = new Map<string, {
@@ -67,7 +69,7 @@ export async function createComment(
         start_position: data.startPosition,
         end_position: data.endPosition,
         parent_comment_id: data.parentCommentId,
-        highlighted_text: '', // TODO: Extract from TipTap editor
+        highlighted_text: data.highlightedText || '', // Store text for position recovery
       })
       .select(`
         id,
@@ -76,6 +78,7 @@ export async function createComment(
         content,
         start_position,
         end_position,
+        highlighted_text,
         parent_comment_id,
         resolved_at,
         resolved_by,
@@ -103,6 +106,7 @@ export async function createComment(
       content: comment.content,
       startPosition: comment.start_position,
       endPosition: comment.end_position,
+      highlightedText: comment.highlighted_text,
       parentCommentId: comment.parent_comment_id,
       resolvedAt: comment.resolved_at,
       resolvedBy: comment.resolved_by,
@@ -128,13 +132,15 @@ export async function createComment(
 }
 
 /**
- * Get comments for a script with optional filtering
+ * Get comments for a script with optional filtering and position recovery
+ * @param documentContent - Current document content for position recovery (optional)
  */
 export async function getComments(
   supabase: SupabaseClient<Database>,
   scriptId: string,
-  filters?: CommentFilters
-): Promise<CommentResult<CommentWithUser[]>> {
+  filters?: CommentFilters,
+  documentContent?: string
+): Promise<CommentResult<CommentWithRecovery[]>> {
   try {
     let query = supabase
       .from('comments')
@@ -145,6 +151,7 @@ export async function getComments(
         content,
         start_position,
         end_position,
+        highlighted_text,
         parent_comment_id,
         resolved_at,
         resolved_by,
@@ -237,6 +244,7 @@ export async function getComments(
         content: comment.content,
         startPosition: comment.start_position,
         endPosition: comment.end_position,
+        highlightedText: comment.highlighted_text,
         parentCommentId: comment.parent_comment_id,
         resolvedAt: comment.resolved_at,
         resolvedBy: comment.resolved_by,
@@ -246,6 +254,39 @@ export async function getComments(
       };
     });
 
+    // Step 5: Apply position recovery if document content provided
+    if (documentContent) {
+      const recoveryResults = batchRecoverCommentPositions(
+        commentsWithUser.map(c => ({
+          id: c.id,
+          startPosition: c.startPosition,
+          endPosition: c.endPosition,
+          highlighted_text: c.highlightedText || ''
+        })),
+        documentContent
+      );
+
+      const commentsWithRecovery: CommentWithRecovery[] = commentsWithUser.map(comment => {
+        const recovery = recoveryResults.get(comment.id);
+        if (recovery) {
+          // Update positions if relocated
+          return {
+            ...comment,
+            startPosition: recovery.newStartPosition,
+            endPosition: recovery.newEndPosition,
+            recovery: recovery
+          };
+        }
+        return comment;
+      });
+
+      return {
+        success: true,
+        data: commentsWithRecovery
+      };
+    }
+
+    // No position recovery - return comments as-is
     return {
       success: true,
       data: commentsWithUser

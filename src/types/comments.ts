@@ -17,6 +17,7 @@ export interface Comment {
   content: string;
   startPosition: number;
   endPosition: number;
+  highlightedText?: string; // Stored text for position recovery
   parentCommentId?: string | null;
   resolvedAt?: string | null;
   resolvedBy?: string | null;
@@ -63,6 +64,7 @@ export interface CreateCommentData {
   content: string;
   startPosition: number;
   endPosition: number;
+  highlightedText?: string; // Text content for position recovery
   parentCommentId?: string | null;
 }
 
@@ -142,4 +144,21 @@ export interface PositionTransform {
 
 export interface TransformCommentPositions {
   (comments: Comment[], transform: PositionTransform): Comment[];
+}
+
+// Position recovery types for hybrid content-based anchoring
+export type RecoveryStatus = 'relocated' | 'orphaned' | 'uncertain' | 'fallback';
+export type MatchQuality = 'exact' | 'case-insensitive' | 'fuzzy' | 'poor' | 'none';
+
+export interface CommentRecoveryResult {
+  status: RecoveryStatus;
+  newStartPosition: number;
+  newEndPosition: number;
+  matchQuality: MatchQuality;
+  message: string;
+}
+
+// Extended comment with recovery status for UI display
+export interface CommentWithRecovery extends CommentWithUser {
+  recovery?: CommentRecoveryResult;
 }
