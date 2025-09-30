@@ -380,7 +380,7 @@ export const TipTapEditor: React.FC = () => {
     }
   }, [currentScript, editor, extractedComponents]);
 
-  // Load comment highlights from database
+  // Load comment highlights from database with position recovery
   const loadCommentHighlights = useCallback(async (scriptId: string) => {
     if (!editor) return;
 
@@ -389,7 +389,11 @@ export const TipTapEditor: React.FC = () => {
       const { getComments } = await import('../lib/comments');
       const { supabase } = await import('../lib/supabase');
 
-      const result = await getComments(supabase, scriptId);
+      // Get current document content for position recovery
+      const documentContent = editor.getText();
+
+      // Load comments with position recovery enabled
+      const result = await getComments(supabase, scriptId, undefined, documentContent);
 
       if (result.success && result.data) {
         const highlights = result.data
@@ -397,8 +401,8 @@ export const TipTapEditor: React.FC = () => {
           .map((comment, index) => ({
             commentId: comment.id,
             commentNumber: index + 1,
-            startPosition: comment.startPosition,
-            endPosition: comment.endPosition,
+            startPosition: comment.startPosition, // Already recovered if needed
+            endPosition: comment.endPosition, // Already recovered if needed
           }));
 
         setCommentHighlights(highlights);
@@ -407,6 +411,19 @@ export const TipTapEditor: React.FC = () => {
         // Load highlights into editor
         if (highlights.length > 0) {
           editor.commands.loadExistingHighlights(highlights);
+        }
+
+        // Log position recovery results if any comments were recovered
+        const recoveredComments = result.data.filter(c => c.recovery && c.recovery.status === 'relocated');
+        if (recoveredComments.length > 0) {
+          Logger.info(`Position recovery: ${recoveredComments.length} comment(s) relocated`, {
+            recovered: recoveredComments.map(c => ({
+              id: c.id,
+              status: c.recovery?.status,
+              matchQuality: c.recovery?.matchQuality,
+              message: c.recovery?.message
+            }))
+          });
         }
       }
     } catch (error) {
@@ -975,13 +992,14 @@ export const TipTapEditor: React.FC = () => {
       </div>
 
       {/* Comments Sidebar - Phase 2.3 */}
-      {currentScript && (
+      {currentScript && editor && (
         <ErrorBoundary>
           <CommentSidebar
             scriptId={currentScript.id}
             createComment={createCommentData}
             onCommentCreated={handleCommentCreated}
             onCommentCancelled={handleCommentCancelled}
+            documentContent={editor.getText()}
           />
         </ErrorBoundary>
       )}

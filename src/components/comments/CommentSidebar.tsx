@@ -26,6 +26,7 @@ export interface CommentSidebarProps {
   } | null;
   onCommentCreated?: () => void;
   onCommentCancelled?: () => void;
+  documentContent?: string; // For position recovery
 }
 
 type FilterMode = 'all' | 'open' | 'resolved';
@@ -34,7 +35,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   scriptId,
   createComment,
   onCommentCreated,
-  onCommentCancelled
+  onCommentCancelled,
+  documentContent
 }) => {
   const { currentUser } = useAuth();
   const { executeWithErrorHandling } = useErrorHandling('comment operations');
@@ -59,14 +61,15 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [editText, setEditText] = useState('');
   const [submittingEdit, setSubmittingEdit] = useState(false);
 
-  // Load comments from database using CRUD functions with error handling
+  // Load comments from database using CRUD functions with error handling and position recovery
   const loadComments = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     const result = await executeWithErrorHandling(
       async () => {
-        const response = await getComments(supabase, scriptId);
+        // Pass documentContent for position recovery if available
+        const response = await getComments(supabase, scriptId, undefined, documentContent);
 
         if (!response.success) {
           throw new Error(response.error?.message || 'Failed to load comments');
@@ -86,10 +89,23 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     if (result.success) {
       setComments(result.data);
       setError(null); // Clear any previous errors on success
+
+      // Log position recovery results if any comments were recovered
+      const recoveredComments = result.data.filter(c => c.recovery && c.recovery.status === 'relocated');
+      if (recoveredComments.length > 0) {
+        Logger.info(`CommentSidebar: ${recoveredComments.length} comment(s) repositioned`, {
+          recovered: recoveredComments.map(c => ({
+            id: c.id,
+            status: c.recovery?.status,
+            matchQuality: c.recovery?.matchQuality,
+            message: c.recovery?.message
+          }))
+        });
+      }
     }
 
     setLoading(false);
-  }, [scriptId, executeWithErrorHandling]);
+  }, [scriptId, documentContent, executeWithErrorHandling]);
 
   useEffect(() => {
     loadComments();
