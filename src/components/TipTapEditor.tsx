@@ -14,10 +14,16 @@ import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { Node } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
+import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
+import { CommentSidebar } from './comments/CommentSidebar';
+import { ToastContainer } from './ui/Toast';
+import { useToast } from './ui/useToast';
+import { ErrorBoundary } from './ErrorBoundary';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
+import { Logger } from '../services/logger';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
@@ -128,6 +134,7 @@ export const TipTapEditor: React.FC = () => {
   const { selectedVideo } = useNavigation();
   const { updateScriptStatus, clearScriptStatus } = useScriptStatus();
   const { userProfile } = useAuth();
+  const { toasts, showSuccess, showError } = useToast();
 
   // Script management state
   const [currentScript, setCurrentScript] = useState<Script | null>(null);
@@ -137,6 +144,30 @@ export const TipTapEditor: React.FC = () => {
 
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
+
+  // Comment selection state (Phase 2.2)
+  const [selectedText, setSelectedText] = useState<{
+    text: string;
+    from: number;
+    to: number;
+  } | null>(null);
+  const [showCommentPopup, setShowCommentPopup] = useState(false);
+  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
+
+  // Comment creation state (Phase 2.3)
+  const [createCommentData, setCreateCommentData] = useState<{
+    startPosition: number;
+    endPosition: number;
+    selectedText: string;
+  } | null>(null);
+
+  // Comment numbering and highlighting state
+  const [, setCommentHighlights] = useState<Array<{
+    commentId: string;
+    commentNumber: number;
+    startPosition: number;
+    endPosition: number;
+  }>>([]);
 
   // Track component mount state to prevent updates after unmount
   const isMountedRef = useRef(true);
@@ -179,7 +210,27 @@ export const TipTapEditor: React.FC = () => {
           }
         }
       }),
-      ParagraphComponentTracker
+      ParagraphComponentTracker,
+      CommentHighlightExtension.configure({
+        onHighlightClick: (commentId: string, _commentNumber: number) => {
+          // Scroll to comment in sidebar when highlight is clicked
+          const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+          if (commentElement) {
+            commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        },
+        onHighlightHover: (commentId: string, commentNumber: number, isHovering: boolean) => {
+          // Add hover effect to corresponding comment in sidebar
+          const commentElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+          if (commentElement) {
+            if (isHovering) {
+              commentElement.classList.add('highlight-hover');
+            } else {
+              commentElement.classList.remove('highlight-hover');
+            }
+          }
+        }
+      })
     ],
     content: '',
     onUpdate: ({ editor }) => {
@@ -226,6 +277,160 @@ export const TipTapEditor: React.FC = () => {
     }
   });
 
+  // Load comment highlights from database with position recovery
+  // IMPORTANT: This must be defined before useEffects that reference it
+  const loadCommentHighlights = useCallback(async (scriptId: string) => {
+    if (!editor) return;
+
+    try {
+      // Import the comments module and load highlights
+      const { getComments } = await import('../lib/comments');
+      const { supabase } = await import('../lib/supabase');
+
+      // Get current document content for position recovery
+      const documentContent = editor.getText();
+
+      // Load comments with position recovery enabled
+      const result = await getComments(supabase, scriptId, undefined, documentContent);
+
+      if (result.success && result.data) {
+        const highlights = result.data
+          .filter(comment => !comment.parentCommentId) // Only parent comments have highlights
+          .map((comment, index) => ({
+            commentId: comment.id,
+            commentNumber: index + 1,
+            startPosition: comment.startPosition, // Already recovered if needed
+            endPosition: comment.endPosition, // Already recovered if needed
+          }));
+
+        setCommentHighlights(highlights);
+
+        // Load highlights into editor
+        if (highlights.length > 0) {
+          editor.commands.loadExistingHighlights(highlights);
+        }
+
+        // Log position recovery results if any comments were recovered
+        const recoveredComments = result.data.filter(c => c.recovery && c.recovery.status === 'relocated');
+        if (recoveredComments.length > 0) {
+          Logger.info(`Position recovery: ${recoveredComments.length} comment(s) relocated`, {
+            recovered: recoveredComments.map(c => ({
+              id: c.id,
+              status: c.recovery?.status,
+              matchQuality: c.recovery?.matchQuality,
+              message: c.recovery?.message
+            }))
+          });
+        }
+      }
+    } catch (error) {
+      Logger.error('Failed to load comment highlights', { error: (error as Error).message });
+    }
+  }, [editor]);
+
+  // Text selection handler for comments (Phase 2.2)
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleSelectionUpdate = () => {
+      if (!isMountedRef.current) return;
+
+      const { from, to, empty } = editor.state.selection;
+
+      if (empty) {
+        // No text selected, hide popup
+        setSelectedText(null);
+        setShowCommentPopup(false);
+        setPopupPosition(null);
+      } else {
+        // Text is selected
+        const selectedContent = editor.state.doc.textBetween(from, to);
+        if (selectedContent.trim()) {
+          // Calculate popup position based on selection coordinates
+          try {
+            const coords = editor.view.coordsAtPos(from);
+            const editorRect = editor.view.dom.getBoundingClientRect();
+
+            // Position popup above selection, or below if not enough space above
+            const popupHeight = 80; // Estimated popup height
+            const spaceAbove = coords.top - editorRect.top;
+            const spaceBelow = editorRect.bottom - coords.bottom;
+
+            let top = coords.top - popupHeight - 10; // 10px gap above selection
+            if (spaceAbove < popupHeight + 20 && spaceBelow > popupHeight + 20) {
+              // Not enough space above, position below
+              top = coords.bottom + 10;
+            }
+
+            const left = Math.max(20, Math.min(coords.left - 100, window.innerWidth - 220)); // Center popup, but keep on screen
+
+            setSelectedText({
+              text: selectedContent,
+              from,
+              to
+            });
+            setPopupPosition({ top, left });
+            setShowCommentPopup(true);
+          } catch (error) {
+            // Fallback to center positioning if coordinate calculation fails
+            Logger.warn('Failed to calculate popup position, using fallback', { error: (error as Error).message });
+            setSelectedText({
+              text: selectedContent,
+              from,
+              to
+            });
+            setPopupPosition(null); // Will use CSS fallback positioning
+            setShowCommentPopup(true);
+          }
+        }
+      }
+    };
+
+    // Listen for selection updates using TipTap's event system
+    editor.on('selectionUpdate', handleSelectionUpdate);
+
+    return () => {
+      // Clean up the subscription
+      editor.off('selectionUpdate', handleSelectionUpdate);
+    };
+  }, [editor]);
+
+  // Blur handler for comment position recovery (Phase 2 - Option B)
+  useEffect(() => {
+    if (!editor || !currentScript) return;
+
+    let blurTimeoutId: NodeJS.Timeout | null = null;
+
+    const handleBlur = () => {
+      // Debounce: Wait 500ms after blur to update positions
+      // This prevents rapid-fire updates if user quickly clicks in/out
+      if (blurTimeoutId) {
+        clearTimeout(blurTimeoutId);
+      }
+
+      blurTimeoutId = setTimeout(() => {
+        if (!isMountedRef.current || !currentScript) return;
+
+        Logger.info('Editor blur: Recovering comment positions', {
+          scriptId: currentScript.id,
+          trigger: 'blur'
+        });
+
+        // Reload comment highlights with position recovery
+        loadCommentHighlights(currentScript.id);
+      }, 500); // 500ms debounce
+    };
+
+    editor.on('blur', handleBlur);
+
+    return () => {
+      editor.off('blur', handleBlur);
+      if (blurTimeoutId) {
+        clearTimeout(blurTimeoutId);
+      }
+    };
+  }, [editor, currentScript, loadCommentHighlights]);
+
   // Now define callbacks that depend on editor
 
   const handleSave = useCallback(async () => {
@@ -251,14 +456,53 @@ export const TipTapEditor: React.FC = () => {
         setCurrentScript(updatedScript);
         setLastSaved(new Date());
         setSaveStatus('saved');
+
+        // After save completes, recover comment positions
+        // This ensures highlights are updated after document changes are persisted
+        Logger.info('Auto-save complete: Recovering comment positions', {
+          scriptId: currentScript.id,
+          trigger: 'save'
+        });
+        loadCommentHighlights(currentScript.id);
       }
     } catch (error) {
       if (isMountedRef.current) {
-        console.error('Failed to save script:', error);
+        Logger.error('Failed to save script', { error: (error as Error).message });
         setSaveStatus('error');
       }
     }
-  }, [currentScript, editor, extractedComponents]);
+  }, [currentScript, editor, extractedComponents, loadCommentHighlights]);
+
+  // Handle comment creation from sidebar
+  const handleCommentCreated = useCallback(async () => {
+    try {
+      // Clear creation state to hide form
+      setCreateCommentData(null);
+      // Clear selection state now that comment is created
+      setSelectedText(null);
+      setPopupPosition(null);
+
+      // Reload highlights from database to show newly created comment with correct ID
+      if (currentScript) {
+        await loadCommentHighlights(currentScript.id);
+      }
+
+      showSuccess('Comment created successfully!');
+
+    } catch (error) {
+      Logger.error('Failed to reload comment highlights', { error: (error as Error).message });
+      showError('Failed to update comment highlights');
+    }
+  }, [currentScript, loadCommentHighlights, showSuccess, showError]);
+
+  // Handle comment form cancellation
+  const handleCommentCancelled = useCallback(() => {
+    // Clear creation state to hide form
+    setCreateCommentData(null);
+    // Clear selection state
+    setSelectedText(null);
+    setPopupPosition(null);
+  }, []);
 
   // Load script when selected video changes
   useEffect(() => {
@@ -300,11 +544,14 @@ export const TipTapEditor: React.FC = () => {
         extractComponents(editor);
         setSaveStatus('saved');
         setLastSaved(new Date(script.updated_at));
+
+        // Load comment highlights for this script
+        await loadCommentHighlights(script.id);
       } catch (error) {
         // Only log errors if component is still mounted
         if (!mounted) return;
 
-        console.error('Failed to load script:', error);
+        Logger.error('Failed to load script', { error: (error as Error).message });
 
         // Type-safe error details extraction
         interface ErrorWithDetails extends Error {
@@ -356,7 +603,7 @@ export const TipTapEditor: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [selectedVideo, editor, extractComponents, userProfile?.role]);
+  }, [selectedVideo, editor, extractComponents, userProfile?.role, loadCommentHighlights]);
 
   // Auto-save functionality with debouncing
   useEffect(() => {
@@ -645,6 +892,103 @@ export const TipTapEditor: React.FC = () => {
           white-space: nowrap;
           line-height: 1.4;
         }
+
+        /* Comment Selection Popup - Phase 2.2 */
+        .comment-selection-popup {
+          position: fixed;
+          background: white;
+          border: 1px solid #e5e5e5;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          padding: 12px;
+          z-index: 1000;
+          max-width: 200px;
+        }
+
+        .comment-popup-text {
+          font-size: 12px;
+          color: #666;
+          margin-bottom: 8px;
+          max-width: 180px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .comment-popup-button {
+          background: #3B82F6;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 6px 12px;
+          font-size: 12px;
+          cursor: pointer;
+          width: 100%;
+          transition: background-color 0.2s;
+        }
+
+        .comment-popup-button:hover {
+          background: #2563EB;
+        }
+
+        /* Comment highlights in editor with numbering */
+        .comment-highlight {
+          background-color: #FEF3C7;
+          border-radius: 2px;
+          cursor: pointer;
+          position: relative;
+          transition: all 0.2s ease;
+          padding-right: 18px; /* Space for number badge */
+        }
+
+        .comment-highlight:hover {
+          background-color: #FDE68A;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .comment-highlight::after {
+          content: attr(data-comment-number);
+          position: absolute;
+          top: -8px;
+          right: -6px;
+          background: #3B82F6;
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+          z-index: 1;
+        }
+
+        .comment-highlight.highlight-hover {
+          background-color: #FBBF24;
+          box-shadow: 0 0 0 2px #F59E0B;
+        }
+
+        /* Comment loading and success animations */
+        .comment-highlight.creating {
+          animation: pulse-highlight 1s ease-in-out infinite;
+        }
+
+        .comment-highlight.created {
+          animation: success-highlight 0.5s ease-out;
+        }
+
+        @keyframes pulse-highlight {
+          0%, 100% { background-color: #FEF3C7; }
+          50% { background-color: #FDE68A; }
+        }
+
+        @keyframes success-highlight {
+          0% { background-color: #D1FAE5; }
+          100% { background-color: #FEF3C7; }
+        }
       `}</style>
 
       {/* Main Editor Area */}
@@ -682,43 +1026,74 @@ export const TipTapEditor: React.FC = () => {
               <p>Each paragraph you write becomes a component that flows through the production pipeline.</p>
             </div>
           ) : (
-            <EditorContent editor={editor} />
+            <ErrorBoundary>
+              <EditorContent editor={editor} />
+            </ErrorBoundary>
           )}
         </div>
       </div>
 
-      {/* Right Sidebar - For Testing */}
-      <div className="right-sidebar">
-        <div className="sidebar-header">
-          <h2 className="sidebar-title">Component Extraction (Testing)</h2>
+      {/* Comments Sidebar - Phase 2.3 */}
+      {currentScript && editor && (
+        <ErrorBoundary>
+          <CommentSidebar
+            scriptId={currentScript.id}
+            createComment={createCommentData}
+            onCommentCreated={handleCommentCreated}
+            onCommentCancelled={handleCommentCancelled}
+            documentContent={editor.getText()}
+          />
+        </ErrorBoundary>
+      )}
+
+      {/* Comment Selection Popup - Phase 2.2 */}
+      {showCommentPopup && selectedText && (
+        <div
+          className="comment-selection-popup"
+          data-testid="comment-selection-popup"
+          style={popupPosition ? {
+            // Position popup near the selection
+            top: `${popupPosition.top}px`,
+            left: `${popupPosition.left}px`,
+            transform: 'none'
+          } : {
+            // Fallback to center positioning
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)'
+          }}
+        >
+          <div className="comment-popup-text" title={selectedText.text}>
+            "{selectedText.text}"
+          </div>
+          <button
+            className="comment-popup-button"
+            onMouseDown={(e) => {
+              // Prevent popup click from clearing editor selection
+              e.preventDefault();
+            }}
+            onClick={() => {
+              if (selectedText) {
+                // Set up comment creation in sidebar
+                setCreateCommentData({
+                  startPosition: selectedText.from,
+                  endPosition: selectedText.to,
+                  selectedText: selectedText.text,
+                });
+                // Hide popup but keep selection data available for visual reference
+                setShowCommentPopup(false);
+                // Don't clear selectedText yet - keep it for visual feedback
+                // It will be cleared when comment is created or form is cancelled
+              }
+            }}
+          >
+            Add comment
+          </button>
         </div>
+      )}
 
-        <div className="testing-notice">
-          <strong>⚠️ Testing Only:</strong> This panel shows extracted components for validation. In production, this will be replaced with comments panel.
-        </div>
-
-        <div className="sidebar-content">
-          {extractedComponents.map((comp) => (
-            <div key={comp.number} className="component-item">
-              <div className="component-header">
-                <span className="component-number">C{comp.number}</span>
-                <span className="component-stats">{comp.wordCount} words</span>
-              </div>
-              <div className="component-content">
-                {comp.content}
-              </div>
-            </div>
-          ))}
-
-          {extractedComponents.length === 0 && (
-            <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
-              Start typing to see components extracted here
-            </div>
-          )}
-        </div>
-
-        {/* Script status now displayed in header */}
-      </div>
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} />
     </div>
   );
 };

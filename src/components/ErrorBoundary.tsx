@@ -8,6 +8,7 @@
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Logger } from '../services/logger';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -47,7 +48,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error information for debugging and monitoring
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    Logger.error('ErrorBoundary caught an error', { error: error.message, stack: error.stack, componentStack: errorInfo.componentStack });
 
     this.setState({
       error,
@@ -62,7 +63,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   reportError(error: Error, errorInfo: ErrorInfo) {
     // This would integrate with error reporting service (Sentry, Bugsnag, etc.)
-    console.warn('Error reporting not implemented - would send to monitoring service', {
+    Logger.warn('Error reporting not implemented - would send to monitoring service', {
       error: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack
@@ -210,12 +211,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     this.setState({ clipboardMessage: 'Error details have been copied to your clipboard. Please provide this information when reporting the issue.' });
                   } catch {
                     // Fallback when clipboard API fails
-                    console.error('Error report details:', errorDetails);
-                    this.setState({ clipboardMessage: 'Failed to copy to clipboard. Error details have been logged to console. Please copy them manually.' });
+                    Logger.error('Error report details', { details: errorDetails });
+                    this.setState({ clipboardMessage: 'Failed to copy to clipboard. Error details have been logged. Please copy them manually.' });
                   }
                 } else {
                   // Fallback for browsers without clipboard API
-                  console.error('Error report details:', errorDetails);
+                  Logger.error('Error report details', { details: errorDetails });
                   this.setState({ clipboardMessage: 'Clipboard not available. Error details have been logged to console. Please copy them manually.' });
                 }
               }}

@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      comments: {
+        Row: {
+          content: string
+          created_at: string
+          deleted: boolean
+          end_position: number
+          highlighted_text: string
+          id: string
+          parent_comment_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          script_id: string
+          start_position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          deleted?: boolean
+          end_position: number
+          highlighted_text?: string
+          id?: string
+          parent_comment_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          script_id: string
+          start_position: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          deleted?: boolean
+          end_position?: number
+          highlighted_text?: string
+          id?: string
+          parent_comment_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          script_id?: string
+          start_position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           client_filter: string | null
@@ -120,39 +183,6 @@ export type Database = {
           },
         ]
       }
-      sync_metadata: {
-        Row: {
-          created_at: string | null
-          id: string
-          last_error: string | null
-          last_sync_completed_at: string | null
-          last_sync_started_at: string | null
-          status: string | null
-          sync_count: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          last_error?: string | null
-          last_sync_completed_at?: string | null
-          last_sync_started_at?: string | null
-          status?: string | null
-          sync_count?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          last_error?: string | null
-          last_sync_completed_at?: string | null
-          last_sync_started_at?: string | null
-          status?: string | null
-          sync_count?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       user_clients: {
         Row: {
           client_filter: string
@@ -257,8 +287,22 @@ export type Database = {
         }
         Relationships: []
       }
+      user_accessible_scripts: {
+        Row: {
+          access_type: string | null
+          script_id: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      cascade_soft_delete_comments: {
+        Args: { comment_ids: string[] }
+        Returns: {
+          deleted_count: number
+        }[]
+      }
       check_client_access: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -275,6 +319,12 @@ export type Database = {
           client_filters: string[]
           matching_projects: Json
           user_role: string
+        }[]
+      }
+      get_comment_descendants: {
+        Args: { parent_id: string }
+        Returns: {
+          id: string
         }[]
       }
       get_user_role: {
