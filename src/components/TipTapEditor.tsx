@@ -23,7 +23,6 @@ import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
-import type { CreateCommentData } from '../types/comments';
 import { Logger } from '../services/logger';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
@@ -135,7 +134,7 @@ export const TipTapEditor: React.FC = () => {
   const { selectedVideo } = useNavigation();
   const { updateScriptStatus, clearScriptStatus } = useScriptStatus();
   const { userProfile } = useAuth();
-  const { toasts, showSuccess, showError, showLoading, removeToast } = useToast();
+  const { toasts, showSuccess, showError } = useToast();
 
   // Script management state
   const [currentScript, setCurrentScript] = useState<Script | null>(null);
@@ -163,7 +162,6 @@ export const TipTapEditor: React.FC = () => {
   } | null>(null);
 
   // Comment numbering and highlighting state
-  const [commentCount, setCommentCount] = useState(0);
   const [, setCommentHighlights] = useState<Array<{
     commentId: string;
     commentNumber: number;
@@ -406,7 +404,6 @@ export const TipTapEditor: React.FC = () => {
           }));
 
         setCommentHighlights(highlights);
-        setCommentCount(highlights.length);
 
         // Load highlights into editor
         if (highlights.length > 0) {
