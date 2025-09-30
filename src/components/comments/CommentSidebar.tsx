@@ -54,6 +54,11 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [deleteConfirming, setDeleteConfirming] = useState<string | null>(null); // commentId being confirmed for deletion
   const [deleting, setDeleting] = useState(false);
 
+  // Edit functionality state
+  const [editing, setEditing] = useState<string | null>(null); // commentId being edited
+  const [editText, setEditText] = useState('');
+  const [submittingEdit, setSubmittingEdit] = useState(false);
+
   // Load comments from database using CRUD functions with error handling
   const loadComments = useCallback(async () => {
     setLoading(true);
@@ -320,8 +325,59 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setDeleteConfirming(null);
   };
 
+  // Edit functionality handlers
+  const handleEditClick = (comment: CommentWithUser) => {
+    setEditing(comment.id);
+    setEditText(comment.content);
+  };
+
+  const handleEditSubmit = async (commentId: string) => {
+    if (!editText.trim() || !currentUser) return;
+
+    setSubmittingEdit(true);
+    setError(null);
+
+    const result = await executeWithErrorHandling(
+      async () => {
+        // Import updateComment function dynamically to work with module mocks in tests
+        const { updateComment } = await import('../../lib/comments');
+
+        const response = await updateComment(supabase, commentId, { content: editText.trim() }, currentUser.id);
+
+        if (!response.success) {
+          throw new Error(response.error?.message || 'Failed to update comment');
+        }
+
+        return response.data;
+      },
+      (errorInfo) => {
+        // Set user-friendly error message
+        setError(errorInfo.userMessage);
+      },
+      { maxAttempts: 2, baseDelayMs: 500 }
+    );
+
+    if (result.success) {
+      setEditing(null);
+      setEditText('');
+      await loadComments(); // Refresh comments to show the updated content
+    }
+
+    setSubmittingEdit(false);
+  };
+
+  const handleEditCancel = () => {
+    setEditing(null);
+    setEditText('');
+  };
+
   // Check if current user can delete a comment (author or admin)
   const canDeleteComment = (comment: CommentWithUser) => {
+    return currentUser && comment.userId === currentUser.id;
+  };
+
+  // Check if current user can edit a comment (author only)
+  const canEditComment = (comment: CommentWithUser) => {
     return currentUser && comment.userId === currentUser.id;
   };
 
@@ -481,43 +537,86 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                   <span className="comment-author">{thread.parentComment.user?.email || 'Unknown'}</span>
                   <span className="comment-date">{new Date(thread.parentComment.createdAt).toLocaleDateString()}</span>
                 </div>
-                <div className="comment-content">{thread.parentComment.content}</div>
-                <div className="comment-actions">
-                  <button
-                    type="button"
-                    aria-label="Reply"
-                    onClick={() => handleReplyClick(thread.parentComment.id)}
-                  >
-                    Reply
-                  </button>
-                  {thread.isResolved ? (
-                    <button
-                      type="button"
-                      aria-label="Reopen"
-                      onClick={() => handleResolveToggle(thread.parentComment.id, true)}
-                    >
-                      Reopen
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      aria-label="Resolve"
-                      onClick={() => handleResolveToggle(thread.parentComment.id, false)}
-                    >
-                      Resolve
-                    </button>
-                  )}
-                  {canDeleteComment(thread.parentComment) && (
-                    <button
-                      type="button"
-                      aria-label="Delete"
-                      onClick={() => handleDeleteClick(thread.parentComment.id)}
-                      className="delete-button"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
+
+                {/* Conditional rendering: Edit form or comment content */}
+                {editing === thread.parentComment.id ? (
+                  <div className="edit-form">
+                    <textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      aria-label="Edit Comment Text"
+                      disabled={submittingEdit}
+                      className="edit-textarea"
+                    />
+                    <div className="form-actions">
+                      <button
+                        type="button"
+                        aria-label="Save Edit"
+                        onClick={() => handleEditSubmit(thread.parentComment.id)}
+                        disabled={!editText.trim() || submittingEdit}
+                      >
+                        {submittingEdit ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Cancel Edit"
+                        onClick={handleEditCancel}
+                        disabled={submittingEdit}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="comment-content">{thread.parentComment.content}</div>
+                    <div className="comment-actions">
+                      <button
+                        type="button"
+                        aria-label="Reply"
+                        onClick={() => handleReplyClick(thread.parentComment.id)}
+                      >
+                        Reply
+                      </button>
+                      {thread.isResolved ? (
+                        <button
+                          type="button"
+                          aria-label="Reopen"
+                          onClick={() => handleResolveToggle(thread.parentComment.id, true)}
+                        >
+                          Reopen
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          aria-label="Resolve"
+                          onClick={() => handleResolveToggle(thread.parentComment.id, false)}
+                        >
+                          Resolve
+                        </button>
+                      )}
+                      {canEditComment(thread.parentComment) && (
+                        <button
+                          type="button"
+                          aria-label="Edit"
+                          onClick={() => handleEditClick(thread.parentComment)}
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {canDeleteComment(thread.parentComment) && (
+                        <button
+                          type="button"
+                          aria-label="Delete"
+                          onClick={() => handleDeleteClick(thread.parentComment.id)}
+                          className="delete-button"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </article>
 
               {/* Reply Form for Parent Comment */}
@@ -566,26 +665,69 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                       <span className="comment-author">{reply.user?.email || 'Unknown'}</span>
                       <span className="comment-date">{new Date(reply.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <div className="comment-content">{reply.content}</div>
-                    <div className="comment-actions">
-                      <button
-                        type="button"
-                        aria-label="Reply"
-                        onClick={() => handleReplyClick(reply.id)}
-                      >
-                        Reply
-                      </button>
-                      {canDeleteComment(reply) && (
-                        <button
-                          type="button"
-                          aria-label="Delete"
-                          onClick={() => handleDeleteClick(reply.id)}
-                          className="delete-button"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
+
+                    {/* Conditional rendering: Edit form or comment content */}
+                    {editing === reply.id ? (
+                      <div className="edit-form">
+                        <textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          aria-label="Edit Comment Text"
+                          disabled={submittingEdit}
+                          className="edit-textarea"
+                        />
+                        <div className="form-actions">
+                          <button
+                            type="button"
+                            aria-label="Save Edit"
+                            onClick={() => handleEditSubmit(reply.id)}
+                            disabled={!editText.trim() || submittingEdit}
+                          >
+                            {submittingEdit ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Cancel Edit"
+                            onClick={handleEditCancel}
+                            disabled={submittingEdit}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="comment-content">{reply.content}</div>
+                        <div className="comment-actions">
+                          <button
+                            type="button"
+                            aria-label="Reply"
+                            onClick={() => handleReplyClick(reply.id)}
+                          >
+                            Reply
+                          </button>
+                          {canEditComment(reply) && (
+                            <button
+                              type="button"
+                              aria-label="Edit"
+                              onClick={() => handleEditClick(reply)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canDeleteComment(reply) && (
+                            <button
+                              type="button"
+                              aria-label="Delete"
+                              onClick={() => handleDeleteClick(reply.id)}
+                              className="delete-button"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </article>
 
                   {/* Reply Form for Reply Comment */}
@@ -840,6 +982,22 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         .reply-form.nested-reply {
           margin-left: 32px;
           background: #e5e7eb;
+        }
+
+        /* Edit Form Styling */
+        .edit-form {
+          margin: 8px 0;
+        }
+
+        .edit-textarea {
+          width: 100%;
+          min-height: 60px;
+          padding: 8px;
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          resize: vertical;
+          font-family: inherit;
+          font-size: 14px;
         }
 
         .delete-button {
