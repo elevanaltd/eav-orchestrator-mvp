@@ -809,5 +809,101 @@ describe('CommentSidebar', () => {
         expect(screen.queryByText('Comment for script 1')).not.toBeInTheDocument();
       });
     });
+
+    it('should handle rapid script switching without stale data', async () => {
+      const script1Comments: Comment[] = [
+        {
+          id: 'script1-comment-1',
+          scriptId: 'script-1',
+          userId: 'user-1',
+          content: 'Comment for script 1',
+          startPosition: 10,
+          endPosition: 25,
+          parentCommentId: null,
+          resolvedAt: null,
+          resolvedBy: null,
+          createdAt: '2024-09-29T10:00:00Z',
+          updatedAt: '2024-09-29T10:00:00Z',
+        },
+      ];
+
+      const script2Comments: Comment[] = [
+        {
+          id: 'script2-comment-1',
+          scriptId: 'script-2',
+          userId: 'user-1',
+          content: 'Comment for script 2',
+          startPosition: 5,
+          endPosition: 15,
+          parentCommentId: null,
+          resolvedAt: null,
+          resolvedBy: null,
+          createdAt: '2024-09-29T11:00:00Z',
+          updatedAt: '2024-09-29T11:00:00Z',
+        },
+      ];
+
+      const script3Comments: Comment[] = [
+        {
+          id: 'script3-comment-1',
+          scriptId: 'script-3',
+          userId: 'user-1',
+          content: 'Comment for script 3',
+          startPosition: 20,
+          endPosition: 30,
+          parentCommentId: null,
+          resolvedAt: null,
+          resolvedBy: null,
+          createdAt: '2024-09-29T12:00:00Z',
+          updatedAt: '2024-09-29T12:00:00Z',
+        },
+      ];
+
+      // Render with script-1
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: script1Comments,
+        error: null,
+      });
+
+      const { rerender } = render(<CommentSidebar scriptId="script-1" />);
+
+      // Wait for script-1 to load
+      await waitFor(() => {
+        expect(screen.getByText('Comment for script 1')).toBeInTheDocument();
+      });
+
+      // RAPIDLY switch to script-2 (mock with delay to simulate async)
+      let script2Resolve: ((value: { success: boolean; data: Comment[]; error: null }) => void) | undefined;
+      const script2Promise = new Promise<{ success: boolean; data: Comment[]; error: null }>((resolve) => {
+        script2Resolve = resolve;
+      });
+      mockGetComments.mockReturnValue(script2Promise);
+
+      rerender(<CommentSidebar scriptId="script-2" />);
+
+      // IMMEDIATELY switch to script-3 before script-2 resolves
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: script3Comments,
+        error: null,
+      });
+
+      rerender(<CommentSidebar scriptId="script-3" />);
+
+      // Resolve script-2 AFTER switching to script-3 (simulates late async completion)
+      script2Resolve!({
+        success: true,
+        data: script2Comments,
+        error: null,
+      });
+
+      // Should show ONLY script-3 comments, not script-1 or script-2
+      await waitFor(() => {
+        expect(screen.queryByText('Comment for script 1')).not.toBeInTheDocument();
+        expect(screen.queryByText('Comment for script 2')).not.toBeInTheDocument();
+        expect(screen.getByText('Comment for script 3')).toBeInTheDocument();
+      });
+    });
   });
 });

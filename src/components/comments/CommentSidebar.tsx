@@ -111,8 +111,65 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   }, [scriptId, documentContent, executeWithErrorHandling]);
 
   useEffect(() => {
-    loadComments();
-  }, [loadComments]);
+    let isCancelled = false; // Cleanup flag for async operations
+
+    const loadCommentsWithCleanup = async () => {
+      // PRIORITY 1 FIX: Clear comments immediately when scriptId changes to prevent stale data
+      setComments([]);
+      setLoading(true);
+      setError(null);
+
+      const result = await executeWithErrorHandling(
+        async () => {
+          // Pass documentContent for position recovery if available
+          const response = await getComments(supabase, scriptId, undefined, documentContent);
+
+          if (!response.success) {
+            throw new Error(response.error?.message || 'Failed to load comments');
+          }
+
+          return response.data || [];
+        },
+        (errorInfo) => {
+          if (isCancelled) return; // Don't update state if scriptId changed
+
+          // Set user-friendly error message
+          setError(errorInfo.userMessage);
+          // Log the error for debugging
+          Logger.error('Comment loading error', { error: errorInfo.message });
+        },
+        { maxAttempts: 2, baseDelayMs: 1000 } // Retry with shorter delay for UI responsiveness
+      );
+
+      if (isCancelled) return; // Don't update state if scriptId changed
+
+      if (result.success) {
+        setComments(result.data);
+        setError(null); // Clear any previous errors on success
+
+        // Log position recovery results if any comments were recovered
+        const recoveredComments = result.data.filter(c => c.recovery && c.recovery.status === 'relocated');
+        if (recoveredComments.length > 0) {
+          Logger.info(`CommentSidebar: ${recoveredComments.length} comment(s) repositioned`, {
+            recovered: recoveredComments.map(c => ({
+              id: c.id,
+              status: c.recovery?.status,
+              matchQuality: c.recovery?.matchQuality,
+              message: c.recovery?.message
+            }))
+          });
+        }
+      }
+
+      setLoading(false);
+    };
+
+    loadCommentsWithCleanup();
+
+    return () => {
+      isCancelled = true; // Cancel any pending state updates
+    };
+  }, [scriptId, documentContent, executeWithErrorHandling]);
 
   // Filter comments based on resolved status
   const filteredComments = comments.filter(comment => {
