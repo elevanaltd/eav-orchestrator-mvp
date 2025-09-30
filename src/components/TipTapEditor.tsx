@@ -277,6 +277,57 @@ export const TipTapEditor: React.FC = () => {
     }
   });
 
+  // Load comment highlights from database with position recovery
+  // IMPORTANT: This must be defined before useEffects that reference it
+  const loadCommentHighlights = useCallback(async (scriptId: string) => {
+    if (!editor) return;
+
+    try {
+      // Import the comments module and load highlights
+      const { getComments } = await import('../lib/comments');
+      const { supabase } = await import('../lib/supabase');
+
+      // Get current document content for position recovery
+      const documentContent = editor.getText();
+
+      // Load comments with position recovery enabled
+      const result = await getComments(supabase, scriptId, undefined, documentContent);
+
+      if (result.success && result.data) {
+        const highlights = result.data
+          .filter(comment => !comment.parentCommentId) // Only parent comments have highlights
+          .map((comment, index) => ({
+            commentId: comment.id,
+            commentNumber: index + 1,
+            startPosition: comment.startPosition, // Already recovered if needed
+            endPosition: comment.endPosition, // Already recovered if needed
+          }));
+
+        setCommentHighlights(highlights);
+
+        // Load highlights into editor
+        if (highlights.length > 0) {
+          editor.commands.loadExistingHighlights(highlights);
+        }
+
+        // Log position recovery results if any comments were recovered
+        const recoveredComments = result.data.filter(c => c.recovery && c.recovery.status === 'relocated');
+        if (recoveredComments.length > 0) {
+          Logger.info(`Position recovery: ${recoveredComments.length} comment(s) relocated`, {
+            recovered: recoveredComments.map(c => ({
+              id: c.id,
+              status: c.recovery?.status,
+              matchQuality: c.recovery?.matchQuality,
+              message: c.recovery?.message
+            }))
+          });
+        }
+      }
+    } catch (error) {
+      Logger.error('Failed to load comment highlights', { error: (error as Error).message });
+    }
+  }, [editor]);
+
   // Text selection handler for comments (Phase 2.2)
   useEffect(() => {
     if (!editor) return;
@@ -344,6 +395,42 @@ export const TipTapEditor: React.FC = () => {
     };
   }, [editor]);
 
+  // Blur handler for comment position recovery (Phase 2 - Option B)
+  useEffect(() => {
+    if (!editor || !currentScript) return;
+
+    let blurTimeoutId: NodeJS.Timeout | null = null;
+
+    const handleBlur = () => {
+      // Debounce: Wait 500ms after blur to update positions
+      // This prevents rapid-fire updates if user quickly clicks in/out
+      if (blurTimeoutId) {
+        clearTimeout(blurTimeoutId);
+      }
+
+      blurTimeoutId = setTimeout(() => {
+        if (!isMountedRef.current || !currentScript) return;
+
+        Logger.info('Editor blur: Recovering comment positions', {
+          scriptId: currentScript.id,
+          trigger: 'blur'
+        });
+
+        // Reload comment highlights with position recovery
+        loadCommentHighlights(currentScript.id);
+      }, 500); // 500ms debounce
+    };
+
+    editor.on('blur', handleBlur);
+
+    return () => {
+      editor.off('blur', handleBlur);
+      if (blurTimeoutId) {
+        clearTimeout(blurTimeoutId);
+      }
+    };
+  }, [editor, currentScript, loadCommentHighlights]);
+
   // Now define callbacks that depend on editor
 
   const handleSave = useCallback(async () => {
@@ -369,6 +456,14 @@ export const TipTapEditor: React.FC = () => {
         setCurrentScript(updatedScript);
         setLastSaved(new Date());
         setSaveStatus('saved');
+
+        // After save completes, recover comment positions
+        // This ensures highlights are updated after document changes are persisted
+        Logger.info('Auto-save complete: Recovering comment positions', {
+          scriptId: currentScript.id,
+          trigger: 'save'
+        });
+        loadCommentHighlights(currentScript.id);
       }
     } catch (error) {
       if (isMountedRef.current) {
@@ -376,57 +471,7 @@ export const TipTapEditor: React.FC = () => {
         setSaveStatus('error');
       }
     }
-  }, [currentScript, editor, extractedComponents]);
-
-  // Load comment highlights from database with position recovery
-  const loadCommentHighlights = useCallback(async (scriptId: string) => {
-    if (!editor) return;
-
-    try {
-      // Import the comments module and load highlights
-      const { getComments } = await import('../lib/comments');
-      const { supabase } = await import('../lib/supabase');
-
-      // Get current document content for position recovery
-      const documentContent = editor.getText();
-
-      // Load comments with position recovery enabled
-      const result = await getComments(supabase, scriptId, undefined, documentContent);
-
-      if (result.success && result.data) {
-        const highlights = result.data
-          .filter(comment => !comment.parentCommentId) // Only parent comments have highlights
-          .map((comment, index) => ({
-            commentId: comment.id,
-            commentNumber: index + 1,
-            startPosition: comment.startPosition, // Already recovered if needed
-            endPosition: comment.endPosition, // Already recovered if needed
-          }));
-
-        setCommentHighlights(highlights);
-
-        // Load highlights into editor
-        if (highlights.length > 0) {
-          editor.commands.loadExistingHighlights(highlights);
-        }
-
-        // Log position recovery results if any comments were recovered
-        const recoveredComments = result.data.filter(c => c.recovery && c.recovery.status === 'relocated');
-        if (recoveredComments.length > 0) {
-          Logger.info(`Position recovery: ${recoveredComments.length} comment(s) relocated`, {
-            recovered: recoveredComments.map(c => ({
-              id: c.id,
-              status: c.recovery?.status,
-              matchQuality: c.recovery?.matchQuality,
-              message: c.recovery?.message
-            }))
-          });
-        }
-      }
-    } catch (error) {
-      Logger.error('Failed to load comment highlights', { error: (error as Error).message });
-    }
-  }, [editor]);
+  }, [currentScript, editor, extractedComponents, loadCommentHighlights]);
 
   // Handle comment creation from sidebar
   const handleCommentCreated = useCallback(async () => {
