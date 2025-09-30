@@ -35,9 +35,23 @@ const UNAUTHORIZED_PASSWORD = 'test-unauthorized-password-123';
 // Test data
 const TEST_SCRIPT_ID = '0395f3f7-8eb7-4a1f-aa17-27d0d3a38680';
 
-// Helper function to sign in as specific user
+// Session cache to prevent Supabase auth rate limiting (CRITICAL FIX)
+let lastAuthTime = 0;
+const MIN_AUTH_DELAY_MS = 500; // Increased to avoid Supabase rate limits
+
+async function authDelay() {
+  const now = Date.now();
+  const timeSinceLastAuth = now - lastAuthTime;
+  if (timeSinceLastAuth < MIN_AUTH_DELAY_MS) {
+    await new Promise(resolve => setTimeout(resolve, MIN_AUTH_DELAY_MS - timeSinceLastAuth));
+  }
+  lastAuthTime = Date.now();
+}
+
 async function signInAsUser(client: SupabaseClient, email: string, password: string) {
+  await authDelay();
   await client.auth.signOut();
+  await authDelay();
   const { data, error } = await client.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data.user.id;
