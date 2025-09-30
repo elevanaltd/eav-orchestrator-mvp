@@ -701,4 +701,113 @@ describe('CommentSidebar', () => {
       // This will be implemented with "[Comment deleted]" placeholder
     });
   });
+
+  // Priority 1: Stale Data Fix (TDD - RED phase)
+  describe('Navigation Script Changes - Stale Data Prevention', () => {
+    it('should clear comments immediately when scriptId changes', async () => {
+      const script1Comments: Comment[] = [
+        {
+          id: 'script1-comment-1',
+          scriptId: 'script-1',
+          userId: 'user-1',
+          content: 'Comment for script 1',
+          startPosition: 10,
+          endPosition: 25,
+          parentCommentId: null,
+          resolvedAt: null,
+          resolvedBy: null,
+          createdAt: '2024-09-29T10:00:00Z',
+          updatedAt: '2024-09-29T10:00:00Z',
+        },
+      ];
+
+      const script2Comments: Comment[] = [
+        {
+          id: 'script2-comment-1',
+          scriptId: 'script-2',
+          userId: 'user-1',
+          content: 'Comment for script 2',
+          startPosition: 5,
+          endPosition: 15,
+          parentCommentId: null,
+          resolvedAt: null,
+          resolvedBy: null,
+          createdAt: '2024-09-29T11:00:00Z',
+          updatedAt: '2024-09-29T11:00:00Z',
+        },
+      ];
+
+      // First render with script-1
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: script1Comments,
+        error: null,
+      });
+
+      const { rerender } = render(<CommentSidebar scriptId="script-1" />);
+
+      // Wait for script-1 comments to load
+      await waitFor(() => {
+        expect(screen.getByText('Comment for script 1')).toBeInTheDocument();
+      });
+
+      // Change to script-2 - mock new data
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: script2Comments,
+        error: null,
+      });
+
+      rerender(<CommentSidebar scriptId="script-2" />);
+
+      // OLD COMMENTS SHOULD NOT BE VISIBLE (even briefly during loading)
+      // This test will FAIL if stale data persists
+      await waitFor(() => {
+        expect(screen.queryByText('Comment for script 1')).not.toBeInTheDocument();
+        expect(screen.getByText('Comment for script 2')).toBeInTheDocument();
+      });
+    });
+
+    it('should show loading state during script transition', async () => {
+      const script1Comments: Comment[] = [
+        {
+          id: 'script1-comment-1',
+          scriptId: 'script-1',
+          userId: 'user-1',
+          content: 'Comment for script 1',
+          startPosition: 10,
+          endPosition: 25,
+          parentCommentId: null,
+          resolvedAt: null,
+          resolvedBy: null,
+          createdAt: '2024-09-29T10:00:00Z',
+          updatedAt: '2024-09-29T10:00:00Z',
+        },
+      ];
+
+      // First render with script-1
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: script1Comments,
+        error: null,
+      });
+
+      const { rerender } = render(<CommentSidebar scriptId="script-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Comment for script 1')).toBeInTheDocument();
+      });
+
+      // Mock slow loading for script-2
+      mockGetComments.mockReturnValue(new Promise(() => {})); // Never resolves
+
+      rerender(<CommentSidebar scriptId="script-2" />);
+
+      // Should show loading state immediately, not stale data
+      await waitFor(() => {
+        expect(screen.getByRole('status', { name: /loading comments/i })).toBeInTheDocument();
+        expect(screen.queryByText('Comment for script 1')).not.toBeInTheDocument();
+      });
+    });
+  });
 });

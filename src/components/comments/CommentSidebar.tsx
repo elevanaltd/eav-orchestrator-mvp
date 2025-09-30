@@ -64,6 +64,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
   // Load comments from database using CRUD functions with error handling and position recovery
   const loadComments = useCallback(async () => {
+    // PRIORITY 1 FIX: Clear comments immediately when scriptId changes to prevent stale data
+    setComments([]);
     setLoading(true);
     setError(null);
 
