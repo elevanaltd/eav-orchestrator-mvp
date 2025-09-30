@@ -139,7 +139,8 @@ USING (
 );
 
 -- Admin users: Full access (existing policy should cover this)
--- But let's ensure it exists
+-- Drop if exists from previous migration, then recreate
+DROP POLICY IF EXISTS "comments_admin_full_access" ON public.comments;
 CREATE POLICY "comments_admin_full_access" ON public.comments
 FOR ALL
 TO authenticated

@@ -38,9 +38,9 @@ JOIN public.projects p ON uc.client_filter = p.client_filter
 JOIN public.videos v ON p.eav_code = v.eav_code
 JOIN public.scripts s ON v.id = s.video_id;
 
--- Add index for optimal performance
-CREATE INDEX IF NOT EXISTS idx_user_accessible_scripts_user_script
-ON public.user_accessible_scripts (user_id, script_id);
+-- Cannot create index on a view, skip this
+-- CREATE INDEX IF NOT EXISTS idx_user_accessible_scripts_user_script
+-- ON public.user_accessible_scripts (user_id, script_id);
 
 -- Step 2: Enable RLS on the view (required for security)
 -- Note: Views inherit RLS from underlying tables by default, but we'll be explicit

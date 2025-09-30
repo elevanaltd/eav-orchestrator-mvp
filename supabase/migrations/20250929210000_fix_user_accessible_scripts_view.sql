@@ -10,7 +10,13 @@
 -- Step 1: Drop the problematic index attempt (if it somehow was created)
 DROP INDEX IF EXISTS public.idx_user_accessible_scripts_user_script;
 
--- Step 2: Drop and recreate as materialized view for better performance
+-- Step 2: Drop policies that depend on the view FIRST
+DROP POLICY IF EXISTS "comments_client_read_optimized" ON public.comments;
+DROP POLICY IF EXISTS "comments_client_create_optimized" ON public.comments;
+DROP POLICY IF EXISTS "comments_client_update_own_optimized" ON public.comments;
+DROP POLICY IF EXISTS "comments_client_delete_own_optimized" ON public.comments;
+
+-- Step 3: Now drop and recreate as materialized view for better performance
 DROP VIEW IF EXISTS public.user_accessible_scripts;
 
 -- Step 3: Create materialized view (can be indexed)
@@ -100,6 +106,112 @@ SELECT public.refresh_user_accessible_scripts();
 -- Step 10: Grant execute permission on the refresh function
 GRANT EXECUTE ON FUNCTION public.refresh_user_accessible_scripts() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.trigger_refresh_user_accessible_scripts() TO authenticated;
+
+-- Step 11: Recreate the RLS policies using the new materialized view
+-- Client users: READ comments from accessible scripts (1 JOIN instead of 4)
+CREATE POLICY "comments_client_read_optimized" ON public.comments
+FOR SELECT
+TO authenticated
+USING (
+    -- Must be a client user
+    EXISTS (
+        SELECT 1 FROM public.user_profiles
+        WHERE user_profiles.id = auth.uid()
+        AND user_profiles.role = 'client'
+    )
+    AND
+    -- Single JOIN to pre-computed access view
+    EXISTS (
+        SELECT 1 FROM public.user_accessible_scripts uas
+        WHERE uas.user_id = auth.uid()
+        AND uas.script_id = comments.script_id
+    )
+);
+
+-- Client users: CREATE comments on accessible scripts (1 JOIN instead of 4)
+CREATE POLICY "comments_client_create_optimized" ON public.comments
+FOR INSERT
+TO authenticated
+WITH CHECK (
+    -- Must be a client user
+    EXISTS (
+        SELECT 1 FROM public.user_profiles
+        WHERE user_profiles.id = auth.uid()
+        AND user_profiles.role = 'client'
+    )
+    AND
+    -- Single JOIN to pre-computed access view
+    EXISTS (
+        SELECT 1 FROM public.user_accessible_scripts uas
+        WHERE uas.user_id = auth.uid()
+        AND uas.script_id = comments.script_id
+    )
+    AND
+    -- Must be creating comment for themselves
+    comments.user_id = auth.uid()
+);
+
+-- Client users: UPDATE their own comments on accessible scripts (1 JOIN instead of 4)
+CREATE POLICY "comments_client_update_own_optimized" ON public.comments
+FOR UPDATE
+TO authenticated
+USING (
+    -- Must be a client user
+    EXISTS (
+        SELECT 1 FROM public.user_profiles
+        WHERE user_profiles.id = auth.uid()
+        AND user_profiles.role = 'client'
+    )
+    AND
+    -- Must be their own comment
+    comments.user_id = auth.uid()
+    AND
+    -- Single JOIN to pre-computed access view
+    EXISTS (
+        SELECT 1 FROM public.user_accessible_scripts uas
+        WHERE uas.user_id = auth.uid()
+        AND uas.script_id = comments.script_id
+    )
+)
+WITH CHECK (
+    -- Same conditions for updates
+    EXISTS (
+        SELECT 1 FROM public.user_profiles
+        WHERE user_profiles.id = auth.uid()
+        AND user_profiles.role = 'client'
+    )
+    AND
+    comments.user_id = auth.uid()
+    AND
+    EXISTS (
+        SELECT 1 FROM public.user_accessible_scripts uas
+        WHERE uas.user_id = auth.uid()
+        AND uas.script_id = comments.script_id
+    )
+);
+
+-- Client users: DELETE their own comments on accessible scripts (1 JOIN instead of 4)
+CREATE POLICY "comments_client_delete_own_optimized" ON public.comments
+FOR DELETE
+TO authenticated
+USING (
+    -- Must be a client user
+    EXISTS (
+        SELECT 1 FROM public.user_profiles
+        WHERE user_profiles.id = auth.uid()
+        AND user_profiles.role = 'client'
+    )
+    AND
+    -- Must be their own comment
+    comments.user_id = auth.uid()
+    AND
+    -- Single JOIN to pre-computed access view
+    EXISTS (
+        SELECT 1 FROM public.user_accessible_scripts uas
+        WHERE uas.user_id = auth.uid()
+        AND uas.script_id = comments.script_id
+    )
+);
 
 -- ============================================================================
 -- VERIFICATION NOTES
