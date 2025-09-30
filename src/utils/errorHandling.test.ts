@@ -455,13 +455,18 @@ describe('Error Handling Utilities', () => {
     it('should log unhandled promise rejections', () => {
       setupGlobalErrorHandling();
 
+      // Create a promise that we'll handle to prevent actual unhandled rejection
+      const rejectedPromise = Promise.reject(new Error('Unhandled rejection'));
+      // Catch it to prevent test failure, but after we dispatch the event
+      rejectedPromise.catch(() => {});
+
       // Create a custom event since PromiseRejectionEvent may not be available in test environment
       const rejectionEvent = new CustomEvent('unhandledrejection', {
         detail: {
           reason: new Error('Unhandled rejection'),
-          promise: Promise.reject(new Error('Unhandled rejection')),
+          promise: rejectedPromise,
         }
-      }) as any;
+      }) as CustomEvent & { reason: Error; preventDefault: () => void };
 
       // Add the properties that the handler expects
       rejectionEvent.reason = new Error('Unhandled rejection');

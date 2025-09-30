@@ -66,7 +66,7 @@ function calculateRetryDelay(
 /**
  * Categorize error and provide user-friendly message
  */
-export function categorizeError(error: Error | string | any): ErrorInfo {
+export function categorizeError(error: Error | string | unknown): ErrorInfo {
   const message = error instanceof Error ? error.message : String(error);
   const lowerMessage = message.toLowerCase();
 
@@ -169,7 +169,7 @@ export function categorizeError(error: Error | string | any): ErrorInfo {
 /**
  * Check if an error should be retried based on categorization
  */
-export function shouldRetryError(error: Error | string | any): boolean {
+export function shouldRetryError(error: Error | string | unknown): boolean {
   const errorInfo = categorizeError(error);
   return errorInfo.isRetryable;
 }
@@ -177,7 +177,7 @@ export function shouldRetryError(error: Error | string | any): boolean {
 /**
  * Get user-friendly error message while hiding sensitive information
  */
-export function getUserFriendlyErrorMessage(error: Error | string | any): string {
+export function getUserFriendlyErrorMessage(error: Error | string | unknown): string {
   const errorInfo = categorizeError(error);
   return errorInfo.userMessage;
 }
@@ -185,7 +185,7 @@ export function getUserFriendlyErrorMessage(error: Error | string | any): string
 /**
  * Sanitize error message for logging (remove sensitive data)
  */
-export function sanitizeErrorForLogging(error: Error | string | any): string {
+export function sanitizeErrorForLogging(error: Error | string | unknown): string {
   const message = error instanceof Error ? error.message : String(error);
 
   // Patterns that might contain sensitive information
@@ -216,7 +216,7 @@ export async function withRetry<T>(
   config: Partial<RetryConfig> = {}
 ): Promise<T> {
   const finalConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
-  let lastError: Error | any;
+  let lastError: Error | unknown;
 
   for (let attempt = 1; attempt <= finalConfig.maxAttempts; attempt++) {
     try {
@@ -257,7 +257,7 @@ export async function withRetry<T>(
 /**
  * Create a retryable version of an async function
  */
-export function makeRetryable<TArgs extends any[], TReturn>(
+export function makeRetryable<TArgs extends unknown[], TReturn>(
   fn: (...args: TArgs) => Promise<TReturn>,
   config: Partial<RetryConfig> = {}
 ) {

@@ -287,6 +287,14 @@ export type Database = {
         }
         Relationships: []
       }
+      user_accessible_scripts: {
+        Row: {
+          access_type: string | null
+          script_id: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cascade_soft_delete_comments: {

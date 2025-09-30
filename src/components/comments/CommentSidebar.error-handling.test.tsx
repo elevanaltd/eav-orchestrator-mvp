@@ -11,7 +11,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { CommentWithUser, CreateCommentData } from '../../types/comments';
+import type { CommentWithUser } from '../../types/comments';
 import { Logger } from '../../services/logger';
 
 // Mock Logger service
@@ -71,13 +71,11 @@ vi.mock('../../contexts/AuthContext', () => ({
 
 import { CommentSidebar } from './CommentSidebar';
 import * as commentsLib from '../../lib/comments';
-import * as errorHandling from '../../utils/errorHandling';
 
 // Error types for testing
 const NetworkError = new Error('Failed to fetch');
 const DatabaseError = new Error('Database connection timeout');
 const AuthenticationError = new Error('User not authenticated');
-const ValidationError = new Error('Invalid comment content');
 const PermissionError = new Error('Insufficient permissions');
 
 const sampleComments: CommentWithUser[] = [
@@ -124,7 +122,7 @@ describe('CommentSidebar - Error Handling', () => {
         if (errorHandler) {
           const errorInfo = {
             code: 'NETWORK_ERROR',
-            message: error.message,
+            message: (error as Error).message,
             isRetryable: true,
             userMessage: 'Connection problem. Please check your internet connection and try again.',
             category: 'network',
@@ -197,7 +195,7 @@ describe('CommentSidebar - Error Handling', () => {
             if (errorHandler) {
               const errorInfo = {
                 code: 'NETWORK_ERROR',
-                message: error.message,
+                message: (error as Error).message,
                 isRetryable: true,
                 userMessage: 'Connection problem. Please check your internet connection and try again.',
                 category: 'network',

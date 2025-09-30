@@ -194,7 +194,7 @@ export async function getComments(
     const userIds = [...new Set((comments || []).map(comment => comment.user_id))];
 
     // Step 2: Fetch user profiles with caching - only query uncached profiles
-    const userProfilesMap = new Map<string, any>();
+    const userProfilesMap = new Map<string, { id: string; email: string; display_name: string | null }>();
 
     if (userIds.length > 0) {
       // Check cache first and identify missing profiles
@@ -203,7 +203,10 @@ export async function getComments(
       for (const userId of userIds) {
         if (userProfileCache.has(userId)) {
           // Use cached profile
-          userProfilesMap.set(userId, userProfileCache.get(userId));
+          const cachedProfile = userProfileCache.get(userId);
+          if (cachedProfile) {
+            userProfilesMap.set(userId, cachedProfile);
+          }
         } else {
           // Mark for database query
           uncachedUserIds.push(userId);

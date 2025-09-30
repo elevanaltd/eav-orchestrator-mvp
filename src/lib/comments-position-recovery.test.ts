@@ -12,14 +12,11 @@
  * 5. No match - comment should fall back to original position with warning
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { createClient } from '@supabase/supabase-js';
+import { describe, it, expect } from 'vitest';
 import {
   recoverCommentPosition,
   findTextInDocument,
   calculateMatchQuality,
-  type PositionRecoveryResult,
-  type MatchQuality
 } from './comments-position-recovery';
 
 // Mock document content for testing
@@ -220,7 +217,6 @@ describe('Position Recovery - Text Matching', () => {
         updatedAt: new Date().toISOString(),
       };
 
-      const originalDoc = 'Hello world';
       const newDoc = 'Good morning. Hello world';
 
       const result = recoverCommentPosition(comment, newDoc);
@@ -247,7 +243,6 @@ describe('Position Recovery - Text Matching', () => {
         updatedAt: new Date().toISOString(),
       };
 
-      const originalDoc = 'This is a test document.';
       const newDoc = 'This is a document.'; // "test " deleted
 
       const result = recoverCommentPosition(comment, newDoc);

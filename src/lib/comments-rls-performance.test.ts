@@ -412,14 +412,6 @@ describe('RLS Performance Optimization - TDD Phase', () => {
 
       const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-      // Test identical operations that should work exactly the same way
-      const testCases = [
-        { description: 'Admin creates comment', shouldSucceed: true },
-        { description: 'Admin reads all comments', shouldSucceed: true },
-        { description: 'Admin updates any comment', shouldSucceed: true },
-        { description: 'Admin deletes any comment', shouldSucceed: true }
-      ];
-
       // Create test comment
       const { data: comment } = await supabaseClient.from('comments').insert({
         script_id: TEST_SCRIPT_ID,
@@ -462,50 +454,47 @@ describe('RLS Performance Optimization - TDD Phase', () => {
       const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
 
       // Standard operations that existing code relies on
-      const operations = [
-        // CREATE
-        () => supabaseClient.from('comments').insert({
-          script_id: TEST_SCRIPT_ID,
-          user_id: adminUserId,
-          content: 'Compatibility test comment',
-          start_position: 0,
-          end_position: 5
-        }).select().single(),
+      const createOperation = () => supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Compatibility test comment',
+        start_position: 0,
+        end_position: 5
+      }).select().single();
 
-        // READ with filters
-        () => supabaseClient
-          .from('comments')
-          .select('*')
-          .eq('script_id', TEST_SCRIPT_ID)
-          .is('resolved_at', null),
+      const filterOperation = () => supabaseClient
+        .from('comments')
+        .select('*')
+        .eq('script_id', TEST_SCRIPT_ID)
+        .is('resolved_at', null);
 
-        // UPDATE
-        (commentId: string) => supabaseClient
-          .from('comments')
-          .update({ content: 'Updated content' })
-          .eq('id', commentId)
-          .select().single(),
+      const updateOperation = (commentId: string) => supabaseClient
+        .from('comments')
+        .update({ content: 'Updated content' })
+        .eq('id', commentId)
+        .select().single();
 
-        // DELETE (soft delete if implemented)
-        (commentId: string) => supabaseClient
-          .from('comments')
-          .delete()
-          .eq('id', commentId)
-      ];
+      const deleteOperation = (commentId: string) => supabaseClient
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
 
       // All operations should work without code changes
-      const { data: createdComment } = await operations[0]();
+      const createResult = await createOperation();
+      const createdComment = createResult.data;
       expect(createdComment).toBeDefined();
 
-      const { data: filteredComments } = await operations[1]();
+      const filterResult = await filterOperation();
+      const filteredComments = filterResult.data;
       expect(filteredComments).toHaveLength(1);
 
-      if (createdComment) {
-        const { data: updatedComment } = await operations[2](createdComment.id);
-        expect(updatedComment?.content).toBe('Updated content');
+      if (createdComment && 'id' in createdComment) {
+        const updateResult = await updateOperation(createdComment.id);
+        const updatedComment = updateResult.data;
+        expect(updatedComment && 'content' in updatedComment ? updatedComment.content : null).toBe('Updated content');
 
-        const { error: deleteError } = await operations[3](createdComment.id);
-        expect(deleteError).toBeNull();
+        const deleteResult = await deleteOperation(createdComment.id);
+        expect(deleteResult.error).toBeNull();
       }
     });
   });

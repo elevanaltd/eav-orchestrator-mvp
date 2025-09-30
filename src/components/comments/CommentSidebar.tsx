@@ -15,7 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import type { CommentWithUser, CommentThread, CreateCommentData } from '../../types/comments';
 import { getComments, createComment as createCommentInDB } from '../../lib/comments';
 import { Logger } from '../../services/logger';
-import { useErrorHandling, getUserFriendlyErrorMessage } from '../../utils/errorHandling';
+import { useErrorHandling } from '../../utils/errorHandling';
 
 export interface CommentSidebarProps {
   scriptId: string;

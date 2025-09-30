@@ -479,9 +479,6 @@ describe('Comments Infrastructure - Integration Tests', () => {
     test('should fetch all user profiles in single query, not N+1 queries', async () => {
       const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-      // Create test comments with different users
-      const testUsers = [adminUserId];
-
       // Create 5 comments from the same user (to test deduplication)
       for (let i = 0; i < 5; i++) {
         await supabaseClient.from('comments').insert({
@@ -494,13 +491,16 @@ describe('Comments Infrastructure - Integration Tests', () => {
       }
 
       // Spy on Supabase queries by mocking the from method
-      const originalFrom = supabaseClient.from;
+      const originalFrom = supabaseClient.from.bind(supabaseClient);
       const queryLog: string[] = [];
 
-      supabaseClient.from = ((table: any) => {
-        queryLog.push(table);
-        return originalFrom.call(supabaseClient, table);
-      }) as any;
+      // Test spy requires any types for runtime table interception
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      supabaseClient.from = (((table: any) => {
+        queryLog.push(String(table));
+        return originalFrom(table);
+      }) as any) as typeof supabaseClient.from;
+      /* eslint-enable @typescript-eslint/no-explicit-any */
 
       try {
         // This should fail - current implementation does N+1 queries
@@ -585,15 +585,18 @@ describe('Comments Infrastructure - Integration Tests', () => {
 
       // Admin should see all comments they created
       // Spy on user_profiles queries
-      const originalFrom = supabaseClient.from;
+      const originalFrom = supabaseClient.from.bind(supabaseClient);
       let userProfileQueryCount = 0;
 
-      supabaseClient.from = ((table: any) => {
+      // Test spy requires any types for runtime table interception
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      supabaseClient.from = (((table: any) => {
         if (table === 'user_profiles') {
           userProfileQueryCount++;
         }
-        return originalFrom.call(supabaseClient, table);
-      }) as any;
+        return originalFrom(table);
+      }) as any) as typeof supabaseClient.from;
+      /* eslint-enable @typescript-eslint/no-explicit-any */
 
       try {
         const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID);
