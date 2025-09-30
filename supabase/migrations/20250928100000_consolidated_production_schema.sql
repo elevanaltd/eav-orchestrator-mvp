@@ -274,7 +274,8 @@ ALTER TABLE public.scripts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.script_components ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_clients ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sync_metadata ENABLE ROW LEVEL SECURITY;
+-- Commented out: sync_metadata table doesn't exist
+-- ALTER TABLE public.sync_metadata ENABLE ROW LEVEL SECURITY;
 
 -- Projects RLS Policies
 CREATE POLICY "projects_admin_full_access" ON public.projects
@@ -410,19 +411,20 @@ CREATE POLICY "user_clients_admin_all" ON public.user_clients
     WITH CHECK (get_user_role() = 'admin');
 
 -- Sync Metadata RLS Policies
-CREATE POLICY "sync_metadata_admin_employee" ON public.sync_metadata
-    FOR ALL USING (get_user_role() = ANY (ARRAY['admin'::text, 'employee'::text]))
-    WITH CHECK (get_user_role() = ANY (ARRAY['admin'::text, 'employee'::text]));
+-- Commented out: sync_metadata policy (table doesn't exist)
+-- CREATE POLICY "sync_metadata_admin_employee" ON public.sync_metadata
+--     FOR ALL USING (get_user_role() = ANY (ARRAY['admin'::text, 'employee'::text]))
+--     WITH CHECK (get_user_role() = ANY (ARRAY['admin'::text, 'employee'::text]));
 
 -- ============================================================================
 -- TRIGGERS
 -- ============================================================================
 
--- Only sync_metadata has an updated_at trigger in production
-CREATE TRIGGER update_sync_metadata_updated_at
-    BEFORE UPDATE ON public.sync_metadata
-    FOR EACH ROW
-    EXECUTE FUNCTION public.update_updated_at_column();
+-- Commented out: sync_metadata trigger (table doesn't exist)
+-- CREATE TRIGGER update_sync_metadata_updated_at
+--     BEFORE UPDATE ON public.sync_metadata
+--     FOR EACH ROW
+--     EXECUTE FUNCTION public.update_updated_at_column();
 
 -- User profile creation trigger on auth.users
 CREATE TRIGGER on_auth_user_created
@@ -436,10 +438,10 @@ CREATE TRIGGER on_auth_user_created
 -- INITIALIZATION DATA
 -- ============================================================================
 
--- Insert singleton sync metadata record
-INSERT INTO public.sync_metadata (id, status)
-VALUES ('singleton', 'idle')
-ON CONFLICT (id) DO NOTHING;
+-- Commented out: sync_metadata seed data (table doesn't exist)
+-- INSERT INTO public.sync_metadata (id, status)
+-- VALUES ('singleton', 'idle')
+-- ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================================
 -- SCHEMA CONSOLIDATION COMPLETE

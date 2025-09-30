@@ -61,7 +61,26 @@ export default defineConfig(({ mode }) => {
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
-    css: true
+    css: true,
+
+    // Memory optimization: Limit worker threads to prevent RAM exhaustion
+    // Without this, Vitest spawns workers equal to CPU cores (often 12+)
+    // Each worker + jsdom environment = ~400-600MB
+    // See: coordination/planning-docs/005-VITEST-MEMORY-OPTIMIZATION.md
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        maxThreads: 4,      // Limit concurrent test workers
+        minThreads: 1,      // Keep at least one thread alive
+        singleThread: false // Allow parallelism within limits
+      }
+    },
+
+    env: {
+      // Use local Supabase for testing
+      VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
+      VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH'
+    }
   }
   }
 })
