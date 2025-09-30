@@ -24,7 +24,7 @@ export interface CommentSidebarProps {
     endPosition: number;
     selectedText: string;
   } | null;
-  onCommentCreated?: (data: CreateCommentData) => void;
+  onCommentCreated?: () => void;
 }
 
 type FilterMode = 'all' | 'open' | 'resolved';
@@ -166,13 +166,13 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     );
 
     if (result.success) {
-      // Call the callback if provided (for parent component notifications)
-      if (onCommentCreated) {
-        onCommentCreated(commentData);
-      }
-
       setCommentText('');
       await loadComments(); // Refresh comments to show the new one
+
+      // Call the callback if provided (for parent component to reload highlights)
+      if (onCommentCreated) {
+        onCommentCreated();
+      }
     }
 
     setSubmitting(false);

@@ -415,65 +415,23 @@ export const TipTapEditor: React.FC = () => {
   }, [editor]);
 
   // Handle comment creation from sidebar
-  const handleCommentCreated = useCallback(async (_data: CreateCommentData) => {
-    let loadingToastId: string | null = null;
-
+  const handleCommentCreated = useCallback(async () => {
     try {
-      // Show loading toast
-      loadingToastId = showLoading('Creating comment...');
-
       // Clear creation state to hide form
       setCreateCommentData(null);
 
-      if (editor && selectedText) {
-        // Add visual highlight immediately for better UX
-        const nextCommentNumber = commentCount + 1;
-
-        // Create a temporary ID for immediate feedback
-        const tempCommentId = `temp-${Date.now()}`;
-
-        editor.commands.addCommentHighlight({
-          commentId: tempCommentId,
-          commentNumber: nextCommentNumber,
-          from: selectedText.from,
-          to: selectedText.to,
-        });
-
-        // Update local state
-        const newHighlight = {
-          commentId: tempCommentId,
-          commentNumber: nextCommentNumber,
-          startPosition: selectedText.from,
-          endPosition: selectedText.to,
-        };
-
-        setCommentHighlights(prev => [...prev, newHighlight]);
-        setCommentCount(prev => prev + 1);
-
-        // Hide loading toast and show success
-        if (loadingToastId) {
-          removeToast(loadingToastId);
-        }
-        showSuccess('Comment created successfully!');
-
-        // The actual comment creation is handled by the CommentSidebar
-        // After successful creation, we should reload highlights to get the real comment ID
-        // This will happen when the CommentSidebar refreshes its data
-      } else {
-        if (loadingToastId) {
-          removeToast(loadingToastId);
-        }
-        showError('Failed to create comment highlight');
+      // Reload highlights from database to show newly created comment with correct ID
+      if (currentScript) {
+        await loadCommentHighlights(currentScript.id);
       }
+
+      showSuccess('Comment created successfully!');
 
     } catch (error) {
-      Logger.error('Failed to create comment highlight', { error: (error as Error).message });
-      if (loadingToastId) {
-        removeToast(loadingToastId);
-      }
-      showError('Failed to create comment');
+      Logger.error('Failed to reload comment highlights', { error: (error as Error).message });
+      showError('Failed to update comment highlights');
     }
-  }, [editor, selectedText, commentCount, showLoading, showSuccess, showError, removeToast]);
+  }, [currentScript, loadCommentHighlights, showSuccess, showError]);
 
   // Load script when selected video changes
   useEffect(() => {
