@@ -16,12 +16,15 @@ import { Node } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
 import { CommentSidebar } from './comments/CommentSidebar';
-import { useToast, ToastContainer } from './ui/Toast';
+import { ToastContainer } from './ui/Toast';
+import { useToast } from './ui/useToast';
+import { ErrorBoundary } from './ErrorBoundary';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
 import type { CreateCommentData } from '../types/comments';
+import { Logger } from '../services/logger';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
@@ -321,7 +324,7 @@ export const TipTapEditor: React.FC = () => {
             setShowCommentPopup(true);
           } catch (error) {
             // Fallback to center positioning if coordinate calculation fails
-            console.warn('Failed to calculate popup position, using fallback:', error);
+            Logger.warn('Failed to calculate popup position, using fallback', { error: (error as Error).message });
             setSelectedText({
               text: selectedContent,
               from,
@@ -371,7 +374,7 @@ export const TipTapEditor: React.FC = () => {
       }
     } catch (error) {
       if (isMountedRef.current) {
-        console.error('Failed to save script:', error);
+        Logger.error('Failed to save script', { error: (error as Error).message });
         setSaveStatus('error');
       }
     }
@@ -407,7 +410,7 @@ export const TipTapEditor: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Failed to load comment highlights:', error);
+      Logger.error('Failed to load comment highlights', { error: (error as Error).message });
     }
   }, [editor]);
 
@@ -464,7 +467,7 @@ export const TipTapEditor: React.FC = () => {
       }
 
     } catch (error) {
-      console.error('Failed to create comment highlight:', error);
+      Logger.error('Failed to create comment highlight', { error: (error as Error).message });
       if (loadingToastId) {
         removeToast(loadingToastId);
       }
@@ -519,7 +522,7 @@ export const TipTapEditor: React.FC = () => {
         // Only log errors if component is still mounted
         if (!mounted) return;
 
-        console.error('Failed to load script:', error);
+        Logger.error('Failed to load script', { error: (error as Error).message });
 
         // Type-safe error details extraction
         interface ErrorWithDetails extends Error {
@@ -994,18 +997,22 @@ export const TipTapEditor: React.FC = () => {
               <p>Each paragraph you write becomes a component that flows through the production pipeline.</p>
             </div>
           ) : (
-            <EditorContent editor={editor} />
+            <ErrorBoundary>
+              <EditorContent editor={editor} />
+            </ErrorBoundary>
           )}
         </div>
       </div>
 
       {/* Comments Sidebar - Phase 2.3 */}
       {currentScript && (
-        <CommentSidebar
-          scriptId={currentScript.id}
-          createComment={createCommentData}
-          onCommentCreated={handleCommentCreated}
-        />
+        <ErrorBoundary>
+          <CommentSidebar
+            scriptId={currentScript.id}
+            createComment={createCommentData}
+            onCommentCreated={handleCommentCreated}
+          />
+        </ErrorBoundary>
       )}
 
       {/* Comment Selection Popup - Phase 2.2 */}

@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+import type { ToastItem } from './useToast';
 
 export interface ToastProps {
   message: string;
@@ -170,44 +171,6 @@ export const Toast: React.FC<ToastProps> = ({
   );
 };
 
-// Toast Manager Hook
-export interface ToastItem extends ToastProps {
-  id: string;
-}
-
-export const useToast = () => {
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-
-  const showToast = (props: Omit<ToastProps, 'onDismiss'>) => {
-    const id = Date.now().toString();
-    const newToast: ToastItem = {
-      ...props,
-      id,
-      onDismiss: () => removeToast(id)
-    };
-
-    setToasts(prev => [...prev, newToast]);
-    return id;
-  };
-
-  const removeToast = (id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  };
-
-  const showSuccess = (message: string) => showToast({ message, type: 'success' });
-  const showError = (message: string) => showToast({ message, type: 'error' });
-  const showInfo = (message: string) => showToast({ message, type: 'info' });
-  const showLoading = (message: string) => showToast({ message, type: 'loading', duration: 0 });
-
-  return {
-    toasts,
-    showSuccess,
-    showError,
-    showInfo,
-    showLoading,
-    removeToast,
-  };
-};
 
 // Toast Container Component
 export const ToastContainer: React.FC<{ toasts: ToastItem[] }> = ({ toasts }) => {

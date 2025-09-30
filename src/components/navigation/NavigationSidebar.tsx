@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useNavigation, Project, Video } from '../../contexts/NavigationContext';
 import { validateProjectId, ValidationError } from '../../lib/validation';
 import '../../styles/Navigation.css';
+import { Logger } from '../../services/logger';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
@@ -67,7 +68,7 @@ export function NavigationSidebar({
         loadVideos(projectId, true)
       );
       Promise.all(refreshPromises).catch(err => {
-        console.error('Failed to refresh expanded project videos:', err);
+        Logger.error('Failed to refresh expanded project videos', { error: (err as Error).message });
       });
 
       // Return the same state (no change needed)
@@ -141,7 +142,7 @@ export function NavigationSidebar({
 
     } catch (err) {
       setError(`Failed to load projects: ${err}`);
-      console.error('Navigation: Load projects error:', err);
+      Logger.error('Navigation: Load projects error', { error: (err as Error).message });
     }
 
     if (isRefresh) {
@@ -176,7 +177,7 @@ export function NavigationSidebar({
           .single();
 
         if (projectError || !projectData) {
-          console.error(`Failed to fetch project ${validatedProjectId}:`, projectError);
+          Logger.error(`Failed to fetch project ${validatedProjectId}`, { error: (projectError as Error).message });
           if (!isRefresh) {
             setLoading(false);
           }
@@ -202,7 +203,7 @@ export function NavigationSidebar({
         // This can happen if the project data is incomplete or not synced properly
         // Only warn if we actually found a project but it has no eav_code
         if (project) {
-          console.warn(`Project ${validatedProjectId} exists but has no eav_code, cannot load videos`, {
+          Logger.warn(`Project ${validatedProjectId} exists but has no eav_code, cannot load videos`, {
             project,
             isRefresh
           });
@@ -234,7 +235,7 @@ export function NavigationSidebar({
       } else {
         setError(`Failed to load videos: ${err}`);
       }
-      console.error('Navigation: Load videos error:', err);
+      Logger.error('Navigation: Load videos error', { error: (err as Error).message });
     }
 
     if (!isRefresh) {

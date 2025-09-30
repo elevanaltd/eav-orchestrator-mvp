@@ -14,6 +14,8 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import type { CommentWithUser, CommentThread, CreateCommentData } from '../../types/comments';
 import { getComments, createComment as createCommentInDB } from '../../lib/comments';
+import { Logger } from '../../services/logger';
+import { useErrorHandling, getUserFriendlyErrorMessage } from '../../utils/errorHandling';
 
 export interface CommentSidebarProps {
   scriptId: string;
@@ -33,6 +35,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   onCommentCreated
 }) => {
   const { currentUser } = useAuth();
+  const { executeWithErrorHandling } = useErrorHandling('comment operations');
   const [comments, setComments] = useState<CommentWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,28 +52,37 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [deleteConfirming, setDeleteConfirming] = useState<string | null>(null); // commentId being confirmed for deletion
   const [deleting, setDeleting] = useState(false);
 
-  // Load comments from database using CRUD functions
+  // Load comments from database using CRUD functions with error handling
   const loadComments = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
-      const result = await getComments(supabase, scriptId);
+    const result = await executeWithErrorHandling(
+      async () => {
+        const response = await getComments(supabase, scriptId);
 
-      if (!result.success) {
-        setError(result.error?.message || 'Error loading comments');
-        console.error('Comment loading error:', result.error);
-        return;
-      }
+        if (!response.success) {
+          throw new Error(response.error?.message || 'Failed to load comments');
+        }
 
-      setComments(result.data || []);
-    } catch (err) {
-      setError('Error loading comments');
-      console.error('Comment loading error:', err);
-    } finally {
-      setLoading(false);
+        return response.data || [];
+      },
+      (errorInfo) => {
+        // Set user-friendly error message
+        setError(errorInfo.userMessage);
+        // Log the error for debugging
+        Logger.error('Comment loading error', { error: errorInfo.message });
+      },
+      { maxAttempts: 2, baseDelayMs: 1000 } // Retry with shorter delay for UI responsiveness
+    );
+
+    if (result.success) {
+      setComments(result.data);
+      setError(null); // Clear any previous errors on success
     }
-  }, [scriptId]);
+
+    setLoading(false);
+  }, [scriptId, executeWithErrorHandling]);
 
   useEffect(() => {
     loadComments();
@@ -121,29 +133,39 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     }
   });
 
-  // Handle comment creation using CRUD functions
+  // Handle comment creation using CRUD functions with error handling
   const handleCreateComment = async () => {
     if (!createComment || !commentText.trim() || !currentUser) return;
 
-    try {
-      setSubmitting(true);
-      const commentData: CreateCommentData = {
-        scriptId,
-        content: commentText.trim(),
-        startPosition: createComment.startPosition,
-        endPosition: createComment.endPosition,
-        parentCommentId: null,
-      };
+    setSubmitting(true);
+    setError(null);
 
-      // Create comment in database using CRUD function
-      const result = await createCommentInDB(supabase, commentData, currentUser.id);
+    const commentData: CreateCommentData = {
+      scriptId,
+      content: commentText.trim(),
+      startPosition: createComment.startPosition,
+      endPosition: createComment.endPosition,
+      parentCommentId: null,
+    };
 
-      if (!result.success) {
-        setError(result.error?.message || 'Error creating comment');
-        console.error('Comment creation error:', result.error);
-        return;
-      }
+    const result = await executeWithErrorHandling(
+      async () => {
+        const response = await createCommentInDB(supabase, commentData, currentUser.id);
 
+        if (!response.success) {
+          throw new Error(response.error?.message || 'Failed to create comment');
+        }
+
+        return response.data;
+      },
+      (errorInfo) => {
+        // Set user-friendly error message
+        setError(errorInfo.userMessage);
+      },
+      { maxAttempts: 2, baseDelayMs: 500 }
+    );
+
+    if (result.success) {
       // Call the callback if provided (for parent component notifications)
       if (onCommentCreated) {
         onCommentCreated(commentData);
@@ -151,12 +173,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
       setCommentText('');
       await loadComments(); // Refresh comments to show the new one
-    } catch (err) {
-      console.error('Error creating comment:', err);
-      setError('Error creating comment');
-    } finally {
-      setSubmitting(false);
     }
+
+    setSubmitting(false);
   };
 
   const handleCancelComment = () => {
@@ -172,43 +191,45 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const handleReplySubmit = async (parentCommentId: string) => {
     if (!replyText.trim() || !currentUser) return;
 
-    try {
-      setSubmittingReply(true);
-      const replyData: CreateCommentData = {
-        scriptId,
-        content: replyText.trim(),
-        // For replies, use the parent comment's position since they share the same text selection
-        startPosition: 0, // Will be updated based on parent comment's position
-        endPosition: 0,
-        parentCommentId,
-      };
+    setSubmittingReply(true);
+    setError(null);
 
-      // Find parent comment to get position information
-      const parentComment = comments.find(c => c.id === parentCommentId);
-      if (parentComment) {
-        replyData.startPosition = parentComment.startPosition;
-        replyData.endPosition = parentComment.endPosition;
-      }
+    // Find parent comment to get position information
+    const parentComment = comments.find(c => c.id === parentCommentId);
 
-      // Create reply in database using CRUD function
-      const result = await createCommentInDB(supabase, replyData, currentUser.id);
+    const replyData: CreateCommentData = {
+      scriptId,
+      content: replyText.trim(),
+      startPosition: parentComment?.startPosition || 0,
+      endPosition: parentComment?.endPosition || 0,
+      parentCommentId,
+    };
 
-      if (!result.success) {
-        setError(result.error?.message || 'Error creating reply');
-        console.error('Reply creation error:', result.error);
-        return;
-      }
+    const result = await executeWithErrorHandling(
+      async () => {
+        const response = await createCommentInDB(supabase, replyData, currentUser.id);
 
+        if (!response.success) {
+          throw new Error(response.error?.message || 'Failed to create reply');
+        }
+
+        return response.data;
+      },
+      (errorInfo) => {
+        // Set user-friendly error message
+        setError(errorInfo.userMessage);
+      },
+      { maxAttempts: 2, baseDelayMs: 500 }
+    );
+
+    if (result.success) {
       // Reset reply state
       setReplyingTo(null);
       setReplyText('');
       await loadComments(); // Refresh comments to show the new reply
-    } catch (err) {
-      console.error('Error creating reply:', err);
-      setError('Error creating reply');
-    } finally {
-      setSubmittingReply(false);
     }
+
+    setSubmittingReply(false);
   };
 
   const handleCancelReply = () => {
@@ -216,29 +237,37 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setReplyText('');
   };
 
-  // Resolve functionality handlers
+  // Resolve functionality handlers with error handling
   const handleResolveToggle = async (commentId: string, isCurrentlyResolved: boolean) => {
     if (!currentUser) return;
 
-    try {
-      // Import resolve/unresolve functions dynamically to work with module mocks in tests
-      const { resolveComment, unresolveComment } = await import('../../lib/comments');
+    setError(null);
 
-      // Toggle based on current resolved state
-      const result = isCurrentlyResolved
-        ? await unresolveComment(supabase, commentId, currentUser.id)
-        : await resolveComment(supabase, commentId, currentUser.id);
+    const result = await executeWithErrorHandling(
+      async () => {
+        // Import resolve/unresolve functions dynamically to work with module mocks in tests
+        const { resolveComment, unresolveComment } = await import('../../lib/comments');
 
-      if (!result.success) {
-        setError(result.error?.message || `Error ${isCurrentlyResolved ? 'reopening' : 'resolving'} comment`);
-        console.error('Resolve toggle error:', result.error);
-        return;
-      }
+        // Toggle based on current resolved state
+        const response = isCurrentlyResolved
+          ? await unresolveComment(supabase, commentId, currentUser.id)
+          : await resolveComment(supabase, commentId, currentUser.id);
 
+        if (!response.success) {
+          throw new Error(response.error?.message || `Failed to ${isCurrentlyResolved ? 'reopen' : 'resolve'} comment`);
+        }
+
+        return response.data;
+      },
+      (errorInfo) => {
+        // Set user-friendly error message
+        setError(errorInfo.userMessage);
+      },
+      { maxAttempts: 2, baseDelayMs: 500 }
+    );
+
+    if (result.success) {
       await loadComments(); // Refresh comments to show the updated state
-    } catch (err) {
-      console.error(`Error ${isCurrentlyResolved ? 'reopening' : 'resolving'} comment:`, err);
-      setError(`Error ${isCurrentlyResolved ? 'reopening' : 'resolving'} comment`);
     }
   };
 
@@ -250,27 +279,35 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const handleDeleteConfirm = async (commentId: string) => {
     if (!currentUser) return;
 
-    try {
-      setDeleting(true);
-      // Import deleteComment function dynamically to work with module mocks in tests
-      const { deleteComment } = await import('../../lib/comments');
+    setDeleting(true);
+    setError(null);
 
-      const result = await deleteComment(supabase, commentId, currentUser.id);
+    const result = await executeWithErrorHandling(
+      async () => {
+        // Import deleteComment function dynamically to work with module mocks in tests
+        const { deleteComment } = await import('../../lib/comments');
 
-      if (!result.success) {
-        setError(result.error?.message || 'Error deleting comment');
-        console.error('Delete comment error:', result.error);
-        return;
-      }
+        const response = await deleteComment(supabase, commentId, currentUser.id);
 
+        if (!response.success) {
+          throw new Error(response.error?.message || 'Failed to delete comment');
+        }
+
+        return response.data;
+      },
+      (errorInfo) => {
+        // Set user-friendly error message
+        setError(errorInfo.userMessage);
+      },
+      { maxAttempts: 1, baseDelayMs: 500 } // Only retry once for delete operations
+    );
+
+    if (result.success) {
       setDeleteConfirming(null);
       await loadComments(); // Refresh comments to show the updated state
-    } catch (err) {
-      console.error('Error deleting comment:', err);
-      setError('Error deleting comment');
-    } finally {
-      setDeleting(false);
     }
+
+    setDeleting(false);
   };
 
   const handleDeleteCancel = () => {
@@ -295,8 +332,26 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   if (error) {
     return (
       <aside className="comments-sidebar" role="complementary" aria-label="Comments Sidebar">
-        <div role="alert">
-          Error loading comments
+        <div className="error-state">
+          <div role="alert" className="error-message">
+            <div className="error-icon">⚠️</div>
+            <div className="error-text">
+              <h3>Unable to load comments</h3>
+              <p>{error}</p>
+            </div>
+          </div>
+          <div className="error-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                loadComments();
+              }}
+              className="retry-button"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </aside>
     );
@@ -308,6 +363,24 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       <header role="banner" aria-label="Comments Header">
         <h2>Comments</h2>
       </header>
+
+      {/* Inline Error Display for Operations */}
+      {error && (
+        <div className="inline-error" role="alert">
+          <div className="error-content">
+            <span className="error-icon-small">⚠️</span>
+            <span className="error-message-small">{error}</span>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="error-dismiss"
+              aria-label="Dismiss error"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filter Controls */}
       <div className="comment-filters">
@@ -822,6 +895,112 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         .confirm-delete-button:hover {
           background: #dc2626;
           border-color: #dc2626;
+        }
+
+        /* Error State Styling */
+        .error-state {
+          padding: 20px;
+          text-align: center;
+        }
+
+        .error-message {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          margin-bottom: 16px;
+          padding: 16px;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 8px;
+          color: #dc2626;
+        }
+
+        .error-icon {
+          font-size: 24px;
+          flex-shrink: 0;
+        }
+
+        .error-text h3 {
+          margin: 0 0 4px 0;
+          font-size: 16px;
+          font-weight: 600;
+        }
+
+        .error-text p {
+          margin: 0;
+          font-size: 14px;
+          color: #7f1d1d;
+          line-height: 1.4;
+        }
+
+        .error-actions {
+          display: flex;
+          justify-content: center;
+        }
+
+        .retry-button {
+          background: #dc2626;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          padding: 10px 20px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+
+        .retry-button:hover {
+          background: #b91c1c;
+        }
+
+        /* Inline Error Styling */
+        .inline-error {
+          margin: 12px 16px;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 6px;
+          padding: 12px;
+        }
+
+        .error-content {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .error-icon-small {
+          font-size: 16px;
+          color: #dc2626;
+          flex-shrink: 0;
+        }
+
+        .error-message-small {
+          flex: 1;
+          font-size: 13px;
+          color: #7f1d1d;
+          line-height: 1.4;
+        }
+
+        .error-dismiss {
+          background: none;
+          border: none;
+          color: #7f1d1d;
+          font-size: 18px;
+          cursor: pointer;
+          padding: 0;
+          width: 20px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: background-color 0.2s;
+        }
+
+        .error-dismiss:hover {
+          background: rgba(127, 29, 29, 0.1);
         }
       `}</style>
     </aside>

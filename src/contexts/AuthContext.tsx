@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { Logger } from '../services/logger'
 
 interface UserProfile {
   id: string
@@ -62,13 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single()
 
         if (insertError) {
-          console.error('[AuthContext] Error creating user profile:', insertError)
+          Logger.error('[AuthContext] Error creating user profile', { error: insertError.message })
         } else {
           setUserProfile(newProfile)
         }
       }
     } catch (err) {
-      console.error('[AuthContext] Exception in loadUserProfile:', err)
+      Logger.error('[AuthContext] Exception in loadUserProfile', { error: (err as Error).message })
     }
   }, [])
 
@@ -96,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { session }, error } = sessionResult
 
         if (error) {
-          console.error('[AuthContext] Session check error:', error)
+          Logger.error('[AuthContext] Session check error', { error: error.message })
           setLoading(false)
           return
         }
@@ -111,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             session.user.email,
             session.user.user_metadata?.full_name
           ).catch((err) => {
-            console.error('[AuthContext] Profile load failed:', err)
+            Logger.error('[AuthContext] Profile load failed', { error: (err as Error).message })
           })
         }
 
@@ -121,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch((err) => {
-        console.error('[AuthContext] Session check failed or timed out:', err)
+        Logger.error('[AuthContext] Session check failed or timed out', { error: (err as Error).message })
         if (mounted) {
           setLoading(false)
         }
@@ -141,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             session.user.email,
             session.user.user_metadata?.full_name
           ).catch((err) => {
-            console.error('[AuthContext] Profile load failed on auth change:', err)
+            Logger.error('[AuthContext] Profile load failed on auth change', { error: (err as Error).message })
           })
         } else {
           setUserProfile(null)

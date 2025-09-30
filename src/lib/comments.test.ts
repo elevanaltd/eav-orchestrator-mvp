@@ -58,6 +58,14 @@ describe('Comments Infrastructure - Integration Tests', () => {
   beforeEach(async () => {
     // Create single client to avoid multiple instance warnings
     supabaseClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Clean up any existing test comments before each test
+    try {
+      await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await supabaseClient.from('comments').delete().eq('script_id', TEST_SCRIPT_ID);
+    } catch {
+      // Cleanup might fail if no admin access, but that's OK
+    }
   });
 
   afterEach(async () => {
@@ -464,6 +472,145 @@ describe('Comments Infrastructure - Integration Tests', () => {
       expect(error).toBeNull();
       expect(unresolvedComments).toHaveLength(1);
       expect(unresolvedComments?.[0]?.content).toBe('Unresolved comment');
+    });
+  });
+
+  describe('getComments Performance - N+1 Query Fix', () => {
+    test('should fetch all user profiles in single query, not N+1 queries', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create test comments with different users
+      const testUsers = [adminUserId];
+
+      // Create 5 comments from the same user (to test deduplication)
+      for (let i = 0; i < 5; i++) {
+        await supabaseClient.from('comments').insert({
+          script_id: TEST_SCRIPT_ID,
+          user_id: adminUserId,
+          content: `Performance test comment ${i}`,
+          start_position: i * 10,
+          end_position: (i * 10) + 5
+        });
+      }
+
+      // Spy on Supabase queries by mocking the from method
+      const originalFrom = supabaseClient.from;
+      const queryLog: string[] = [];
+
+      supabaseClient.from = ((table: any) => {
+        queryLog.push(table);
+        return originalFrom.call(supabaseClient, table);
+      }) as any;
+
+      try {
+        // This should fail - current implementation does N+1 queries
+        const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID);
+
+        expect(result.success).toBe(true);
+        expect(result.data).toHaveLength(5);
+
+        // Assert only 2 database tables were queried: comments + user_profiles
+        const uniqueTables = [...new Set(queryLog)];
+        expect(uniqueTables).toEqual(['comments', 'user_profiles']);
+
+        // Assert user_profiles was queried only ONCE (not per comment)
+        const userProfileQueries = queryLog.filter(table => table === 'user_profiles');
+        expect(userProfileQueries).toHaveLength(1); // This will FAIL with current N+1 implementation
+
+      } finally {
+        // Restore original from method
+        supabaseClient.from = originalFrom;
+      }
+    });
+
+    test('should complete getComments for 50 comments in <200ms', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create 50 test comments to stress test performance
+      const insertPromises = [];
+      for (let i = 0; i < 50; i++) {
+        insertPromises.push(
+          supabaseClient.from('comments').insert({
+            script_id: TEST_SCRIPT_ID,
+            user_id: adminUserId,
+            content: `Performance benchmark comment ${i}`,
+            start_position: i * 5,
+            end_position: (i * 5) + 3
+          })
+        );
+      }
+      await Promise.all(insertPromises);
+
+      // Measure getComments performance
+      const startTime = Date.now();
+      const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID);
+      const endTime = Date.now();
+
+      const executionTime = endTime - startTime;
+
+      expect(result.success).toBe(true);
+      expect(result.data).toHaveLength(50);
+      expect(executionTime).toBeLessThan(200); // This will FAIL with current N+1 implementation
+
+      console.log(`getComments execution time: ${executionTime}ms for 50 comments`);
+    });
+
+    test('should handle mixed users efficiently with single profile query', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create comments from admin user only (client has read-only access)
+      await supabaseClient.from('comments').insert([
+        {
+          script_id: TEST_SCRIPT_ID,
+          user_id: adminUserId,
+          content: 'Admin comment 1',
+          start_position: 0,
+          end_position: 5
+        },
+        {
+          script_id: TEST_SCRIPT_ID,
+          user_id: adminUserId,
+          content: 'Admin comment 2',
+          start_position: 10,
+          end_position: 15
+        },
+        {
+          script_id: TEST_SCRIPT_ID,
+          user_id: adminUserId,
+          content: 'Admin comment 3',
+          start_position: 20,
+          end_position: 25
+        }
+      ]);
+
+      // Admin should see all comments they created
+      // Spy on user_profiles queries
+      const originalFrom = supabaseClient.from;
+      let userProfileQueryCount = 0;
+
+      supabaseClient.from = ((table: any) => {
+        if (table === 'user_profiles') {
+          userProfileQueryCount++;
+        }
+        return originalFrom.call(supabaseClient, table);
+      }) as any;
+
+      try {
+        const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID);
+
+        expect(result.success).toBe(true);
+        expect(result.data).toHaveLength(3);
+
+        // Should have 0 or 1 user_profiles query (caching may prevent query if user already cached)
+        expect(userProfileQueryCount).toBeLessThanOrEqual(1);
+
+        // Verify all comments have user data populated
+        const commentsWithUserData = result.data?.filter(c => c.user !== undefined) || [];
+        expect(commentsWithUserData).toHaveLength(3);
+
+      } finally {
+        supabaseClient.from = originalFrom;
+      }
     });
   });
 });

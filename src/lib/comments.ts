@@ -21,6 +21,14 @@ import type {
   CommentError
 } from '../types/comments';
 
+// Session-scoped cache for user profiles to avoid repeated queries
+const userProfileCache = new Map<string, {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: string | null;
+}>();
+
 // Result types for consistent API responses
 export interface CommentResult<T = unknown> {
   success: boolean;
@@ -173,48 +181,70 @@ export async function getComments(
       };
     }
 
-    // Transform to application format with basic user info
-    const commentsWithUser: CommentWithUser[] = await Promise.all(
-      (comments || []).map(async (comment) => {
-        // For now, fetch user info separately for each comment
-        // TODO: Optimize with a single join query when user relationships are clarified
-        let userInfo = undefined;
-        try {
-          const { data: userProfile } = await supabase
-            .from('user_profiles')
-            .select('id, email, display_name, role')
-            .eq('id', comment.user_id)
-            .single();
+    // PERFORMANCE OPTIMIZATION: Single query for all user profiles instead of N+1
 
-          if (userProfile) {
-            userInfo = {
-              id: userProfile.id,
-              email: userProfile.email,
-              display_name: userProfile.display_name,
-              role: userProfile.role
-            };
-          }
-        } catch {
-          // If user profile not found, leave as undefined
-          userInfo = undefined;
+    // Step 1: Extract unique user IDs from comments
+    const userIds = [...new Set((comments || []).map(comment => comment.user_id))];
+
+    // Step 2: Fetch user profiles with caching - only query uncached profiles
+    const userProfilesMap = new Map<string, any>();
+
+    if (userIds.length > 0) {
+      // Check cache first and identify missing profiles
+      const uncachedUserIds: string[] = [];
+
+      for (const userId of userIds) {
+        if (userProfileCache.has(userId)) {
+          // Use cached profile
+          userProfilesMap.set(userId, userProfileCache.get(userId));
+        } else {
+          // Mark for database query
+          uncachedUserIds.push(userId);
         }
+      }
 
-        return {
-          id: comment.id,
-          scriptId: comment.script_id,
-          userId: comment.user_id,
-          content: comment.content,
-          startPosition: comment.start_position,
-          endPosition: comment.end_position,
-          parentCommentId: comment.parent_comment_id,
-          resolvedAt: comment.resolved_at,
-          resolvedBy: comment.resolved_by,
-          createdAt: comment.created_at,
-          updatedAt: comment.updated_at,
-          user: userInfo
-        };
-      })
-    );
+      // Single query for uncached profiles only
+      if (uncachedUserIds.length > 0) {
+        const { data: userProfiles } = await supabase
+          .from('user_profiles')
+          .select('id, email, display_name, role')
+          .in('id', uncachedUserIds);
+
+        // Step 3: Update both cache and working map
+        (userProfiles || []).forEach(profile => {
+          const profileData = {
+            id: profile.id,
+            email: profile.email,
+            display_name: profile.display_name,
+            role: profile.role
+          };
+
+          // Cache for future use
+          userProfileCache.set(profile.id, profileData);
+
+          // Add to working map for current request
+          userProfilesMap.set(profile.id, profileData);
+        });
+      }
+    }
+
+    // Step 4: Transform to application format with efficient user lookup
+    const commentsWithUser: CommentWithUser[] = (comments || []).map(comment => {
+      return {
+        id: comment.id,
+        scriptId: comment.script_id,
+        userId: comment.user_id,
+        content: comment.content,
+        startPosition: comment.start_position,
+        endPosition: comment.end_position,
+        parentCommentId: comment.parent_comment_id,
+        resolvedAt: comment.resolved_at,
+        resolvedBy: comment.resolved_by,
+        createdAt: comment.created_at,
+        updatedAt: comment.updated_at,
+        user: userProfilesMap.get(comment.user_id) // O(1) lookup instead of N queries
+      };
+    });
 
     return {
       success: true,
