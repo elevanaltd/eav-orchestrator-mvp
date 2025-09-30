@@ -419,6 +419,9 @@ export const TipTapEditor: React.FC = () => {
     try {
       // Clear creation state to hide form
       setCreateCommentData(null);
+      // Clear selection state now that comment is created
+      setSelectedText(null);
+      setPopupPosition(null);
 
       // Reload highlights from database to show newly created comment with correct ID
       if (currentScript) {
@@ -432,6 +435,15 @@ export const TipTapEditor: React.FC = () => {
       showError('Failed to update comment highlights');
     }
   }, [currentScript, loadCommentHighlights, showSuccess, showError]);
+
+  // Handle comment form cancellation
+  const handleCommentCancelled = useCallback(() => {
+    // Clear creation state to hide form
+    setCreateCommentData(null);
+    // Clear selection state
+    setSelectedText(null);
+    setPopupPosition(null);
+  }, []);
 
   // Load script when selected video changes
   useEffect(() => {
@@ -969,6 +981,7 @@ export const TipTapEditor: React.FC = () => {
             scriptId={currentScript.id}
             createComment={createCommentData}
             onCommentCreated={handleCommentCreated}
+            onCommentCancelled={handleCommentCancelled}
           />
         </ErrorBoundary>
       )}
@@ -995,6 +1008,10 @@ export const TipTapEditor: React.FC = () => {
           </div>
           <button
             className="comment-popup-button"
+            onMouseDown={(e) => {
+              // Prevent popup click from clearing editor selection
+              e.preventDefault();
+            }}
             onClick={() => {
               if (selectedText) {
                 // Set up comment creation in sidebar
@@ -1003,10 +1020,11 @@ export const TipTapEditor: React.FC = () => {
                   endPosition: selectedText.to,
                   selectedText: selectedText.text,
                 });
+                // Hide popup but keep selection data available for visual reference
+                setShowCommentPopup(false);
+                // Don't clear selectedText yet - keep it for visual feedback
+                // It will be cleared when comment is created or form is cancelled
               }
-              setShowCommentPopup(false);
-              setSelectedText(null);
-              setPopupPosition(null);
             }}
           >
             Add comment

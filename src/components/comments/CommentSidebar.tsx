@@ -25,6 +25,7 @@ export interface CommentSidebarProps {
     selectedText: string;
   } | null;
   onCommentCreated?: () => void;
+  onCommentCancelled?: () => void;
 }
 
 type FilterMode = 'all' | 'open' | 'resolved';
@@ -32,7 +33,8 @@ type FilterMode = 'all' | 'open' | 'resolved';
 export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   scriptId,
   createComment,
-  onCommentCreated
+  onCommentCreated,
+  onCommentCancelled
 }) => {
   const { currentUser } = useAuth();
   const { executeWithErrorHandling } = useErrorHandling('comment operations');
@@ -180,6 +182,10 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
   const handleCancelComment = () => {
     setCommentText('');
+    // Notify parent to clear selection state
+    if (onCommentCancelled) {
+      onCommentCancelled();
+    }
   };
 
   // Reply functionality handlers
