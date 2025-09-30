@@ -301,6 +301,7 @@ export const TipTapEditor: React.FC = () => {
             commentNumber: index + 1,
             startPosition: comment.startPosition, // Already recovered if needed
             endPosition: comment.endPosition, // Already recovered if needed
+            resolved: !!comment.resolvedAt, // Priority 3: Pass resolved status for visual distinction
           }));
 
         setCommentHighlights(highlights);
@@ -973,6 +974,19 @@ export const TipTapEditor: React.FC = () => {
         .comment-highlight.highlight-hover {
           background-color: #FBBF24;
           box-shadow: 0 0 0 2px #F59E0B;
+        }
+
+        /* Priority 3: Resolved comments - pale green background with grey numbers */
+        .comment-highlight.comment-resolved {
+          background-color: #DCFCE7; /* Resolved: pale green background */
+        }
+
+        .comment-highlight.comment-resolved::after {
+          background: #9CA3AF; /* Resolved: grey number badge */
+        }
+
+        .comment-highlight.comment-resolved:hover {
+          background-color: #BBF7D0; /* Slightly darker green on hover */
         }
 
         /* Comment loading and success animations */
