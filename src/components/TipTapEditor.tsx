@@ -701,6 +701,10 @@ export const TipTapEditor: React.FC = () => {
           padding: 20px 30px;
           border-bottom: 2px solid #e5e5e5;
           background: #fafafa;
+          /* Priority 4: Sticky header - stays visible while content scrolls */
+          position: sticky;
+          top: 0;
+          z-index: 10;
         }
 
         .editor-title {

@@ -11,7 +11,7 @@ import { Signup } from './components/auth/Signup'
 import { PrivateRoute } from './components/auth/PrivateRoute'
 import { Header } from './components/Header'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { SmartSuiteTest } from './components/SmartSuiteTest'
+// Priority 4: Removed SmartSuiteTest import (development-only testing UI)
 import { DesktopRequired } from './components/DesktopRequired'
 import { isMobileDevice } from './utils/mobileDetection'
 import './App.css'
@@ -52,7 +52,7 @@ function MainApp() {
           </ErrorBoundary>
           <div className="app-content">
             <ErrorBoundary>
-              <SmartSuiteTest />
+              {/* Priority 4: Removed SmartSuiteTest component - development-only UI */}
               <Suspense fallback={<ComponentLoader name="Editor" />}>
                 <TipTapEditor />
               </Suspense>

@@ -446,55 +446,58 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
   return (
     <aside className="comments-sidebar" role="complementary" aria-label="Comments Sidebar">
-      {/* Header */}
-      <header role="banner" aria-label="Comments Header">
-        <h2>Comments</h2>
-      </header>
+      {/* Priority 4: Sticky Header Container - stays visible while comments scroll */}
+      <div className="comments-sticky-header">
+        {/* Header */}
+        <header role="banner" aria-label="Comments Header">
+          <h2>Comments</h2>
+        </header>
 
-      {/* Inline Error Display for Operations */}
-      {error && (
-        <div className="inline-error" role="alert">
-          <div className="error-content">
-            <span className="error-icon-small">⚠️</span>
-            <span className="error-message-small">{error}</span>
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="error-dismiss"
-              aria-label="Dismiss error"
-            >
-              ×
-            </button>
+        {/* Inline Error Display for Operations */}
+        {error && (
+          <div className="inline-error" role="alert">
+            <div className="error-content">
+              <span className="error-icon-small">⚠️</span>
+              <span className="error-message-small">{error}</span>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="error-dismiss"
+                aria-label="Dismiss error"
+              >
+                ×
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Filter Controls */}
-      <div className="comment-filters">
-        <button
-          type="button"
-          aria-label="All Comments"
-          className={filterMode === 'all' ? 'active' : ''}
-          onClick={() => setFilterMode('all')}
-        >
-          All Comments
-        </button>
-        <button
-          type="button"
-          aria-label="Open Comments"
-          className={filterMode === 'open' ? 'active' : ''}
-          onClick={() => setFilterMode('open')}
-        >
-          Open Comments
-        </button>
-        <button
-          type="button"
-          aria-label="Resolved Comments"
-          className={filterMode === 'resolved' ? 'active' : ''}
-          onClick={() => setFilterMode('resolved')}
-        >
-          Resolved Comments
-        </button>
+        {/* Filter Controls */}
+        <div className="comment-filters">
+          <button
+            type="button"
+            aria-label="All Comments"
+            className={filterMode === 'all' ? 'active' : ''}
+            onClick={() => setFilterMode('all')}
+          >
+            All Comments
+          </button>
+          <button
+            type="button"
+            aria-label="Open Comments"
+            className={filterMode === 'open' ? 'active' : ''}
+            onClick={() => setFilterMode('open')}
+          >
+            Open Comments
+          </button>
+          <button
+            type="button"
+            aria-label="Resolved Comments"
+            className={filterMode === 'resolved' ? 'active' : ''}
+            onClick={() => setFilterMode('resolved')}
+          >
+            Resolved Comments
+          </button>
+        </div>
       </div>
 
       {/* Comment Creation Form */}
@@ -838,6 +841,17 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
           background: white;
           padding: 16px;
           overflow-y: auto;
+        }
+
+        /* Priority 4: Sticky header container for header + filters */
+        .comments-sticky-header {
+          position: sticky;
+          top: 0;
+          background: white;
+          z-index: 10;
+          padding-bottom: 8px;
+          margin-bottom: 8px;
+          border-bottom: 1px solid #e5e7eb;
         }
 
         .comment-filters {
