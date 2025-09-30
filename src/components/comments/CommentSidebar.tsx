@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import DOMPurify from 'isomorphic-dompurify';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import type { CommentWithUser, CommentThread, CreateCommentData } from '../../types/comments';
@@ -169,6 +170,12 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       startPosition: createComment.startPosition,
       endPosition: createComment.endPosition,
       parentCommentId: null,
+      // Sanitize highlightedText to prevent XSS - plain text only for position recovery
+      highlightedText: DOMPurify.sanitize(createComment.selectedText, {
+        ALLOWED_TAGS: [],
+        ALLOWED_ATTR: [],
+        KEEP_CONTENT: true
+      }),
     };
 
     const result = await executeWithErrorHandling(

@@ -269,6 +269,46 @@ export async function getComments(
         documentContent
       );
 
+      // Step 5a: Persist recovered positions to database
+      const positionsToUpdate: Array<{ id: string; start_position: number; end_position: number }> = [];
+
+      for (const [commentId, recovery] of recoveryResults.entries()) {
+        if (recovery.status === 'relocated') {
+          positionsToUpdate.push({
+            id: commentId,
+            start_position: recovery.newStartPosition,
+            end_position: recovery.newEndPosition
+          });
+        }
+      }
+
+      // Batch update all recovered positions using Promise.allSettled for error resilience
+      if (positionsToUpdate.length > 0) {
+        const results = await Promise.allSettled(
+          positionsToUpdate.map(update =>
+            supabase
+              .from('comments')
+              .update({
+                start_position: update.start_position,
+                end_position: update.end_position,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', update.id)
+          )
+        );
+
+        // Log failures without blocking comment retrieval
+        const failed = results.filter(r => r.status === 'rejected');
+        if (failed.length > 0) {
+          console.error(`Position recovery: ${failed.length}/${positionsToUpdate.length} updates failed`,
+            failed.map((r, i) => ({
+              commentId: positionsToUpdate[i].id,
+              error: r.status === 'rejected' ? r.reason : null
+            }))
+          );
+        }
+      }
+
       const commentsWithRecovery: CommentWithRecovery[] = commentsWithUser.map(comment => {
         const recovery = recoveryResults.get(comment.id);
         if (recovery) {

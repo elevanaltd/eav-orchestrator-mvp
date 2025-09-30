@@ -804,6 +804,76 @@ describe('Comments CRUD Functions - TDD Phase', () => {
     });
   });
 
+  describe('POSITION DRIFT PERSISTENCE - TDD (RED PHASE)', () => {
+    test('should persist highlightedText when creating comment', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      const commentData = {
+        scriptId: TEST_SCRIPT_ID,
+        content: 'Test comment with highlighted text',
+        startPosition: 10,
+        endPosition: 25,
+        parentCommentId: null,
+        highlightedText: 'highlighted content' // This should be persisted
+      };
+
+      const result = await commentsLib.createComment(supabaseClient, commentData, adminUserId);
+
+      expect(result.success).toBe(true);
+      expect(result.data?.highlightedText).toBe('highlighted content');
+
+      // Verify it's in the database
+      const { data: dbComment } = await supabaseClient
+        .from('comments')
+        .select('highlighted_text')
+        .eq('id', result.data!.id)
+        .single();
+
+      expect(dbComment?.highlighted_text).toBe('highlighted content');
+    });
+
+    test('should persist recovered positions after position recovery', async () => {
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create comment with original positions
+      const { data: comment } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Comment with drifted position',
+        start_position: 10,
+        end_position: 20,
+        highlighted_text: 'test content'
+      }).select().single();
+
+      // Document content where text has moved (simulate drift)
+      const documentContent = 'prefix added test content and more text';
+
+      // Get comments with position recovery
+      const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID, undefined, documentContent);
+
+      expect(result.success).toBe(true);
+
+      const recoveredComment = result.data?.find(c => c.id === comment!.id);
+      expect(recoveredComment).toBeDefined();
+
+      // Verify positions were recovered in response
+      if (recoveredComment?.recovery?.status === 'relocated') {
+        expect(recoveredComment.startPosition).not.toBe(10);
+        expect(recoveredComment.endPosition).not.toBe(20);
+
+        // THIS WILL FAIL: Verify recovered positions are persisted to database
+        const { data: dbComment } = await supabaseClient
+          .from('comments')
+          .select('start_position, end_position')
+          .eq('id', comment!.id)
+          .single();
+
+        expect(dbComment?.start_position).toBe(recoveredComment.startPosition);
+        expect(dbComment?.end_position).toBe(recoveredComment.endPosition);
+      }
+    });
+  });
+
   describe('CASCADE SOFT DELETE - TDD (WILL FAIL)', () => {
     test('should cascade delete parent with one child', async () => {
       const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
