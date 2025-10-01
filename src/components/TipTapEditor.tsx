@@ -1081,7 +1081,7 @@ export const TipTapEditor: React.FC = () => {
                   // Convert soft enters (br tags) to hard enters (paragraph breaks)
                   const conversionSuccessful = editor.chain().focus().command(({ tr, state }) => {
                     const { doc } = state;
-                    const replacements: { from: number; to: number; content: string[] }[] = [];
+                    const replacements: { from: number; to: number; content: Node[][] }[] = [];
 
                     // Traverse document to find paragraphs with br tags
                     doc.descendants((node, pos) => {
@@ -1095,24 +1095,25 @@ export const TipTapEditor: React.FC = () => {
                         });
 
                         if (hasBr) {
-                          // Split the paragraph at br tags
-                          const parts: string[] = [];
-                          let currentText = '';
+                          // Split the paragraph at br tags - preserve nodes with formatting
+                          const parts: Node[][] = []; // Array of node arrays
+                          let currentPart: Node[] = [];
 
                           node.forEach((child) => {
                             if (child.type.name === 'hardBreak') {
-                              if (currentText.trim()) {
-                                parts.push(currentText);
+                              if (currentPart.length > 0) {
+                                parts.push(currentPart);
+                                currentPart = [];
                               }
-                              currentText = '';
                             } else {
-                              currentText += child.textContent;
+                              // Preserve the child node with all its marks (bold, italic, etc.)
+                              currentPart.push(child);
                             }
                           });
 
                           // Add final part
-                          if (currentText.trim()) {
-                            parts.push(currentText);
+                          if (currentPart.length > 0) {
+                            parts.push(currentPart);
                           }
 
                           if (parts.length > 1) {
@@ -1128,9 +1129,12 @@ export const TipTapEditor: React.FC = () => {
 
                     // Apply replacements in reverse order to maintain positions
                     replacements.reverse().forEach(({ from, to, content }) => {
-                      // Build paragraph nodes for each split part
-                      const paragraphs = content.map(text =>
-                        state.schema.nodes.paragraph.create(null, state.schema.text(text))
+                      // Build paragraph nodes preserving formatting from node arrays
+                      const paragraphs = content.map(nodePart =>
+                        state.schema.nodes.paragraph.create(
+                          null,
+                          nodePart // Pass node array directly - preserves marks
+                        )
                       );
 
                       tr.replaceWith(from, to, paragraphs);
