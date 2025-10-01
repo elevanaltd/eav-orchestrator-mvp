@@ -69,20 +69,19 @@ const handlePlainTextPaste = (
   }
 
   // 2. Robust newline handling (MEDIUM priority fix) - Handle edge cases like '\n \n'
-  const paragraphs = textData.split(/\n\n+/).filter(p => p.trim() !== '');
+  const paragraphs = textData.split(/\s*\n\s*\n\s*/).filter(p => p.trim() !== '');
 
   if (paragraphs.length > 1) {
     // 3. Manual escaping (MEDIUM priority fix) - Defense-in-depth security
-    // Join paragraphs WITHOUT extra whitespace to prevent empty node creation
     const paragraphHTML = paragraphs
-      .map(p => `<p>${p.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
+      .map(p => `<p>${p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
       .join('');
 
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = paragraphHTML;
     const { state } = view;
     const parser = ProseMirrorDOMParser.fromSchema(state.schema);
-    const slice = parser.parseSlice(tempDiv);
+    const slice = parser.parseSlice(tempDiv, { preserveWhitespace: 'full' });
     view.dispatch(state.tr.replaceSelection(slice));
   } else {
     view.dispatch(view.state.tr.insertText(textData));
@@ -131,7 +130,7 @@ const ParagraphComponentTracker = Extension.create({
             // Iterate through the document
             state.doc.forEach((node, offset) => {
               // Each paragraph becomes a component
-              if (node.type.name === 'paragraph' && node.content.size > 0) {
+              if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
                 componentNumber++;
 
                 // Add a widget decoration for the component label
@@ -229,21 +228,8 @@ export const TipTapEditor: React.FC = () => {
     const components: ComponentData[] = [];
     let componentNum = 0;
 
-    editor.state.doc.forEach((node: Node, offset: number, index: number) => {
-      const trimmedContent = node.textContent.trim();
-      const contentLength = node.textContent.length;
-      const trimmedLength = trimmedContent.length;
-
-      console.log(`[Node ${index}]`, {
-        type: node.type.name,
-        contentLength,
-        trimmedLength,
-        preview: trimmedContent.substring(0, 50) + '...',
-        isIncluded: node.type.name === 'paragraph' && trimmedLength > 0
-      });
-
-      // Only extract paragraphs with actual content (not whitespace-only)
-      if (node.type.name === 'paragraph' && trimmedLength > 0) {
+    editor.state.doc.forEach((node: Node) => {
+      if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
         componentNum++;
         components.push({
           number: componentNum,
@@ -254,7 +240,6 @@ export const TipTapEditor: React.FC = () => {
       }
     });
 
-    console.log('[extractComponents] Extracted', components.length, 'components');
     setExtractedComponents(components);
   }, []);
 
@@ -320,9 +305,6 @@ export const TipTapEditor: React.FC = () => {
         const htmlData = clipboardData.getData('text/html');
         const textData = clipboardData.getData('text/plain');
 
-        console.log('[PASTE] HTML length:', htmlData?.length || 0, 'Text length:', textData?.length || 0);
-        console.log('[PASTE] Text preview:', textData?.substring(0, 200));
-
         // Only process if HTML data is present
         if (htmlData) {
           event.preventDefault(); // Take control of the paste event
@@ -338,9 +320,6 @@ export const TipTapEditor: React.FC = () => {
           try {
             // 2. Sanitize the HTML
             const sanitizedHTML = sanitizeHTML(htmlData);
-
-            console.log('[PASTE] Sanitized HTML length:', sanitizedHTML.length);
-            console.log('[PASTE] Sanitized HTML preview:', sanitizedHTML.substring(0, 500));
 
             // 3. Use sanitized content if it's not empty
             if (sanitizedHTML.trim()) {
@@ -549,7 +528,6 @@ export const TipTapEditor: React.FC = () => {
       return;
     }
 
-    console.log('[handleSave] Saving with', extractedComponents.length, 'components');
     setSaveStatus('saving');
     try {
       const plainText = editor.getText();
