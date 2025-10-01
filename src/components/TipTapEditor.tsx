@@ -241,6 +241,7 @@ export const TipTapEditor: React.FC = () => {
       }
     });
 
+    console.log('[extractComponents] Extracted', components.length, 'components');
     setExtractedComponents(components);
   }, []);
 
@@ -529,6 +530,7 @@ export const TipTapEditor: React.FC = () => {
       return;
     }
 
+    console.log('[handleSave] Saving with', extractedComponents.length, 'components');
     setSaveStatus('saving');
     try {
       const plainText = editor.getText();
