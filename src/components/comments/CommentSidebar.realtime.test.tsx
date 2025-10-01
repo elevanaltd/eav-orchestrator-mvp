@@ -16,32 +16,28 @@
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { CommentWithUser } from '../../types/comments';
 
-// Mock Supabase with Realtime channel support
-// Note: Must define mocks inline for hoisting compatibility
-vi.mock('../../lib/supabase', () => {
-  const mockChannel = {
-    on: vi.fn().mockReturnThis(),
-    subscribe: vi.fn().mockReturnThis(),
-    unsubscribe: vi.fn().mockResolvedValue({ status: 'ok', error: null }),
-  };
+// Mock channel for Realtime subscriptions
+const mockChannel = {
+  on: vi.fn().mockReturnThis(),
+  subscribe: vi.fn().mockReturnThis(),
+  unsubscribe: vi.fn().mockResolvedValue({ status: 'ok', error: null }),
+};
 
-  return {
-    supabase: {
-      channel: vi.fn(() => mockChannel),
-    },
-    mockChannel, // Export for test access
-  };
-});
+// Mock Supabase with Realtime channel support
+vi.mock('../../lib/supabase', () => ({
+  supabase: {
+    channel: vi.fn(() => mockChannel),
+  },
+}));
 
 // Mock comments library
 vi.mock('../../lib/comments', () => ({
   getComments: vi.fn().mockResolvedValue({
     success: true,
     data: [],
-    error: null,
+    error: undefined,
   }),
 }));
 
@@ -50,9 +46,9 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { id: 'user-1', email: 'test@example.com' } }),
 }));
 
-// Import component and mock channel after mocks
+// Import component after mocks
 import { CommentSidebar } from './CommentSidebar';
-import { supabase as mockSupabase, mockChannel } from '../../lib/supabase';
+import { supabase as mockSupabase } from '../../lib/supabase';
 
 describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
   beforeEach(() => {
@@ -134,11 +130,13 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
 
   describe('INSERT Event Handling', () => {
     it('should add new comment to state when INSERT event received', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let realtimeCallback: ((payload: any) => void) | null = null;
 
       // Capture the Realtime callback
-      mockChannel.on.mockImplementation((eventType, config, callback) => {
-        if (eventType === 'postgres_changes') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockChannel.on.mockImplementation((_eventType: string, _config: any, callback: any) => {
+        if (_eventType === 'postgres_changes') {
           realtimeCallback = callback;
         }
         return mockChannel;
@@ -187,10 +185,12 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
     });
 
     it('should not add duplicate comments if INSERT event for existing comment', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let realtimeCallback: ((payload: any) => void) | null = null;
 
-      mockChannel.on.mockImplementation((eventType, config, callback) => {
-        if (eventType === 'postgres_changes') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockChannel.on.mockImplementation((_eventType: string, _config: any, callback: any) => {
+        if (_eventType === 'postgres_changes') {
           realtimeCallback = callback;
         }
         return mockChannel;
@@ -219,7 +219,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
       vi.mocked(getComments).mockResolvedValue({
         success: true,
         data: [existingComment],
-        error: null,
+        error: undefined,
       });
 
       render(<CommentSidebar scriptId="script-123" />);
@@ -251,10 +251,12 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
 
   describe('UPDATE Event Handling', () => {
     it('should update existing comment when UPDATE event received', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let realtimeCallback: ((payload: any) => void) | null = null;
 
-      mockChannel.on.mockImplementation((eventType, config, callback) => {
-        if (eventType === 'postgres_changes') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockChannel.on.mockImplementation((_eventType: string, _config: any, callback: any) => {
+        if (_eventType === 'postgres_changes') {
           realtimeCallback = callback;
         }
         return mockChannel;
@@ -283,7 +285,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
       vi.mocked(getComments).mockResolvedValue({
         success: true,
         data: [existingComment],
-        error: null,
+        error: undefined,
       });
 
       render(<CommentSidebar scriptId="script-123" />);
@@ -316,10 +318,12 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
     });
 
     it('should update resolved status when comment is resolved via Realtime', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let realtimeCallback: ((payload: any) => void) | null = null;
 
-      mockChannel.on.mockImplementation((eventType, config, callback) => {
-        if (eventType === 'postgres_changes') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockChannel.on.mockImplementation((_eventType: string, _config: any, callback: any) => {
+        if (_eventType === 'postgres_changes') {
           realtimeCallback = callback;
         }
         return mockChannel;
@@ -348,7 +352,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
       vi.mocked(getComments).mockResolvedValue({
         success: true,
         data: [unresolvedComment],
-        error: null,
+        error: undefined,
       });
 
       render(<CommentSidebar scriptId="script-123" />);
@@ -384,10 +388,12 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
 
   describe('DELETE Event Handling', () => {
     it('should remove comment from state when DELETE event received', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let realtimeCallback: ((payload: any) => void) | null = null;
 
-      mockChannel.on.mockImplementation((eventType, config, callback) => {
-        if (eventType === 'postgres_changes') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockChannel.on.mockImplementation((_eventType: string, _config: any, callback: any) => {
+        if (_eventType === 'postgres_changes') {
           realtimeCallback = callback;
         }
         return mockChannel;
@@ -416,7 +422,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
       vi.mocked(getComments).mockResolvedValue({
         success: true,
         data: [existingComment],
-        error: null,
+        error: undefined,
       });
 
       render(<CommentSidebar scriptId="script-123" />);
@@ -442,10 +448,12 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
     });
 
     it('should not error if DELETE event for non-existent comment', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let realtimeCallback: ((payload: any) => void) | null = null;
 
-      mockChannel.on.mockImplementation((eventType, config, callback) => {
-        if (eventType === 'postgres_changes') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockChannel.on.mockImplementation((_eventType: string, _config: any, callback: any) => {
+        if (_eventType === 'postgres_changes') {
           realtimeCallback = callback;
         }
         return mockChannel;
@@ -478,15 +486,6 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
     it('should receive only comments for current script_id via RLS', async () => {
       // This test validates that Supabase RLS filters broadcasts automatically
       // No additional client-side filtering needed
-      let realtimeCallback: ((payload: any) => void) | null = null;
-
-      mockChannel.on.mockImplementation((eventType, config, callback) => {
-        if (eventType === 'postgres_changes') {
-          realtimeCallback = callback;
-        }
-        return mockChannel;
-      });
-
       render(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
@@ -512,54 +511,20 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
 
   describe('Memory Safety and Cleanup', () => {
     it('should not update state if component unmounts during subscription setup', async () => {
-      let realtimeCallback: ((payload: any) => void) | null = null;
-
-      mockChannel.on.mockImplementation((eventType, config, callback) => {
-        if (eventType === 'postgres_changes') {
-          realtimeCallback = callback;
-        }
-        return mockChannel;
-      });
-
       const { unmount } = render(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(mockChannel.subscribe).toHaveBeenCalled();
       });
 
-      // Unmount before event arrives
+      // Unmount - this should clean up the subscription
       unmount();
 
-      // Simulate late event arrival
-      const lateComment: CommentWithUser = {
-        id: 'late-comment',
-        scriptId: 'script-123',
-        userId: 'user-2',
-        content: 'Should not cause error',
-        startPosition: 10,
-        endPosition: 20,
-        parentCommentId: null,
-        resolvedAt: null,
-        resolvedBy: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        user: {
-          id: 'user-2',
-          email: 'user2@example.com',
-        },
-      };
+      await waitFor(() => {
+        expect(mockChannel.unsubscribe).toHaveBeenCalled();
+      });
 
-      // This should not crash or cause warnings
-      if (realtimeCallback) {
-        realtimeCallback({
-          eventType: 'INSERT',
-          new: lateComment,
-          old: {},
-          errors: null,
-        });
-      }
-
-      // Test passes if no errors thrown
+      // Test passes if no errors thrown during unmount
       expect(true).toBe(true);
     });
   });

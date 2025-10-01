@@ -52,10 +52,17 @@ vi.mock('../../lib/comments', () => ({
   deleteComment: vi.fn(),
 }));
 
-// Mock Supabase
+// Mock Supabase with Realtime channel support
+const mockChannel = {
+  on: vi.fn().mockReturnThis(),
+  subscribe: vi.fn().mockReturnThis(),
+  unsubscribe: vi.fn().mockResolvedValue({ status: 'ok', error: null }),
+};
+
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
+    channel: vi.fn(() => mockChannel),
   },
 }));
 
