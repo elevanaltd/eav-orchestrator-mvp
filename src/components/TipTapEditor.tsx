@@ -11,8 +11,8 @@ import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Plugin } from '@tiptap/pm/state';
-import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { Node } from '@tiptap/pm/model';
+import { Decoration, DecorationSet, EditorView } from '@tiptap/pm/view';
+import { Node, DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
 import { CommentSidebar } from './comments/CommentSidebar';
@@ -43,6 +43,49 @@ const sanitizeHTML = (dirtyHTML: string): string => {
     ALLOW_DATA_ATTR: false,
     ALLOW_UNKNOWN_PROTOCOLS: false
   });
+};
+
+/**
+ * Handle plain text paste with proper sanitization and size limits
+ * Critical-Engineer: consulted for Paste handler architecture and sanitization
+ *
+ * Fixes applied:
+ * 1. Size limit (HIGH): Prevents DoS from large pastes
+ * 2. Robust newline handling (MEDIUM): Uses regex for edge cases
+ * 3. Manual HTML escaping (MEDIUM): Defense-in-depth security
+ * 4. Code deduplication (HIGH): Eliminates maintenance divergence
+ */
+const handlePlainTextPaste = (
+  view: EditorView,
+  textData: string,
+  showError: (msg: string) => void
+): void => {
+  // 1. Size limit (HIGH priority fix) - Prevent DoS from large pastes
+  const PASTE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; // 1MB
+  if (textData.length > PASTE_SIZE_LIMIT_BYTES) {
+    showError('Pasted content is too large. Please paste in smaller chunks.');
+    view.dispatch(view.state.tr.insertText(textData.substring(0, 5000) + "..."));
+    return;
+  }
+
+  // 2. Robust newline handling (MEDIUM priority fix) - Handle edge cases like '\n \n'
+  const paragraphs = textData.split(/\s*\n\s*\n\s*/).filter(p => p.trim() !== '');
+
+  if (paragraphs.length > 1) {
+    // 3. Manual escaping (MEDIUM priority fix) - Defense-in-depth security
+    const paragraphHTML = paragraphs
+      .map(p => `<p>${p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
+      .join('');
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = paragraphHTML;
+    const { state } = view;
+    const parser = ProseMirrorDOMParser.fromSchema(state.schema);
+    const slice = parser.parseSlice(tempDiv, { preserveWhitespace: 'full' });
+    view.dispatch(state.tr.replaceSelection(slice));
+  } else {
+    view.dispatch(view.state.tr.insertText(textData));
+  }
 };
 
 /**
@@ -87,7 +130,7 @@ const ParagraphComponentTracker = Extension.create({
             // Iterate through the document
             state.doc.forEach((node, offset) => {
               // Each paragraph becomes a component
-              if (node.type.name === 'paragraph' && node.content.size > 0) {
+              if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
                 componentNumber++;
 
                 // Add a widget decoration for the component label
@@ -186,7 +229,7 @@ export const TipTapEditor: React.FC = () => {
     let componentNum = 0;
 
     editor.state.doc.forEach((node: Node) => {
-      if (node.type.name === 'paragraph' && node.content.size > 0) {
+      if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
         componentNum++;
         components.push({
           number: componentNum,
@@ -251,28 +294,90 @@ export const TipTapEditor: React.FC = () => {
       });
     },
     // SECURITY: Add paste event handler to sanitize pasted content
+    // Critical-Engineer: consulted for Paste handler architecture and sanitization
     editorProps: {
       handlePaste: (view, event) => {
-        // Let TipTap handle the paste first, then sanitize
         const clipboardData = event.clipboardData;
-        if (clipboardData) {
-          const htmlData = clipboardData.getData('text/html');
-          const textData = clipboardData.getData('text/plain');
+        if (!clipboardData) {
+          return false; // Let TipTap handle it
+        }
 
-          if (htmlData) {
-            // Sanitize HTML paste data
+        const htmlData = clipboardData.getData('text/html');
+        const textData = clipboardData.getData('text/plain');
+
+        // Only process if HTML data is present
+        if (htmlData) {
+          event.preventDefault(); // Take control of the paste event
+
+          // 1. Size Check to prevent UI freeze
+          const PASTE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; // 1MB limit
+          if (htmlData.length > PASTE_SIZE_LIMIT_BYTES) {
+            showError('Pasted content is too large. Please paste in smaller chunks.');
+            view.dispatch(view.state.tr.insertText(textData.substring(0, 5000) + "..."));
+            return true;
+          }
+
+          try {
+            // 2. Sanitize the HTML
             const sanitizedHTML = sanitizeHTML(htmlData);
-            if (sanitizedHTML !== htmlData) {
-              // If content was modified by sanitization, prevent default and insert safe content
-              event.preventDefault();
-              view.dispatch(
-                view.state.tr.insertText(textData) // Fall back to plain text if HTML was dangerous
-              );
-              return true;
+
+            // 3. Remove empty paragraphs and standalone line breaks
+            // Google Docs includes <p>&nbsp;</p> paragraphs and standalone <br> elements for spacing
+            // Critical-Engineer: consulted for paste handler whitespace normalization
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = sanitizedHTML;
+
+            // Filter out paragraphs that only contain whitespace (including &nbsp;)
+            const paragraphs = tempDiv.querySelectorAll('p');
+            paragraphs.forEach((p) => {
+              // Normalize whitespace: convert &nbsp; (\u00A0) to regular space, then trim
+              const normalizedText = p.textContent?.replace(/\u00A0/g, ' ').trim() || '';
+              if (normalizedText.length === 0) {
+                p.remove(); // Remove empty paragraphs
+              }
+            });
+
+            // Also remove standalone <br> elements that appear between paragraphs
+            // Google Docs sometimes inserts these for spacing between sections
+            const brs = tempDiv.querySelectorAll('br');
+            brs.forEach((br) => {
+              br.remove();
+            });
+
+            // 4. Use sanitized content if it's not empty after filtering
+            if (tempDiv.innerHTML.trim()) {
+
+              // Use ProseMirror's DOMParser to convert HTML to document nodes
+              const { state } = view;
+              const parser = ProseMirrorDOMParser.fromSchema(state.schema);
+
+              // Parse the DOM content into ProseMirror slice
+              const slice = parser.parseSlice(tempDiv, {
+                preserveWhitespace: 'full'
+              });
+
+              // Insert the parsed content at the current selection
+              view.dispatch(state.tr.replaceSelection(slice));
+            } else if (textData) {
+              // Fallback to plain text if sanitization results in nothing
+              // Use centralized handler (4. Code deduplication fix)
+              handlePlainTextPaste(view, textData, showError);
+            }
+          } catch (error) {
+            Logger.error('Paste sanitization failed', { error });
+            showError('Could not process pasted content.');
+            // Safest fallback in case of error
+            // Use same centralized handler (4. Code deduplication fix)
+            if (textData) {
+              handlePlainTextPaste(view, textData, showError);
             }
           }
+
+          return true; // We've handled the event
         }
-        return false; // Let TipTap handle normal paste
+
+        // Let TipTap handle non-HTML pastes
+        return false;
       }
     }
   });
@@ -1012,23 +1117,126 @@ export const TipTapEditor: React.FC = () => {
       {/* Main Editor Area */}
       <div className="main-editor">
         <div className="editor-header">
-          <h1 className="editor-title">
-            {selectedVideo ? `Script: ${selectedVideo.title}` : 'Script Editor'}
-          </h1>
-          <p className="editor-subtitle">
-            {selectedVideo
-              ? `Each paragraph becomes a component (C1, C2, C3...) that flows through the production pipeline`
-              : `Select a video from the navigation to start editing its script`
-            }
-            {lastSaved && (
-              <span className="save-status">
-                {saveStatus === 'saving' && ' • Saving...'}
-                {saveStatus === 'saved' && ` • Saved ${formatSaveTime(lastSaved)}`}
-                {saveStatus === 'unsaved' && ' • Unsaved changes'}
-                {saveStatus === 'error' && ' • Save error'}
-              </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h1 className="editor-title">
+                {selectedVideo ? `Script: ${selectedVideo.title}` : 'Script Editor'}
+              </h1>
+              <p className="editor-subtitle">
+                {selectedVideo
+                  ? `Each paragraph becomes a component (C1, C2, C3...) that flows through the production pipeline`
+                  : `Select a video from the navigation to start editing its script`
+                }
+                {lastSaved && (
+                  <span className="save-status">
+                    {saveStatus === 'saving' && ' • Saving...'}
+                    {saveStatus === 'saved' && ` • Saved ${formatSaveTime(lastSaved)}`}
+                    {saveStatus === 'unsaved' && ' • Unsaved changes'}
+                    {saveStatus === 'error' && ' • Save error'}
+                  </span>
+                )}
+              </p>
+            </div>
+            {selectedVideo && editor && (
+              <button
+                onClick={() => {
+                  if (!editor) return;
+
+                  // Convert soft enters (br tags) to hard enters (paragraph breaks)
+                  const conversionSuccessful = editor.chain().focus().command(({ tr, state }) => {
+                    const { doc } = state;
+                    const replacements: { from: number; to: number; content: Node[][] }[] = [];
+
+                    // Traverse document to find paragraphs with br tags
+                    doc.descendants((node, pos) => {
+                      if (node.type.name === 'paragraph') {
+                        // Check if this paragraph has any br tags by examining its structure
+                        let hasBr = false;
+                        node.forEach((child) => {
+                          if (child.type.name === 'hardBreak') {
+                            hasBr = true;
+                          }
+                        });
+
+                        if (hasBr) {
+                          // Split the paragraph at br tags - preserve nodes with formatting
+                          const parts: Node[][] = []; // Array of node arrays
+                          let currentPart: Node[] = [];
+
+                          node.forEach((child) => {
+                            if (child.type.name === 'hardBreak') {
+                              if (currentPart.length > 0) {
+                                parts.push(currentPart);
+                                currentPart = [];
+                              }
+                            } else {
+                              // Preserve the child node with all its marks (bold, italic, etc.)
+                              currentPart.push(child);
+                            }
+                          });
+
+                          // Add final part
+                          if (currentPart.length > 0) {
+                            parts.push(currentPart);
+                          }
+
+                          if (parts.length > 1) {
+                            replacements.push({
+                              from: pos,
+                              to: pos + node.nodeSize,
+                              content: parts
+                            });
+                          }
+                        }
+                      }
+                    });
+
+                    // Apply replacements in reverse order to maintain positions
+                    replacements.reverse().forEach(({ from, to, content }) => {
+                      // Build paragraph nodes preserving formatting from node arrays
+                      const paragraphs = content.map(nodePart =>
+                        state.schema.nodes.paragraph.create(
+                          null,
+                          nodePart // Pass node array directly - preserves marks
+                        )
+                      );
+
+                      tr.replaceWith(from, to, paragraphs);
+                    });
+
+                    // Return true only if we made changes
+                    return replacements.length > 0;
+                  }).run();
+
+                  // If conversion happened, trigger component extraction and save
+                  if (conversionSuccessful) {
+                    extractComponents(editor);
+                    handleSave();
+                  }
+                }}
+                style={{
+                  background: '#3B82F6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  marginTop: '4px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#2563EB';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#3B82F6';
+                }}
+              >
+                Convert Soft Enters
+              </button>
             )}
-          </p>
+          </div>
         </div>
 
         <div className="editor-content">
