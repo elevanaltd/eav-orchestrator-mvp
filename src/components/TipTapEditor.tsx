@@ -1012,23 +1012,115 @@ export const TipTapEditor: React.FC = () => {
       {/* Main Editor Area */}
       <div className="main-editor">
         <div className="editor-header">
-          <h1 className="editor-title">
-            {selectedVideo ? `Script: ${selectedVideo.title}` : 'Script Editor'}
-          </h1>
-          <p className="editor-subtitle">
-            {selectedVideo
-              ? `Each paragraph becomes a component (C1, C2, C3...) that flows through the production pipeline`
-              : `Select a video from the navigation to start editing its script`
-            }
-            {lastSaved && (
-              <span className="save-status">
-                {saveStatus === 'saving' && ' • Saving...'}
-                {saveStatus === 'saved' && ` • Saved ${formatSaveTime(lastSaved)}`}
-                {saveStatus === 'unsaved' && ' • Unsaved changes'}
-                {saveStatus === 'error' && ' • Save error'}
-              </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <h1 className="editor-title">
+                {selectedVideo ? `Script: ${selectedVideo.title}` : 'Script Editor'}
+              </h1>
+              <p className="editor-subtitle">
+                {selectedVideo
+                  ? `Each paragraph becomes a component (C1, C2, C3...) that flows through the production pipeline`
+                  : `Select a video from the navigation to start editing its script`
+                }
+                {lastSaved && (
+                  <span className="save-status">
+                    {saveStatus === 'saving' && ' • Saving...'}
+                    {saveStatus === 'saved' && ` • Saved ${formatSaveTime(lastSaved)}`}
+                    {saveStatus === 'unsaved' && ' • Unsaved changes'}
+                    {saveStatus === 'error' && ' • Save error'}
+                  </span>
+                )}
+              </p>
+            </div>
+            {selectedVideo && editor && (
+              <button
+                onClick={() => {
+                  if (!editor) return;
+
+                  // Convert soft enters (br tags) to hard enters (paragraph breaks)
+                  editor.chain().focus().command(({ tr, state }) => {
+                    const { doc } = state;
+                    const replacements: { from: number; to: number; content: string[] }[] = [];
+
+                    // Traverse document to find paragraphs with br tags
+                    doc.descendants((node, pos) => {
+                      if (node.type.name === 'paragraph') {
+                        // Check if this paragraph has any br tags by examining its structure
+                        let hasBr = false;
+                        node.forEach((child) => {
+                          if (child.type.name === 'hardBreak') {
+                            hasBr = true;
+                          }
+                        });
+
+                        if (hasBr) {
+                          // Split the paragraph at br tags
+                          const parts: string[] = [];
+                          let currentText = '';
+
+                          node.forEach((child) => {
+                            if (child.type.name === 'hardBreak') {
+                              if (currentText.trim()) {
+                                parts.push(currentText);
+                              }
+                              currentText = '';
+                            } else {
+                              currentText += child.textContent;
+                            }
+                          });
+
+                          // Add final part
+                          if (currentText.trim()) {
+                            parts.push(currentText);
+                          }
+
+                          if (parts.length > 1) {
+                            replacements.push({
+                              from: pos,
+                              to: pos + node.nodeSize,
+                              content: parts
+                            });
+                          }
+                        }
+                      }
+                    });
+
+                    // Apply replacements in reverse order to maintain positions
+                    replacements.reverse().forEach(({ from, to, content }) => {
+                      // Build paragraph nodes for each split part
+                      const paragraphs = content.map(text =>
+                        state.schema.nodes.paragraph.create(null, state.schema.text(text))
+                      );
+
+                      tr.replaceWith(from, to, paragraphs);
+                    });
+
+                    return true;
+                  }).run();
+                }}
+                style={{
+                  background: '#3B82F6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  marginTop: '4px',
+                  transition: 'background-color 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#2563EB';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#3B82F6';
+                }}
+              >
+                Convert Soft Enters
+              </button>
             )}
-          </p>
+          </div>
         </div>
 
         <div className="editor-content">
