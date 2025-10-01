@@ -14,25 +14,27 @@
  */
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { CommentWithUser } from '../../types/comments';
 
 // Mock Supabase with Realtime channel support
-const mockChannel = {
-  on: vi.fn().mockReturnThis(),
-  subscribe: vi.fn().mockReturnThis(),
-  unsubscribe: vi.fn().mockResolvedValue({ status: 'ok', error: null }),
-};
+// Note: Must define mocks inline for hoisting compatibility
+vi.mock('../../lib/supabase', () => {
+  const mockChannel = {
+    on: vi.fn().mockReturnThis(),
+    subscribe: vi.fn().mockReturnThis(),
+    unsubscribe: vi.fn().mockResolvedValue({ status: 'ok', error: null }),
+  };
 
-const mockSupabase = {
-  channel: vi.fn(() => mockChannel),
-};
-
-vi.mock('../../lib/supabase', () => ({
-  supabase: mockSupabase,
-}));
+  return {
+    supabase: {
+      channel: vi.fn(() => mockChannel),
+    },
+    mockChannel, // Export for test access
+  };
+});
 
 // Mock comments library
 vi.mock('../../lib/comments', () => ({
@@ -48,8 +50,9 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ currentUser: { id: 'user-1', email: 'test@example.com' } }),
 }));
 
-// Import component after mocks
+// Import component and mock channel after mocks
 import { CommentSidebar } from './CommentSidebar';
+import { supabase as mockSupabase, mockChannel } from '../../lib/supabase';
 
 describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
   beforeEach(() => {
@@ -168,11 +171,13 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         },
       };
 
-      realtimeCallback!({
-        eventType: 'INSERT',
-        new: newComment,
-        old: {},
-        errors: null,
+      await act(async () => {
+        realtimeCallback!({
+          eventType: 'INSERT',
+          new: newComment,
+          old: {},
+          errors: null,
+        });
       });
 
       // New comment should appear in the UI
@@ -224,11 +229,13 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
       });
 
       // Simulate duplicate INSERT event
-      realtimeCallback!({
-        eventType: 'INSERT',
-        new: existingComment,
-        old: {},
-        errors: null,
+      await act(async () => {
+        realtimeCallback!({
+          eventType: 'INSERT',
+          new: existingComment,
+          old: {},
+          errors: null,
+        });
       });
 
       // Should still only have ONE instance of the comment
@@ -292,11 +299,13 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         updatedAt: new Date().toISOString(),
       };
 
-      realtimeCallback!({
-        eventType: 'UPDATE',
-        new: updatedComment,
-        old: existingComment,
-        errors: null,
+      await act(async () => {
+        realtimeCallback!({
+          eventType: 'UPDATE',
+          new: updatedComment,
+          old: existingComment,
+          errors: null,
+        });
       });
 
       // Updated content should appear
@@ -356,11 +365,13 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         resolvedBy: 'user-2',
       };
 
-      realtimeCallback!({
-        eventType: 'UPDATE',
-        new: resolvedComment,
-        old: unresolvedComment,
-        errors: null,
+      await act(async () => {
+        realtimeCallback!({
+          eventType: 'UPDATE',
+          new: resolvedComment,
+          old: unresolvedComment,
+          errors: null,
+        });
       });
 
       // Should show as resolved
@@ -415,11 +426,13 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
       });
 
       // Simulate DELETE event
-      realtimeCallback!({
-        eventType: 'DELETE',
-        old: existingComment,
-        new: {},
-        errors: null,
+      await act(async () => {
+        realtimeCallback!({
+          eventType: 'DELETE',
+          old: existingComment,
+          new: {},
+          errors: null,
+        });
       });
 
       // Comment should disappear
@@ -445,11 +458,13 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
       });
 
       // Simulate DELETE for comment that doesn't exist
-      realtimeCallback!({
-        eventType: 'DELETE',
-        old: { id: 'non-existent-comment' },
-        new: {},
-        errors: null,
+      await act(async () => {
+        realtimeCallback!({
+          eventType: 'DELETE',
+          old: { id: 'non-existent-comment' },
+          new: {},
+          errors: null,
+        });
       });
 
       // Should not crash or error

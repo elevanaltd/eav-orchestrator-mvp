@@ -129,6 +129,59 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     };
   }, [loadCommentsWithCleanup]);
 
+  // Realtime subscription for collaborative comments
+  useEffect(() => {
+    if (!scriptId) return;
+
+    // Create Realtime channel scoped to this script
+    const channel = supabase
+      .channel(`comments:${scriptId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'comments',
+          filter: `script_id=eq.${scriptId}`, // Only this script's comments
+        },
+        (payload) => {
+          // Handle Realtime events
+          if (payload.eventType === 'INSERT') {
+            const newComment = payload.new as CommentWithUser;
+
+            // Add new comment to state (avoid duplicates)
+            setComments((prevComments) => {
+              const exists = prevComments.some(c => c.id === newComment.id);
+              if (exists) return prevComments;
+              return [...prevComments, newComment];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedComment = payload.new as CommentWithUser;
+
+            // Update existing comment in state
+            setComments((prevComments) =>
+              prevComments.map(c =>
+                c.id === updatedComment.id ? updatedComment : c
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            const deletedComment = payload.old as { id: string };
+
+            // Remove deleted comment from state
+            setComments((prevComments) =>
+              prevComments.filter(c => c.id !== deletedComment.id)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup: unsubscribe when scriptId changes or component unmounts
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [scriptId]);
+
   // Filter comments based on resolved status
   const filteredComments = comments.filter(comment => {
     if (filterMode === 'open') {
