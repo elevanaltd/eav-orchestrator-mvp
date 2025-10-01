@@ -40,6 +40,7 @@ declare module '@tiptap/core' {
         commentNumber: number;
         from: number;
         to: number;
+        resolved?: boolean;
       }) => ReturnType;
       /**
        * Remove comment highlight by comment ID
@@ -57,6 +58,7 @@ declare module '@tiptap/core' {
         commentNumber: number;
         startPosition: number;
         endPosition: number;
+        resolved?: boolean;
       }>) => ReturnType;
     };
   }
@@ -109,6 +111,16 @@ export const CommentHighlightExtension = Mark.create<CommentHighlightOptions>({
           };
         },
       },
+      // Priority 3: resolved status for visual distinction
+      resolved: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-resolved') === 'true',
+        renderHTML: attributes => {
+          return {
+            'data-resolved': attributes.resolved ? 'true' : 'false',
+          };
+        },
+      },
     };
   },
 
@@ -123,13 +135,18 @@ export const CommentHighlightExtension = Mark.create<CommentHighlightOptions>({
   renderHTML({ HTMLAttributes, mark }) {
     const commentId = mark.attrs.commentId;
     const commentNumber = mark.attrs.commentNumber;
+    const resolved = mark.attrs.resolved;
+
+    // Priority 3: Add resolved class for visual distinction
+    const cssClass = resolved ? 'comment-highlight comment-resolved' : 'comment-highlight';
 
     const attrs = {
       ...mergeAttributes(this.options.HTMLAttributes, HTMLAttributes),
-      'class': 'comment-highlight',
+      'class': cssClass,
       'data-comment-id': commentId,
       'data-comment-number': commentNumber,
-      'title': `Comment ${commentNumber}`,
+      'data-resolved': resolved ? 'true' : 'false',
+      'title': `Comment ${commentNumber}${resolved ? ' (Resolved)' : ''}`,
     };
 
     return ['mark', attrs, 0];
@@ -140,7 +157,7 @@ export const CommentHighlightExtension = Mark.create<CommentHighlightOptions>({
       addCommentHighlight:
         (attributes) =>
         ({ commands: _commands, state, dispatch }) => {
-          const { from, to, commentId, commentNumber } = attributes;
+          const { from, to, commentId, commentNumber, resolved } = attributes;
 
           if (from === to) {
             return false;
@@ -153,6 +170,7 @@ export const CommentHighlightExtension = Mark.create<CommentHighlightOptions>({
             state.schema.marks.commentHighlight.create({
               commentId,
               commentNumber,
+              resolved: resolved || false,
             })
           );
 
@@ -200,7 +218,7 @@ export const CommentHighlightExtension = Mark.create<CommentHighlightOptions>({
         ({ state, dispatch, view: _view }) => {
           const { tr } = state;
 
-          highlights.forEach(({ commentId, commentNumber, startPosition, endPosition }) => {
+          highlights.forEach(({ commentId, commentNumber, startPosition, endPosition, resolved }) => {
             // Ensure positions are within document bounds
             const docSize = tr.doc.content.size;
             const from = Math.max(0, Math.min(startPosition, docSize));
@@ -213,6 +231,7 @@ export const CommentHighlightExtension = Mark.create<CommentHighlightOptions>({
                 state.schema.marks.commentHighlight.create({
                   commentId,
                   commentNumber,
+                  resolved: resolved || false,
                 })
               );
             }

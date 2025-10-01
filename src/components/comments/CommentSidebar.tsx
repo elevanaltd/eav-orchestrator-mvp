@@ -62,8 +62,10 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [editText, setEditText] = useState('');
   const [submittingEdit, setSubmittingEdit] = useState(false);
 
-  // Load comments from database using CRUD functions with error handling and position recovery
-  const loadComments = useCallback(async () => {
+  // Unified comment loading function with optional cancellation check
+  const loadCommentsWithCleanup = useCallback(async (cancellationCheck?: () => boolean) => {
+    // PRIORITY 1 FIX: Clear comments immediately when scriptId changes to prevent stale data
+    setComments([]);
     setLoading(true);
     setError(null);
 
@@ -79,6 +81,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data || [];
       },
       (errorInfo) => {
+        if (cancellationCheck?.()) return; // Don't update state if cancelled
+
         // Set user-friendly error message
         setError(errorInfo.userMessage);
         // Log the error for debugging
@@ -86,6 +90,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       },
       { maxAttempts: 2, baseDelayMs: 1000 } // Retry with shorter delay for UI responsiveness
     );
+
+    if (cancellationCheck?.()) return; // Don't update state if cancelled
 
     if (result.success) {
       setComments(result.data);
@@ -108,9 +114,20 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setLoading(false);
   }, [scriptId, documentContent, executeWithErrorHandling]);
 
+  // Load comments without cancellation check (for manual refresh)
+  const loadComments = useCallback(() => {
+    loadCommentsWithCleanup(); // No cancellation check
+  }, [loadCommentsWithCleanup]);
+
   useEffect(() => {
-    loadComments();
-  }, [loadComments]);
+    let isCancelled = false; // Cleanup flag for async operations
+
+    loadCommentsWithCleanup(() => isCancelled);
+
+    return () => {
+      isCancelled = true; // Cancel any pending state updates
+    };
+  }, [loadCommentsWithCleanup]);
 
   // Filter comments based on resolved status
   const filteredComments = comments.filter(comment => {
@@ -444,55 +461,58 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
   return (
     <aside className="comments-sidebar" role="complementary" aria-label="Comments Sidebar">
-      {/* Header */}
-      <header role="banner" aria-label="Comments Header">
-        <h2>Comments</h2>
-      </header>
+      {/* Priority 4: Sticky Header Container - stays visible while comments scroll */}
+      <div className="comments-sticky-header">
+        {/* Header */}
+        <header role="banner" aria-label="Comments Header">
+          <h2>Comments</h2>
+        </header>
 
-      {/* Inline Error Display for Operations */}
-      {error && (
-        <div className="inline-error" role="alert">
-          <div className="error-content">
-            <span className="error-icon-small">⚠️</span>
-            <span className="error-message-small">{error}</span>
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="error-dismiss"
-              aria-label="Dismiss error"
-            >
-              ×
-            </button>
+        {/* Inline Error Display for Operations */}
+        {error && (
+          <div className="inline-error" role="alert">
+            <div className="error-content">
+              <span className="error-icon-small">⚠️</span>
+              <span className="error-message-small">{error}</span>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="error-dismiss"
+                aria-label="Dismiss error"
+              >
+                ×
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Filter Controls */}
-      <div className="comment-filters">
-        <button
-          type="button"
-          aria-label="All Comments"
-          className={filterMode === 'all' ? 'active' : ''}
-          onClick={() => setFilterMode('all')}
-        >
-          All Comments
-        </button>
-        <button
-          type="button"
-          aria-label="Open Comments"
-          className={filterMode === 'open' ? 'active' : ''}
-          onClick={() => setFilterMode('open')}
-        >
-          Open Comments
-        </button>
-        <button
-          type="button"
-          aria-label="Resolved Comments"
-          className={filterMode === 'resolved' ? 'active' : ''}
-          onClick={() => setFilterMode('resolved')}
-        >
-          Resolved Comments
-        </button>
+        {/* Filter Controls */}
+        <div className="comment-filters">
+          <button
+            type="button"
+            aria-label="All Comments"
+            className={filterMode === 'all' ? 'active' : ''}
+            onClick={() => setFilterMode('all')}
+          >
+            All Comments
+          </button>
+          <button
+            type="button"
+            aria-label="Open Comments"
+            className={filterMode === 'open' ? 'active' : ''}
+            onClick={() => setFilterMode('open')}
+          >
+            Open Comments
+          </button>
+          <button
+            type="button"
+            aria-label="Resolved Comments"
+            className={filterMode === 'resolved' ? 'active' : ''}
+            onClick={() => setFilterMode('resolved')}
+          >
+            Resolved Comments
+          </button>
+        </div>
       </div>
 
       {/* Comment Creation Form */}
@@ -836,6 +856,17 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
           background: white;
           padding: 16px;
           overflow-y: auto;
+        }
+
+        /* Priority 4: Sticky header container for header + filters */
+        .comments-sticky-header {
+          position: sticky;
+          top: 0;
+          background: white;
+          z-index: 10;
+          padding-bottom: 8px;
+          margin-bottom: 8px;
+          border-bottom: 1px solid #e5e7eb;
         }
 
         .comment-filters {
