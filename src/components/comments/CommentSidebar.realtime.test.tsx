@@ -25,10 +25,31 @@ const mockChannel = {
   unsubscribe: vi.fn().mockResolvedValue({ status: 'ok', error: null }),
 };
 
-// Mock Supabase with Realtime channel support
+// Mock user profile responses for enrichment
+const mockUserProfiles = new Map<string, { id: string; email: string; display_name: string | null; role: string | null }>();
+
+// Mock Supabase with Realtime channel support and user profile queries
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     channel: vi.fn(() => mockChannel),
+    from: vi.fn((table: string) => {
+      if (table === 'user_profiles') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn((field: string, value: string) => ({
+              single: vi.fn(async () => {
+                const profile = mockUserProfiles.get(value);
+                if (profile) {
+                  return { data: profile, error: null };
+                }
+                return { data: null, error: { message: 'User not found' } };
+              })
+            }))
+          }))
+        };
+      }
+      return {};
+    })
   },
 }));
 
@@ -53,6 +74,21 @@ import { supabase as mockSupabase } from '../../lib/supabase';
 describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUserProfiles.clear();
+
+    // Setup default user profiles for tests
+    mockUserProfiles.set('user-1', {
+      id: 'user-1',
+      email: 'user1@example.com',
+      display_name: 'User One',
+      role: 'admin'
+    });
+    mockUserProfiles.set('user-2', {
+      id: 'user-2',
+      email: 'user2@example.com',
+      display_name: 'User Two',
+      role: 'client'
+    });
   });
 
   afterEach(() => {
@@ -150,29 +186,27 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         expect(realtimeCallback).not.toBeNull();
       });
 
-      // Simulate INSERT event
-      const newComment: CommentWithUser = {
+      // Simulate INSERT event with RAW database data (no user JOIN)
+      const rawCommentData = {
         id: 'new-comment-1',
-        scriptId: 'script-123',
-        userId: 'user-2',
+        script_id: 'script-123',
+        user_id: 'user-2',
         content: 'New comment from another user',
-        startPosition: 10,
-        endPosition: 20,
-        parentCommentId: null,
-        resolvedAt: null,
-        resolvedBy: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        user: {
-          id: 'user-2',
-          email: 'user2@example.com',
-        },
+        start_position: 10,
+        end_position: 20,
+        highlighted_text: null,
+        parent_comment_id: null,
+        resolved_at: null,
+        resolved_by: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        deleted: false
       };
 
       await act(async () => {
         realtimeCallback!({
           eventType: 'INSERT',
-          new: newComment,
+          new: rawCommentData,
           old: {},
           errors: null,
         });
@@ -228,11 +262,25 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         expect(screen.getByText('Existing comment')).toBeInTheDocument();
       });
 
-      // Simulate duplicate INSERT event
+      // Simulate duplicate INSERT event with raw database format
       await act(async () => {
         realtimeCallback!({
           eventType: 'INSERT',
-          new: existingComment,
+          new: {
+            id: existingComment.id,
+            script_id: existingComment.scriptId,
+            user_id: existingComment.userId,
+            content: existingComment.content,
+            start_position: existingComment.startPosition,
+            end_position: existingComment.endPosition,
+            highlighted_text: existingComment.highlightedText || null,
+            parent_comment_id: existingComment.parentCommentId,
+            resolved_at: existingComment.resolvedAt,
+            resolved_by: existingComment.resolvedBy,
+            created_at: existingComment.createdAt,
+            updated_at: existingComment.updatedAt,
+            deleted: false
+          },
           old: {},
           errors: null,
         });
@@ -294,17 +342,27 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         expect(screen.getByText('Original content')).toBeInTheDocument();
       });
 
-      // Simulate UPDATE event
-      const updatedComment = {
-        ...existingComment,
+      // Simulate UPDATE event with raw database format
+      const updatedCommentData = {
+        id: existingComment.id,
+        script_id: existingComment.scriptId,
+        user_id: existingComment.userId,
         content: 'Updated content',
-        updatedAt: new Date().toISOString(),
+        start_position: existingComment.startPosition,
+        end_position: existingComment.endPosition,
+        highlighted_text: existingComment.highlightedText || null,
+        parent_comment_id: existingComment.parentCommentId,
+        resolved_at: existingComment.resolvedAt,
+        resolved_by: existingComment.resolvedBy,
+        created_at: existingComment.createdAt,
+        updated_at: new Date().toISOString(),
+        deleted: false
       };
 
       await act(async () => {
         realtimeCallback!({
           eventType: 'UPDATE',
-          new: updatedComment,
+          new: updatedCommentData,
           old: existingComment,
           errors: null,
         });
@@ -362,17 +420,27 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         expect(commentCard).not.toHaveClass('comment-resolved');
       });
 
-      // Simulate UPDATE event with resolved status
-      const resolvedComment = {
-        ...unresolvedComment,
-        resolvedAt: new Date().toISOString(),
-        resolvedBy: 'user-2',
+      // Simulate UPDATE event with resolved status in raw database format
+      const resolvedCommentData = {
+        id: unresolvedComment.id,
+        script_id: unresolvedComment.scriptId,
+        user_id: unresolvedComment.userId,
+        content: unresolvedComment.content,
+        start_position: unresolvedComment.startPosition,
+        end_position: unresolvedComment.endPosition,
+        highlighted_text: unresolvedComment.highlightedText || null,
+        parent_comment_id: unresolvedComment.parentCommentId,
+        resolved_at: new Date().toISOString(),
+        resolved_by: 'user-2',
+        created_at: unresolvedComment.createdAt,
+        updated_at: new Date().toISOString(),
+        deleted: false
       };
 
       await act(async () => {
         realtimeCallback!({
           eventType: 'UPDATE',
-          new: resolvedComment,
+          new: resolvedCommentData,
           old: unresolvedComment,
           errors: null,
         });
