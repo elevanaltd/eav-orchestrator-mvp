@@ -69,19 +69,20 @@ const handlePlainTextPaste = (
   }
 
   // 2. Robust newline handling (MEDIUM priority fix) - Handle edge cases like '\n \n'
-  const paragraphs = textData.split(/\s*\n\s*\n\s*/).filter(p => p.trim() !== '');
+  const paragraphs = textData.split(/\n\n+/).filter(p => p.trim() !== '');
 
   if (paragraphs.length > 1) {
     // 3. Manual escaping (MEDIUM priority fix) - Defense-in-depth security
+    // Join paragraphs WITHOUT extra whitespace to prevent empty node creation
     const paragraphHTML = paragraphs
-      .map(p => `<p>${p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
+      .map(p => `<p>${p.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
       .join('');
 
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = paragraphHTML;
     const { state } = view;
     const parser = ProseMirrorDOMParser.fromSchema(state.schema);
-    const slice = parser.parseSlice(tempDiv, { preserveWhitespace: 'full' });
+    const slice = parser.parseSlice(tempDiv);
     view.dispatch(state.tr.replaceSelection(slice));
   } else {
     view.dispatch(view.state.tr.insertText(textData));
