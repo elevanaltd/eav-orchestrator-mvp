@@ -758,7 +758,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
               >
                 <div className="comment-header">
                   <div className="comment-number-badge">{thread.commentNumber}</div>
-                  <span className="comment-author">{thread.parentComment.user?.email || 'Unknown'}</span>
+                  <span className="comment-author">{thread.parentComment.user?.displayName || thread.parentComment.user?.email || 'Unknown'}</span>
                   <span className="comment-date">{new Date(thread.parentComment.createdAt).toLocaleDateString()}</span>
                 </div>
 
@@ -886,7 +886,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                     className="comment-card comment-reply"
                   >
                     <div className="comment-header">
-                      <span className="comment-author">{reply.user?.email || 'Unknown'}</span>
+                      <span className="comment-author">{reply.user?.displayName || reply.user?.email || 'Unknown'}</span>
                       <span className="comment-date">{new Date(reply.createdAt).toLocaleDateString()}</span>
                     </div>
 
