@@ -108,10 +108,12 @@ describe('CommentSidebar', () => {
     it('should render the sidebar with correct layout', async () => {
       render(<CommentSidebar scriptId="script-1" />);
 
-      // Should have main container with correct class/width
-      const sidebar = screen.getByRole('complementary', { name: /comments sidebar/i });
-      expect(sidebar).toBeInTheDocument();
-      expect(sidebar).toHaveClass('comments-sidebar');
+      // Wait for async loading to complete to avoid act() warnings
+      await waitFor(() => {
+        const sidebar = screen.getByRole('complementary', { name: /comments sidebar/i });
+        expect(sidebar).toBeInTheDocument();
+        expect(sidebar).toHaveClass('comments-sidebar');
+      });
     });
 
     it('should have a header with title', async () => {
@@ -120,7 +122,8 @@ describe('CommentSidebar', () => {
       await waitFor(() => {
         const header = screen.getByRole('banner', { name: /comments header/i });
         expect(header).toBeInTheDocument();
-        expect(screen.getByText(/comments/i)).toBeInTheDocument();
+        // Use heading role to avoid ambiguity with filter button text
+        expect(screen.getByRole('heading', { name: /comments/i })).toBeInTheDocument();
       });
     });
 
