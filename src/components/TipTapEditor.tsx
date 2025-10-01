@@ -339,6 +339,9 @@ export const TipTapEditor: React.FC = () => {
             // 2. Sanitize the HTML
             const sanitizedHTML = sanitizeHTML(htmlData);
 
+            console.log('[PASTE] Sanitized HTML length:', sanitizedHTML.length);
+            console.log('[PASTE] Sanitized HTML preview:', sanitizedHTML.substring(0, 500));
+
             // 3. Use sanitized content if it's not empty
             if (sanitizedHTML.trim()) {
               // ✅ CORRECT: Use the sanitized HTML which preserves <br> tags
