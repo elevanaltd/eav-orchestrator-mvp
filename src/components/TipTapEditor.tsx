@@ -12,7 +12,7 @@ import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { Node } from '@tiptap/pm/model';
+import { Node, DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
 import { CommentSidebar } from './comments/CommentSidebar';
@@ -251,28 +251,69 @@ export const TipTapEditor: React.FC = () => {
       });
     },
     // SECURITY: Add paste event handler to sanitize pasted content
+    // Critical-Engineer: consulted for Paste handler architecture and sanitization
     editorProps: {
       handlePaste: (view, event) => {
-        // Let TipTap handle the paste first, then sanitize
         const clipboardData = event.clipboardData;
-        if (clipboardData) {
-          const htmlData = clipboardData.getData('text/html');
-          const textData = clipboardData.getData('text/plain');
+        if (!clipboardData) {
+          return false; // Let TipTap handle it
+        }
 
-          if (htmlData) {
-            // Sanitize HTML paste data
+        const htmlData = clipboardData.getData('text/html');
+        const textData = clipboardData.getData('text/plain');
+
+        // Only process if HTML data is present
+        if (htmlData) {
+          event.preventDefault(); // Take control of the paste event
+
+          // 1. Size Check to prevent UI freeze
+          const PASTE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; // 1MB limit
+          if (htmlData.length > PASTE_SIZE_LIMIT_BYTES) {
+            showError('Pasted content is too large. Please paste in smaller chunks.');
+            view.dispatch(view.state.tr.insertText(textData.substring(0, 5000) + "..."));
+            return true;
+          }
+
+          try {
+            // 2. Sanitize the HTML
             const sanitizedHTML = sanitizeHTML(htmlData);
-            if (sanitizedHTML !== htmlData) {
-              // If content was modified by sanitization, prevent default and insert safe content
-              event.preventDefault();
-              view.dispatch(
-                view.state.tr.insertText(textData) // Fall back to plain text if HTML was dangerous
-              );
-              return true;
+
+            // 3. Use sanitized content if it's not empty
+            if (sanitizedHTML.trim()) {
+              // ✅ CORRECT: Use the sanitized HTML which preserves <br> tags
+              // Create a temporary DOM element to parse the HTML
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = sanitizedHTML;
+
+              // Use ProseMirror's DOMParser to convert HTML to document nodes
+              const { state } = view;
+              const parser = ProseMirrorDOMParser.fromSchema(state.schema);
+
+              // Parse the DOM content into ProseMirror slice
+              const slice = parser.parseSlice(tempDiv, {
+                preserveWhitespace: 'full'
+              });
+
+              // Insert the parsed content at the current selection
+              view.dispatch(state.tr.replaceSelection(slice));
+            } else if (textData) {
+              // Fallback to plain text if sanitization results in nothing
+              view.dispatch(view.state.tr.insertText(textData));
+            }
+          } catch (error) {
+            Logger.error('Paste sanitization failed', { error });
+            showError('Could not process pasted content.');
+            // Safest fallback in case of error
+            if (textData) {
+              view.dispatch(view.state.tr.insertText(textData));
             }
           }
+
+          return true; // We've handled the event
         }
-        return false; // Let TipTap handle normal paste
+
+        // Let TipTap handle non-HTML pastes
+        return false;
       }
     }
   });
@@ -1038,7 +1079,7 @@ export const TipTapEditor: React.FC = () => {
                   if (!editor) return;
 
                   // Convert soft enters (br tags) to hard enters (paragraph breaks)
-                  editor.chain().focus().command(({ tr, state }) => {
+                  const conversionSuccessful = editor.chain().focus().command(({ tr, state }) => {
                     const { doc } = state;
                     const replacements: { from: number; to: number; content: string[] }[] = [];
 
@@ -1095,8 +1136,15 @@ export const TipTapEditor: React.FC = () => {
                       tr.replaceWith(from, to, paragraphs);
                     });
 
-                    return true;
+                    // Return true only if we made changes
+                    return replacements.length > 0;
                   }).run();
+
+                  // If conversion happened, trigger component extraction and save
+                  if (conversionSuccessful) {
+                    extractComponents(editor);
+                    handleSave();
+                  }
                 }}
                 style={{
                   background: '#3B82F6',
