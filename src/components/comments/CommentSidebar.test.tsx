@@ -22,7 +22,9 @@ vi.mock('../../lib/comments', () => ({
   getComments: vi.fn(),
   createComment: vi.fn(),
   resolveComment: vi.fn(),
+  unresolveComment: vi.fn(),
   deleteComment: vi.fn(),
+  updateComment: vi.fn(),
 }));
 
 // Mock Supabase with Realtime channel support
@@ -93,13 +95,31 @@ const sampleComments: Comment[] = [
 
 describe('CommentSidebar', () => {
   const mockGetComments = commentsLib.getComments as ReturnType<typeof vi.fn>;
+  const mockCreateComment = commentsLib.createComment as ReturnType<typeof vi.fn>;
+  const mockResolveComment = commentsLib.resolveComment as ReturnType<typeof vi.fn>;
+  const mockDeleteComment = commentsLib.deleteComment as ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Setup default mock behavior - empty comments list
+    // Setup default mock behavior
     mockGetComments.mockResolvedValue({
       success: true,
       data: [],
+      error: null,
+    });
+    mockCreateComment.mockResolvedValue({
+      success: true,
+      data: { id: 'new-comment-id', content: 'New comment text' },
+      error: null,
+    });
+    mockResolveComment.mockResolvedValue({
+      success: true,
+      data: { id: 'resolved-id', resolvedAt: new Date().toISOString() },
+      error: null,
+    });
+    mockDeleteComment.mockResolvedValue({
+      success: true,
+      data: true,
       error: null,
     });
   });
@@ -440,9 +460,8 @@ describe('CommentSidebar', () => {
       fireEvent.click(submitReplyButton);
 
       // Should call createComment with parentCommentId
-      const { createComment } = await import('../../lib/comments');
       await waitFor(() => {
-        expect(createComment).toHaveBeenCalledWith(
+        expect(commentsLib.createComment).toHaveBeenCalledWith(
           expect.anything(), // supabase client
           expect.objectContaining({
             parentCommentId: 'comment-1',
@@ -524,9 +543,8 @@ describe('CommentSidebar', () => {
       fireEvent.click(resolveButtons[0]);
 
       // Should call resolveComment function
-      const { resolveComment } = await import('../../lib/comments');
       await waitFor(() => {
-        expect(resolveComment).toHaveBeenCalledWith(
+        expect(commentsLib.resolveComment).toHaveBeenCalledWith(
           expect.anything(), // supabase client
           'comment-1', // comment id
           'user-1' // current user id
@@ -571,10 +589,9 @@ describe('CommentSidebar', () => {
       const reopenButton = screen.getByRole('button', { name: /reopen/i });
       fireEvent.click(reopenButton);
 
-      // Should call resolveComment with unresolve behavior
-      const { resolveComment } = await import('../../lib/comments');
+      // Should call unresolveComment
       await waitFor(() => {
-        expect(resolveComment).toHaveBeenCalledWith(
+        expect(commentsLib.unresolveComment).toHaveBeenCalledWith(
           expect.anything(), // supabase client
           'comment-3', // resolved comment id
           'user-1' // current user id
@@ -656,9 +673,8 @@ describe('CommentSidebar', () => {
       fireEvent.click(confirmButton);
 
       // Should call deleteComment function
-      const { deleteComment } = await import('../../lib/comments');
       await waitFor(() => {
-        expect(deleteComment).toHaveBeenCalledWith(
+        expect(commentsLib.deleteComment).toHaveBeenCalledWith(
           expect.anything(), // supabase client
           'comment-1', // comment id
           'user-1' // current user id

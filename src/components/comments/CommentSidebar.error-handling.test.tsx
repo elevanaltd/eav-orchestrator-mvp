@@ -25,7 +25,7 @@ vi.mock('../../services/logger', () => ({
 }));
 
 // Mock error handling utilities
-const mockExecuteWithErrorHandling = vi.fn();
+const mockExecuteWithErrorHandling = vi.hoisted(() => vi.fn());
 vi.mock('../../utils/errorHandling', () => ({
   useErrorHandling: vi.fn(() => ({
     executeWithErrorHandling: mockExecuteWithErrorHandling,
@@ -126,17 +126,17 @@ describe('CommentSidebar - Error Handling', () => {
         const result = await operation();
         return { success: true, data: result };
       } catch (error) {
+        const errorInfo = {
+          code: 'TEST_ERROR',
+          message: (error as Error).message,
+          userMessage: `An error occurred: ${(error as Error).message}`,
+          isRetryable: false,
+          category: 'unknown',
+        };
         if (errorHandler) {
-          const errorInfo = {
-            code: 'NETWORK_ERROR',
-            message: (error as Error).message,
-            isRetryable: true,
-            userMessage: 'Connection problem. Please check your internet connection and try again.',
-            category: 'network',
-          };
           errorHandler(errorInfo);
         }
-        return { success: false, error };
+        return { success: false, error: errorInfo };
       }
     });
   });

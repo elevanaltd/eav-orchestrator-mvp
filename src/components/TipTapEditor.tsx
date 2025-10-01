@@ -580,7 +580,7 @@ export const TipTapEditor: React.FC = () => {
   }, [currentScript, editor, extractedComponents, loadCommentHighlights]);
 
   // Handle comment creation from sidebar
-  const handleCommentCreated = useCallback(async () => {
+  const handleCommentCreated = useCallback(async (_commentData: unknown) => {
     try {
       // Clear creation state to hide form
       setCreateCommentData(null);
