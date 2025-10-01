@@ -14,7 +14,14 @@ import DOMPurify from 'dompurify';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import type { CommentWithUser, CommentThread, CreateCommentData } from '../../types/comments';
-import { getComments, createComment as createCommentInDB } from '../../lib/comments';
+import {
+  getComments,
+  createComment as createCommentInDB,
+  resolveComment,
+  unresolveComment,
+  deleteComment,
+  updateComment
+} from '../../lib/comments';
 import { Logger } from '../../services/logger';
 import { useErrorHandling } from '../../utils/errorHandling';
 
@@ -25,7 +32,7 @@ export interface CommentSidebarProps {
     endPosition: number;
     selectedText: string;
   } | null;
-  onCommentCreated?: () => void;
+  onCommentCreated?: (commentData: CreateCommentData) => void;
   onCommentCancelled?: () => void;
   documentContent?: string; // For position recovery
 }
@@ -129,6 +136,189 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     };
   }, [loadCommentsWithCleanup]);
 
+  // Realtime subscription for collaborative comments
+  useEffect(() => {
+    if (!scriptId) return;
+
+    // Create Realtime channel scoped to this script
+    const channel = supabase
+      .channel(`comments:${scriptId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'comments',
+          filter: `script_id=eq.${scriptId}`, // Only this script's comments
+        },
+        async (payload) => {
+          // Handle Realtime events
+          if (payload.eventType === 'INSERT') {
+            // TYPE SAFETY FIX: payload.new only contains raw table data, no JOINs
+            const commentData = payload.new as {
+              id: string;
+              script_id: string;
+              user_id: string;
+              content: string;
+              start_position: number;
+              end_position: number;
+              highlighted_text: string | null;
+              parent_comment_id: string | null;
+              resolved_at: string | null;
+              resolved_by: string | null;
+              created_at: string;
+              updated_at: string;
+            };
+
+            try {
+              // Fetch user profile for the comment
+              const { data: userProfile, error: userError } = await supabase
+                .from('user_profiles')
+                .select('id, email, display_name, role')
+                .eq('id', commentData.user_id)
+                .single();
+
+              if (userError) {
+                Logger.error('Failed to fetch user profile for realtime comment', {
+                  error: userError,
+                  userId: commentData.user_id
+                });
+                return; // Skip this comment update
+              }
+
+              // Construct CommentWithUser with enriched data
+              const commentWithUser: CommentWithUser = {
+                id: commentData.id,
+                scriptId: commentData.script_id,
+                userId: commentData.user_id,
+                content: commentData.content,
+                startPosition: commentData.start_position,
+                endPosition: commentData.end_position,
+                highlightedText: commentData.highlighted_text || undefined,
+                parentCommentId: commentData.parent_comment_id,
+                resolvedAt: commentData.resolved_at,
+                resolvedBy: commentData.resolved_by,
+                createdAt: commentData.created_at,
+                updatedAt: commentData.updated_at,
+                user: userProfile ? {
+                  id: userProfile.id,
+                  email: userProfile.email,
+                  displayName: userProfile.display_name,
+                  role: userProfile.role
+                } : undefined
+              };
+
+              // Add new comment to state (avoid duplicates)
+              setComments((prevComments) => {
+                const exists = prevComments.some(c => c.id === commentWithUser.id);
+                if (exists) return prevComments;
+                return [...prevComments, commentWithUser];
+              });
+
+              Logger.info('Realtime comment added', { commentId: commentWithUser.id });
+            } catch (err) {
+              Logger.error('Failed to enrich realtime comment', { error: err, commentId: commentData.id });
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            // TYPE SAFETY FIX: Same enrichment needed for UPDATE events
+            const commentData = payload.new as {
+              id: string;
+              script_id: string;
+              user_id: string;
+              content: string;
+              start_position: number;
+              end_position: number;
+              highlighted_text: string | null;
+              parent_comment_id: string | null;
+              resolved_at: string | null;
+              resolved_by: string | null;
+              created_at: string;
+              updated_at: string;
+            };
+
+            try {
+              // Fetch user profile for the updated comment
+              const { data: userProfile, error: userError } = await supabase
+                .from('user_profiles')
+                .select('id, email, display_name, role')
+                .eq('id', commentData.user_id)
+                .single();
+
+              if (userError) {
+                Logger.error('Failed to fetch user profile for realtime update', {
+                  error: userError,
+                  userId: commentData.user_id
+                });
+                return; // Skip this update
+              }
+
+              // Construct CommentWithUser with enriched data
+              const commentWithUser: CommentWithUser = {
+                id: commentData.id,
+                scriptId: commentData.script_id,
+                userId: commentData.user_id,
+                content: commentData.content,
+                startPosition: commentData.start_position,
+                endPosition: commentData.end_position,
+                highlightedText: commentData.highlighted_text || undefined,
+                parentCommentId: commentData.parent_comment_id,
+                resolvedAt: commentData.resolved_at,
+                resolvedBy: commentData.resolved_by,
+                createdAt: commentData.created_at,
+                updatedAt: commentData.updated_at,
+                user: userProfile ? {
+                  id: userProfile.id,
+                  email: userProfile.email,
+                  displayName: userProfile.display_name,
+                  role: userProfile.role
+                } : undefined
+              };
+
+              // Update existing comment in state
+              setComments((prevComments) =>
+                prevComments.map(c =>
+                  c.id === commentWithUser.id ? commentWithUser : c
+                )
+              );
+
+              Logger.info('Realtime comment updated', { commentId: commentWithUser.id });
+            } catch (err) {
+              Logger.error('Failed to enrich realtime update', { error: err, commentId: commentData.id });
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const deletedComment = payload.old as { id: string };
+
+            // Remove deleted comment from state
+            setComments((prevComments) =>
+              prevComments.filter(c => c.id !== deletedComment.id)
+            );
+
+            Logger.info('Realtime comment deleted', { commentId: deletedComment.id });
+          }
+        }
+      )
+      .subscribe((status) => {
+        // Channel status monitoring for connection health
+        if (status === 'SUBSCRIBED') {
+          Logger.info('Realtime channel subscribed', { scriptId });
+        } else if (status === 'CHANNEL_ERROR') {
+          Logger.error('Realtime channel error', { scriptId });
+          setError('Realtime updates unavailable. Refresh to reconnect.');
+        } else if (status === 'TIMED_OUT') {
+          Logger.warn('Realtime channel timed out', { scriptId });
+          setError('Connection timeout. Refresh to reconnect.');
+        } else if (status === 'CLOSED') {
+          Logger.info('Realtime channel closed', { scriptId });
+        }
+      });
+
+    // Cleanup: unsubscribe when scriptId changes or component unmounts
+    return () => {
+      Logger.info('Unsubscribing from realtime channel', { scriptId });
+      channel.unsubscribe();
+    };
+  }, [scriptId]);
+
   // Filter comments based on resolved status
   const filteredComments = comments.filter(comment => {
     if (filterMode === 'open') {
@@ -218,7 +408,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
       // Call the callback if provided (for parent component to reload highlights)
       if (onCommentCreated) {
-        onCommentCreated();
+        onCommentCreated(commentData);
       }
     }
 
@@ -296,9 +486,6 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
     const result = await executeWithErrorHandling(
       async () => {
-        // Import resolve/unresolve functions dynamically to work with module mocks in tests
-        const { resolveComment, unresolveComment } = await import('../../lib/comments');
-
         // Toggle based on current resolved state
         const response = isCurrentlyResolved
           ? await unresolveComment(supabase, commentId, currentUser.id)
@@ -335,9 +522,6 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
     const result = await executeWithErrorHandling(
       async () => {
-        // Import deleteComment function dynamically to work with module mocks in tests
-        const { deleteComment } = await import('../../lib/comments');
-
         const response = await deleteComment(supabase, commentId, currentUser.id);
 
         if (!response.success) {
@@ -379,9 +563,6 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
     const result = await executeWithErrorHandling(
       async () => {
-        // Import updateComment function dynamically to work with module mocks in tests
-        const { updateComment } = await import('../../lib/comments');
-
         const response = await updateComment(supabase, commentId, { content: editText.trim() }, currentUser.id);
 
         if (!response.success) {

@@ -72,18 +72,8 @@ export async function createComment(
         highlighted_text: data.highlightedText || '', // Store text for position recovery
       })
       .select(`
-        id,
-        script_id,
-        user_id,
-        content,
-        start_position,
-        end_position,
-        highlighted_text,
-        parent_comment_id,
-        resolved_at,
-        resolved_by,
-        created_at,
-        updated_at
+        *,
+        user:user_profiles(id, email, display_name, role)
       `)
       .single();
 
@@ -112,7 +102,7 @@ export async function createComment(
       resolvedBy: comment.resolved_by,
       createdAt: comment.created_at,
       updatedAt: comment.updated_at,
-      user: undefined // Will be populated by getComments
+      user: Array.isArray(comment.user) && comment.user.length > 0 ? comment.user[0] : comment.user || undefined
     };
 
     return {
@@ -163,7 +153,7 @@ export async function getComments(
       .order('start_position', { ascending: true });
 
     // Apply filters
-    if (filters?.resolved !== undefined) {
+    if (filters?.resolved !== undefined && filters.resolved !== null) {
       if (filters.resolved) {
         query = query.not('resolved_at', 'is', null);
       } else {
@@ -191,7 +181,7 @@ export async function getComments(
     // PERFORMANCE OPTIMIZATION: Single query for all user profiles instead of N+1
 
     // Step 1: Extract unique user IDs from comments
-    const userIds = [...new Set((comments || []).map(comment => comment.user_id))];
+    const userIds = [...new Set((comments || []).flatMap(comment => [comment.user_id, comment.resolved_by]).filter(Boolean) as string[])];
 
     // Step 2: Fetch user profiles with caching - only query uncached profiles
     const userProfilesMap = new Map<string, { id: string; email: string; display_name: string | null }>();
@@ -253,7 +243,8 @@ export async function getComments(
         resolvedBy: comment.resolved_by,
         createdAt: comment.created_at,
         updatedAt: comment.updated_at,
-        user: userProfilesMap.get(comment.user_id) // O(1) lookup instead of N queries
+        user: userProfilesMap.get(comment.user_id),
+        resolvedByUser: comment.resolved_by ? userProfilesMap.get(comment.resolved_by) : null,
       };
     });
 
@@ -377,47 +368,23 @@ export async function updateComment(
         updated_at: new Date().toISOString()
       })
       .eq('id', commentId)
-      .eq('user_id', userId) // User can only update their own comments
-      .select(`
-        id,
-        script_id,
-        user_id,
-        content,
-        start_position,
-        end_position,
-        parent_comment_id,
-        resolved_at,
-        resolved_by,
-        created_at,
-        updated_at
-      `)
+      .eq('user_id', userId)
+      .select('*, user:user_profiles(id, email, display_name, role)')
       .single();
 
     if (error) {
-      return {
-        success: false,
-        error: {
-          code: 'DATABASE_ERROR',
-          message: error.message,
-          details: error
-        }
-      };
+      return { success: false, error: { code: 'DATABASE_ERROR', message: error.message, details: error } };
     }
 
-    // Transform to application format
     const commentWithUser: CommentWithUser = {
-      id: comment.id,
+      ...comment,
       scriptId: comment.script_id,
       userId: comment.user_id,
-      content: comment.content,
       startPosition: comment.start_position,
       endPosition: comment.end_position,
-      parentCommentId: comment.parent_comment_id,
-      resolvedAt: comment.resolved_at,
-      resolvedBy: comment.resolved_by,
       createdAt: comment.created_at,
       updatedAt: comment.updated_at,
-      user: undefined
+      user: Array.isArray(comment.user) && comment.user.length > 0 ? comment.user[0] : comment.user || undefined
     };
 
     return {
@@ -449,52 +416,24 @@ export async function resolveComment(
 
     const { data: comment, error } = await supabase
       .from('comments')
-      .update({
-        resolved_at: resolvedAt,
-        resolved_by: userId,
-        updated_at: resolvedAt
-      })
+      .update({ resolved_at: resolvedAt, resolved_by: userId, updated_at: resolvedAt })
       .eq('id', commentId)
-      .select(`
-        id,
-        script_id,
-        user_id,
-        content,
-        start_position,
-        end_position,
-        parent_comment_id,
-        resolved_at,
-        resolved_by,
-        created_at,
-        updated_at
-      `)
+      .select('*, user:user_profiles(id, email, display_name, role)')
       .single();
 
     if (error) {
-      return {
-        success: false,
-        error: {
-          code: 'DATABASE_ERROR',
-          message: error.message,
-          details: error
-        }
-      };
+      return { success: false, error: { code: 'DATABASE_ERROR', message: error.message, details: error } };
     }
 
-    // Transform to application format
     const commentWithUser: CommentWithUser = {
-      id: comment.id,
+      ...comment,
       scriptId: comment.script_id,
       userId: comment.user_id,
-      content: comment.content,
       startPosition: comment.start_position,
       endPosition: comment.end_position,
-      parentCommentId: comment.parent_comment_id,
-      resolvedAt: comment.resolved_at,
-      resolvedBy: comment.resolved_by,
       createdAt: comment.created_at,
       updatedAt: comment.updated_at,
-      user: undefined
+      user: Array.isArray(comment.user) && comment.user.length > 0 ? comment.user[0] : comment.user || undefined
     };
 
     return {
@@ -526,52 +465,24 @@ export async function unresolveComment(
 
     const { data: comment, error } = await supabase
       .from('comments')
-      .update({
-        resolved_at: null,
-        resolved_by: null,
-        updated_at: updatedAt
-      })
+      .update({ resolved_at: null, resolved_by: null, updated_at: updatedAt })
       .eq('id', commentId)
-      .select(`
-        id,
-        script_id,
-        user_id,
-        content,
-        start_position,
-        end_position,
-        parent_comment_id,
-        resolved_at,
-        resolved_by,
-        created_at,
-        updated_at
-      `)
+      .select('*, user:user_profiles(id, email, display_name, role)')
       .single();
 
     if (error) {
-      return {
-        success: false,
-        error: {
-          code: 'DATABASE_ERROR',
-          message: error.message,
-          details: error
-        }
-      };
+      return { success: false, error: { code: 'DATABASE_ERROR', message: error.message, details: error } };
     }
 
-    // Transform to application format
     const commentWithUser: CommentWithUser = {
-      id: comment.id,
+      ...comment,
       scriptId: comment.script_id,
       userId: comment.user_id,
-      content: comment.content,
       startPosition: comment.start_position,
       endPosition: comment.end_position,
-      parentCommentId: comment.parent_comment_id,
-      resolvedAt: comment.resolved_at,
-      resolvedBy: comment.resolved_by,
       createdAt: comment.created_at,
       updatedAt: comment.updated_at,
-      user: undefined
+      user: Array.isArray(comment.user) && comment.user.length > 0 ? comment.user[0] : comment.user || undefined
     };
 
     return {

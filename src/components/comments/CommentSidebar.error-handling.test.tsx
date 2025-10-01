@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { CommentWithUser } from '../../types/comments';
 import { Logger } from '../../services/logger';
@@ -52,10 +52,17 @@ vi.mock('../../lib/comments', () => ({
   deleteComment: vi.fn(),
 }));
 
-// Mock Supabase
+// Mock Supabase with Realtime channel support
+const mockChannel = {
+  on: vi.fn().mockReturnThis(),
+  subscribe: vi.fn().mockReturnThis(),
+  unsubscribe: vi.fn().mockResolvedValue({ status: 'ok', error: null }),
+};
+
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     from: vi.fn(),
+    channel: vi.fn(() => mockChannel),
   },
 }));
 
@@ -432,7 +439,10 @@ describe('CommentSidebar - Error Handling', () => {
     it('should handle errors when resolving comments', async () => {
       mockResolveComment.mockRejectedValue(DatabaseError);
 
-      const resolveButton = screen.getByRole('button', { name: /resolve/i });
+      // Get the specific comment card first to avoid ambiguity
+      const commentCard = screen.getByText('Test comment').closest('[role="article"]') as HTMLElement;
+      expect(commentCard).toBeInTheDocument();
+      const resolveButton = within(commentCard).getByRole('button', { name: /resolve/i });
       fireEvent.click(resolveButton);
 
       await waitFor(() => {
