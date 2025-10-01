@@ -320,6 +320,9 @@ export const TipTapEditor: React.FC = () => {
         const htmlData = clipboardData.getData('text/html');
         const textData = clipboardData.getData('text/plain');
 
+        console.log('[PASTE] HTML length:', htmlData?.length || 0, 'Text length:', textData?.length || 0);
+        console.log('[PASTE] Text preview:', textData?.substring(0, 200));
+
         // Only process if HTML data is present
         if (htmlData) {
           event.preventDefault(); // Take control of the paste event
