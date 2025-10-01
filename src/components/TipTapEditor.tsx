@@ -229,7 +229,8 @@ export const TipTapEditor: React.FC = () => {
     let componentNum = 0;
 
     editor.state.doc.forEach((node: Node) => {
-      if (node.type.name === 'paragraph' && node.content.size > 0) {
+      // Only extract paragraphs with actual content (not whitespace-only)
+      if (node.type.name === 'paragraph' && node.textContent.trim().length > 0) {
         componentNum++;
         components.push({
           number: componentNum,
