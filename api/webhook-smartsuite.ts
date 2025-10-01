@@ -211,7 +211,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const payload = req.body as SmartSuiteWebhookPayload;
     event_type = payload.event_type;
     table_id = payload.table_id;
-    record = payload.record as Record<string, unknown>;
+    record = payload.record as unknown as Record<string, unknown>;
     webhook_id = payload.webhook_id;
   } else if (req.body.record && !req.body.event_type) {
     // Simple format - just {record: {...}}
