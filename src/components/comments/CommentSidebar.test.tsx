@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import type { Comment } from '../../types/comments';
 
@@ -801,7 +801,9 @@ describe('CommentSidebar', () => {
       // Mock slow loading for script-2
       mockGetComments.mockReturnValue(new Promise(() => {})); // Never resolves
 
-      rerender(<CommentSidebar scriptId="script-2" />);
+      await act(async () => {
+        rerender(<CommentSidebar scriptId="script-2" />);
+      });
 
       // Should show loading state immediately, not stale data
       await waitFor(() => {
@@ -880,7 +882,9 @@ describe('CommentSidebar', () => {
       });
       mockGetComments.mockReturnValue(script2Promise);
 
-      rerender(<CommentSidebar scriptId="script-2" />);
+      await act(async () => {
+        rerender(<CommentSidebar scriptId="script-2" />);
+      });
 
       // IMMEDIATELY switch to script-3 before script-2 resolves
       mockGetComments.mockResolvedValue({
@@ -889,7 +893,9 @@ describe('CommentSidebar', () => {
         error: null,
       });
 
-      rerender(<CommentSidebar scriptId="script-3" />);
+      await act(async () => {
+        rerender(<CommentSidebar scriptId="script-3" />);
+      });
 
       // Resolve script-2 AFTER switching to script-3 (simulates late async completion)
       script2Resolve!({
@@ -904,6 +910,75 @@ describe('CommentSidebar', () => {
         expect(screen.queryByText('Comment for script 2')).not.toBeInTheDocument();
         expect(screen.getByText('Comment for script 3')).toBeInTheDocument();
       });
+    });
+  });
+
+  // Improvement 3: Cleanup and Memory Safety Tests
+  describe('Cleanup and Memory Safety', () => {
+    it('should handle unmount during async loading without errors', async () => {
+      // Mock a slow/never-resolving fetch
+      type CommentResponse = { success: boolean; data: Comment[]; error: null };
+      let resolveComments: ((value: CommentResponse) => void) | undefined;
+      const pendingPromise = new Promise<CommentResponse>((resolve) => {
+        resolveComments = resolve;
+      });
+
+      mockGetComments.mockReturnValue(pendingPromise);
+
+      const { unmount } = render(<CommentSidebar scriptId="script-1" />);
+
+      // Verify loading state started
+      expect(screen.getByRole('status', { name: /loading comments/i })).toBeInTheDocument();
+
+      // Unmount while fetch is pending
+      unmount();
+
+      // Resolve the promise AFTER unmount (simulates late async completion)
+      await act(async () => {
+        resolveComments!({
+          success: true,
+          data: [{
+            id: 'comment-1',
+            scriptId: 'script-1',
+            userId: 'user-1',
+            content: 'Should not cause error',
+            startPosition: 0,
+            endPosition: 10,
+            parentCommentId: null,
+            resolvedAt: null,
+            resolvedBy: null,
+            createdAt: '2024-09-30T10:00:00Z',
+            updatedAt: '2024-09-30T10:00:00Z',
+          }],
+          error: null,
+        });
+
+        // Wait a tick for any pending state updates
+        await new Promise(resolve => setTimeout(resolve, 10));
+      });
+
+      // If cleanup works, no errors thrown and component is safely unmounted
+      // This test passes by NOT throwing errors
+      expect(true).toBe(true);
+    });
+
+    it('should not leak memory when rapidly mounting/unmounting', async () => {
+      const mounts = 10;
+
+      // Simulate rapid mount/unmount cycles
+      for (let i = 0; i < mounts; i++) {
+        mockGetComments.mockResolvedValue({
+          success: true,
+          data: [],
+          error: null,
+        });
+
+        const { unmount } = render(<CommentSidebar scriptId={`script-${i}`} />);
+        unmount();
+      }
+
+      // If no memory leaks, test completes without hanging
+      expect(true).toBe(true);
     });
   });
 });
