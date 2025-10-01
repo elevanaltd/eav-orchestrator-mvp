@@ -67,102 +67,76 @@ function verifyWebhookSignature(
 
 /**
  * Transform SmartSuite project record to Supabase schema
- * DYNAMIC MAPPING: Automatically maps any fields with matching names
+ *
+ * WEBHOOK FORMAT: Pre-formatted fields from SmartSuite automation
+ * SmartSuite automation is configured to send field names that match Supabase schema
+ *
+ * NOTE: For raw API format transformation, see api/sync-manual.ts
+ * That endpoint handles nested SmartSuite structures (projdue456, first_created, etc.)
  */
 function transformProject(record: Record<string, unknown>) {
   // Log the exact structure we received
   console.log('transformProject received:', JSON.stringify(record));
 
-  // If fields already match Supabase schema (from webhook), pass ALL fields through
-  if (record.eav_code !== undefined) {
-    // Start with all fields from the webhook (they already match Supabase)
-    const transformed = { ...record };
+  // Start with all fields from the webhook (they already match Supabase)
+  const transformed = { ...record };
 
-    // CRITICAL: Ensure we have an ID field for upsert to work
-    if (!transformed.id) {
-      console.error('CRITICAL ERROR: No ID field in record! Record keys:', Object.keys(record));
-      console.error('Record data:', JSON.stringify(record));
-      throw new Error('Missing ID field - cannot determine if this is an update or insert');
-    }
-
-    // Ensure required fields have defaults
-    transformed.title = transformed.title || 'Untitled';
-    transformed.created_at = transformed.created_at || new Date().toISOString();
-    transformed.updated_at = transformed.updated_at || new Date().toISOString();
-
-    console.log(`Transforming project with ID: ${transformed.id}, eav_code: ${transformed.eav_code}`);
-    return transformed;
+  // CRITICAL: Ensure we have an ID field for upsert to work
+  if (!transformed.id) {
+    console.error('CRITICAL ERROR: No ID field in record! Record keys:', Object.keys(record));
+    console.error('Record data:', JSON.stringify(record));
+    throw new Error('Missing ID field - cannot determine if this is an update or insert');
   }
 
-  // Legacy format support (if using full record dump from API)
-  return {
-    id: record.id,
-    title: record.title || record.name || 'Untitled',
-    eav_code: record.eavcode || '',
-    client_filter: record.slabels_c8bebae3c5 || null,
-    due_date: record.projdue456?.to_date?.date || null,
-    created_at: record.first_created?.on || new Date().toISOString(),
-    updated_at: record.last_updated?.on || new Date().toISOString()
-  };
+  // Ensure required fields have defaults
+  transformed.title = transformed.title || 'Untitled';
+  transformed.created_at = transformed.created_at || new Date().toISOString();
+  transformed.updated_at = transformed.updated_at || new Date().toISOString();
+
+  console.log(`Transforming project with ID: ${transformed.id}, eav_code: ${transformed.eav_code}`);
+  return transformed;
 }
 
 /**
  * Transform SmartSuite video record to Supabase schema
- * DYNAMIC MAPPING: Automatically maps any fields with matching names
+ *
+ * WEBHOOK FORMAT: Pre-formatted fields from SmartSuite automation
+ * SmartSuite automation is configured to send field names that match Supabase schema
+ *
+ * NOTE: For raw API format transformation, see api/sync-manual.ts
+ * That endpoint handles nested SmartSuite structures (first_created, last_updated, etc.)
  */
 function transformVideo(record: Record<string, unknown>) {
   console.log('transformVideo received:', JSON.stringify(record));
 
-  // If fields already match Supabase schema (from webhook field selection)
-  if (record.eav_code !== undefined || record.title !== undefined) {
-    // Start with all fields from the webhook
-    const transformed = { ...record };
+  // Start with all fields from the webhook
+  const transformed = { ...record };
 
-    // Handle eav_code - it comes as an array from SmartSuite (lookup field)
-    if (Array.isArray(record.eav_code) && record.eav_code.length > 0) {
-      // Extract the first value from the array
-      transformed.eav_code = record.eav_code[0];
-      console.log(`Video linked to project via EAV code: ${transformed.eav_code} (extracted from array)`);
-    } else if (typeof record.eav_code === 'string') {
-      // Already a string, use as-is
-      console.log(`Video linked to project via EAV code: ${record.eav_code}`);
-    } else {
-      // No eav_code or invalid format
-      transformed.eav_code = null;
-      console.warn('Video has no valid eav_code');
-    }
-
-    // Ensure required fields have defaults
-    transformed.title = transformed.title || 'Untitled';
-    transformed.created_at = transformed.created_at || new Date().toISOString();
-    transformed.updated_at = transformed.updated_at || new Date().toISOString();
-
-    // Clean up any legacy project_id field if it exists
-    if (transformed.project_id) {
-      delete transformed.project_id;
-    }
-
-    return transformed;
-  }
-
-  // Legacy format support (if using full record dump from API)
-  let eavCode = null;
+  // Handle eav_code - it comes as an array from SmartSuite (lookup field)
   if (Array.isArray(record.eav_code) && record.eav_code.length > 0) {
-    eavCode = record.eav_code[0];
+    // Extract the first value from the array
+    transformed.eav_code = record.eav_code[0];
+    console.log(`Video linked to project via EAV code: ${transformed.eav_code} (extracted from array)`);
   } else if (typeof record.eav_code === 'string') {
-    eavCode = record.eav_code;
+    // Already a string, use as-is
+    console.log(`Video linked to project via EAV code: ${record.eav_code}`);
+  } else {
+    // No eav_code or invalid format
+    transformed.eav_code = null;
+    console.warn('Video has no valid eav_code');
   }
 
-  return {
-    id: record.id,
-    eav_code: eavCode,  // Properly extracted from array if needed
-    title: record.title || record.name || 'Untitled',
-    production_type: record.production_type || null,
-    main_stream_status: record.main_stream_status || null,
-    vo_stream_status: record.vo_stream_status || null,
-    created_at: record.first_created?.on || new Date().toISOString(),
-    updated_at: record.last_updated?.on || new Date().toISOString()
-  };
+  // Ensure required fields have defaults
+  transformed.title = transformed.title || 'Untitled';
+  transformed.created_at = transformed.created_at || new Date().toISOString();
+  transformed.updated_at = transformed.updated_at || new Date().toISOString();
+
+  // Clean up any legacy project_id field if it exists
+  if (transformed.project_id) {
+    delete transformed.project_id;
+  }
+
+  return transformed;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -234,7 +208,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`Record has fields:`, Object.keys(record));
   } else if (req.body.record && req.body.event_type) {
     // Full format with event_type and record wrapper
-    ({ event_type, table_id, record, webhook_id } = req.body as SmartSuiteWebhookPayload);
+    const payload = req.body as SmartSuiteWebhookPayload;
+    event_type = payload.event_type;
+    table_id = payload.table_id;
+    record = payload.record as Record<string, unknown>;
+    webhook_id = payload.webhook_id;
   } else if (req.body.record && !req.body.event_type) {
     // Simple format - just {record: {...}}
     record = req.body.record;
@@ -388,17 +366,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.log(`Attempting dynamic handling for table: ${supabaseTable}`);
 
       // Just pass the record through with minimal transformation
-      const transformedRecord = {
+      const transformedRecord: Record<string, unknown> = {
         ...record,
-        created_at: record.created_at || new Date().toISOString(),
-        updated_at: record.updated_at || new Date().toISOString()
+        created_at: (record.created_at as string | undefined) || new Date().toISOString(),
+        updated_at: (record.updated_at as string | undefined) || new Date().toISOString()
       };
 
       if (event_type === 'record.deleted') {
         result = await supabase
           .from(supabaseTable)
           .delete()
-          .eq('id', transformedRecord.id);
+          .eq('id', transformedRecord.id as string);
       } else {
         result = await supabase
           .from(supabaseTable)
