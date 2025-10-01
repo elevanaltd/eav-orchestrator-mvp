@@ -11,7 +11,7 @@ import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Plugin } from '@tiptap/pm/state';
-import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { Decoration, DecorationSet, EditorView } from '@tiptap/pm/view';
 import { Node, DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
@@ -43,6 +43,49 @@ const sanitizeHTML = (dirtyHTML: string): string => {
     ALLOW_DATA_ATTR: false,
     ALLOW_UNKNOWN_PROTOCOLS: false
   });
+};
+
+/**
+ * Handle plain text paste with proper sanitization and size limits
+ * Critical-Engineer: consulted for Paste handler architecture and sanitization
+ *
+ * Fixes applied:
+ * 1. Size limit (HIGH): Prevents DoS from large pastes
+ * 2. Robust newline handling (MEDIUM): Uses regex for edge cases
+ * 3. Manual HTML escaping (MEDIUM): Defense-in-depth security
+ * 4. Code deduplication (HIGH): Eliminates maintenance divergence
+ */
+const handlePlainTextPaste = (
+  view: EditorView,
+  textData: string,
+  showError: (msg: string) => void
+): void => {
+  // 1. Size limit (HIGH priority fix) - Prevent DoS from large pastes
+  const PASTE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; // 1MB
+  if (textData.length > PASTE_SIZE_LIMIT_BYTES) {
+    showError('Pasted content is too large. Please paste in smaller chunks.');
+    view.dispatch(view.state.tr.insertText(textData.substring(0, 5000) + "..."));
+    return;
+  }
+
+  // 2. Robust newline handling (MEDIUM priority fix) - Handle edge cases like '\n \n'
+  const paragraphs = textData.split(/\s*\n\s*\n\s*/).filter(p => p.trim() !== '');
+
+  if (paragraphs.length > 1) {
+    // 3. Manual escaping (MEDIUM priority fix) - Defense-in-depth security
+    const paragraphHTML = paragraphs
+      .map(p => `<p>${p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
+      .join('');
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = paragraphHTML;
+    const { state } = view;
+    const parser = ProseMirrorDOMParser.fromSchema(state.schema);
+    const slice = parser.parseSlice(tempDiv, { preserveWhitespace: 'full' });
+    view.dispatch(state.tr.replaceSelection(slice));
+  } else {
+    view.dispatch(view.state.tr.insertText(textData));
+  }
 };
 
 /**
@@ -298,14 +341,16 @@ export const TipTapEditor: React.FC = () => {
               view.dispatch(state.tr.replaceSelection(slice));
             } else if (textData) {
               // Fallback to plain text if sanitization results in nothing
-              view.dispatch(view.state.tr.insertText(textData));
+              // Use centralized handler (4. Code deduplication fix)
+              handlePlainTextPaste(view, textData, showError);
             }
           } catch (error) {
             Logger.error('Paste sanitization failed', { error });
             showError('Could not process pasted content.');
             // Safest fallback in case of error
+            // Use same centralized handler (4. Code deduplication fix)
             if (textData) {
-              view.dispatch(view.state.tr.insertText(textData));
+              handlePlainTextPaste(view, textData, showError);
             }
           }
 
