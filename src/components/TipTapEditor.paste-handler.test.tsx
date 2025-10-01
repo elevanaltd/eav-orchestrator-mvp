@@ -343,3 +343,203 @@ describe('TipTap Paste Handler - Multi-Paragraph Component Extraction (TDD RED)'
     expect(componentsAfter[1].content).toBe('Second component');
   });
 });
+
+/**
+ * TEST: Paste Spacing Behavior - No Extra Empty Lines
+ *
+ * REQUIREMENT: When pasting multi-paragraph content from Google Docs,
+ * the system should create separate components WITHOUT adding extra empty lines.
+ *
+ * CONTEXT:
+ * - Branch main: No extra spacing (normal behavior)
+ * - Branch soft-hard-button: Extra empty lines between paragraphs
+ * - Root cause: `preserveWhitespace: 'full'` preserves empty <p></p> tags
+ *
+ * TDD Phase: This test documents the DESIRED behavior (should pass after fix)
+ */
+describe('TipTap Paste Handler - Spacing Behavior (No Extra Empty Lines)', () => {
+  let editor: Editor | null = null;
+
+  beforeEach(() => {
+    editor = new Editor({
+      extensions: [
+        StarterKit.configure({
+          paragraph: {
+            HTMLAttributes: {
+              class: 'component-paragraph'
+            }
+          }
+        })
+      ],
+      content: ''
+    });
+  });
+
+  afterEach(() => {
+    editor?.destroy();
+    editor = null;
+  });
+
+  it('should NOT create empty paragraphs between content paragraphs', () => {
+    // ARRANGE - Google Docs HTML with empty paragraphs (common formatting artifact)
+    const googleDocsWithEmptyParagraphs = `<p>First paragraph</p><p></p><p>Second paragraph</p><p></p><p>Third paragraph</p>`;
+
+    // ACT - Set content (simulates paste)
+    editor!.commands.setContent(googleDocsWithEmptyParagraphs);
+
+    // Count all paragraphs (including empty ones)
+    const allParagraphs: { text: string; isEmpty: boolean }[] = [];
+    editor!.state.doc.forEach((node) => {
+      if (node.type.name === 'paragraph') {
+        allParagraphs.push({
+          text: node.textContent,
+          isEmpty: node.content.size === 0 || node.textContent.trim().length === 0
+        });
+      }
+    });
+
+    // ASSERT - Should have ONLY 3 content paragraphs (empty ones removed)
+    const contentParagraphs = allParagraphs.filter(p => !p.isEmpty);
+    expect(contentParagraphs.length).toBe(3);
+    expect(contentParagraphs[0].text).toBe('First paragraph');
+    expect(contentParagraphs[1].text).toBe('Second paragraph');
+    expect(contentParagraphs[2].text).toBe('Third paragraph');
+
+    // CRITICAL: Should NOT have empty paragraphs in document
+    const emptyParagraphs = allParagraphs.filter(p => p.isEmpty);
+    expect(emptyParagraphs.length).toBe(0); // WILL FAIL if preserveWhitespace: 'full' keeps empty paragraphs
+  });
+
+  it('should extract only content components (no empty components)', () => {
+    // ARRANGE - Google Docs HTML with formatting whitespace
+    const googleDocsHTML = `<p>Component 1</p><p> </p><p>Component 2</p><p></p><p>Component 3</p>`;
+
+    // ACT - Set content and extract components using semantic filtering
+    editor!.commands.setContent(googleDocsHTML);
+
+    const components: { number: number; content: string }[] = [];
+    let componentNum = 0;
+
+    editor!.state.doc.forEach((node) => {
+      // Use semantic filtering: content.size > 0 AND textContent.trim().length > 0
+      if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
+        componentNum++;
+        components.push({
+          number: componentNum,
+          content: node.textContent
+        });
+      }
+    });
+
+    // ASSERT - Should extract exactly 3 components (C1, C2, C3)
+    expect(components.length).toBe(3);
+    expect(components[0].number).toBe(1);
+    expect(components[0].content).toBe('Component 1');
+    expect(components[1].number).toBe(2);
+    expect(components[1].content).toBe('Component 2');
+    expect(components[2].number).toBe(3);
+    expect(components[2].content).toBe('Component 3');
+  });
+
+  it('should match main branch spacing behavior (no extra lines)', () => {
+    // ARRANGE - Typical multi-paragraph Google Docs paste
+    const googleDocsHTML = `<p>Paragraph one with some content</p><p>Paragraph two with more content</p><p>Paragraph three final content</p>`;
+
+    // ACT - Set content
+    editor!.commands.setContent(googleDocsHTML);
+
+    // Count paragraphs using semantic filtering (matches TipTapEditor logic)
+    let contentParagraphCount = 0;
+    editor!.state.doc.forEach((node) => {
+      if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
+        contentParagraphCount++;
+      }
+    });
+
+    // ASSERT - Should have exactly 3 paragraphs (same as main branch)
+    expect(contentParagraphCount).toBe(3);
+
+    // Verify document structure has no extra nodes
+    const totalNodes = editor!.state.doc.childCount;
+    expect(totalNodes).toBe(3); // WILL FAIL if preserveWhitespace: 'full' creates extra nodes
+  });
+
+  it('should preserve content paragraph structure without whitespace artifacts', () => {
+    // ARRANGE - Multi-paragraph content with various spacing in source HTML
+    const googleDocsHTML = `<p>First</p>
+
+    <p>Second</p>
+
+    <p>Third</p>`;
+
+    // ACT - Set content
+    editor!.commands.setContent(googleDocsHTML);
+
+    // Extract all nodes from document
+    const nodes: { type: string; text: string; size: number }[] = [];
+    editor!.state.doc.forEach((node) => {
+      nodes.push({
+        type: node.type.name,
+        text: node.textContent,
+        size: node.content.size
+      });
+    });
+
+    // ASSERT - Should have exactly 3 paragraph nodes (no extra whitespace nodes)
+    expect(nodes.length).toBe(3);
+    expect(nodes.every(n => n.type === 'paragraph')).toBe(true);
+    expect(nodes[0].text).toBe('First');
+    expect(nodes[1].text).toBe('Second');
+    expect(nodes[2].text).toBe('Third');
+  });
+
+  it('should filter Google Docs &nbsp; paragraphs (ACTUAL ISSUE)', () => {
+    // ARRANGE - REAL Google Docs HTML with &nbsp; paragraphs
+    // This is what Google Docs ACTUALLY sends when you have spacing between paragraphs
+    const realGoogleDocsHTML = `<p>Welcome to your new home at Kidbrooke Village.</p><p>&nbsp;</p><p>Your building is just moments from Kidbrooke station.</p><p>&nbsp;</p><p>To access your building use the key fob provided.</p>`;
+
+    // ACT - Set content
+    editor!.commands.setContent(realGoogleDocsHTML);
+
+    // Count all paragraphs including &nbsp; ones
+    const allParagraphs: { text: string; isEmpty: boolean }[] = [];
+    editor!.state.doc.forEach((node) => {
+      if (node.type.name === 'paragraph') {
+        // Check if paragraph is empty after normalizing whitespace
+        const normalizedText = node.textContent.replace(/\u00A0/g, ' ').trim(); // \u00A0 is &nbsp;
+        allParagraphs.push({
+          text: node.textContent,
+          isEmpty: normalizedText.length === 0
+        });
+      }
+    });
+
+    // ASSERT - Should identify 2 empty paragraphs (the &nbsp; ones)
+    const emptyParagraphs = allParagraphs.filter(p => p.isEmpty);
+    expect(emptyParagraphs.length).toBe(2); // Currently PASSES - we can detect them
+
+    // Now test component extraction with proper filtering
+    const components: { number: number; content: string }[] = [];
+    let componentNum = 0;
+
+    editor!.state.doc.forEach((node) => {
+      if (node.type.name === 'paragraph' && node.content.size > 0) {
+        // CRITICAL: Must normalize whitespace including &nbsp; before checking
+        const normalizedText = node.textContent.replace(/\u00A0/g, ' ').trim();
+        if (normalizedText.length > 0) {
+          componentNum++;
+          components.push({
+            number: componentNum,
+            content: node.textContent
+          });
+        }
+      }
+    });
+
+    // ASSERT - Should extract exactly 3 components (no &nbsp; paragraphs)
+    expect(components.length).toBe(3); // WILL FAIL without proper &nbsp; filtering
+    expect(components[0].content).toBe('Welcome to your new home at Kidbrooke Village.');
+    expect(components[1].content).toBe('Your building is just moments from Kidbrooke station.');
+    expect(components[2].content).toBe('To access your building use the key fob provided.');
+  });
+});

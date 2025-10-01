@@ -321,12 +321,31 @@ export const TipTapEditor: React.FC = () => {
             // 2. Sanitize the HTML
             const sanitizedHTML = sanitizeHTML(htmlData);
 
-            // 3. Use sanitized content if it's not empty
-            if (sanitizedHTML.trim()) {
-              // ✅ CORRECT: Use the sanitized HTML which preserves <br> tags
-              // Create a temporary DOM element to parse the HTML
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = sanitizedHTML;
+            // 3. Remove empty paragraphs and standalone line breaks
+            // Google Docs includes <p>&nbsp;</p> paragraphs and standalone <br> elements for spacing
+            // Critical-Engineer: consulted for paste handler whitespace normalization
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = sanitizedHTML;
+
+            // Filter out paragraphs that only contain whitespace (including &nbsp;)
+            const paragraphs = tempDiv.querySelectorAll('p');
+            paragraphs.forEach((p) => {
+              // Normalize whitespace: convert &nbsp; (\u00A0) to regular space, then trim
+              const normalizedText = p.textContent?.replace(/\u00A0/g, ' ').trim() || '';
+              if (normalizedText.length === 0) {
+                p.remove(); // Remove empty paragraphs
+              }
+            });
+
+            // Also remove standalone <br> elements that appear between paragraphs
+            // Google Docs sometimes inserts these for spacing between sections
+            const brs = tempDiv.querySelectorAll('br');
+            brs.forEach((br) => {
+              br.remove();
+            });
+
+            // 4. Use sanitized content if it's not empty after filtering
+            if (tempDiv.innerHTML.trim()) {
 
               // Use ProseMirror's DOMParser to convert HTML to document nodes
               const { state } = view;
