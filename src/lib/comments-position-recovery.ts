@@ -243,6 +243,15 @@ export function recoverCommentPosition(
     const now = new Date();
     const ageInSeconds = (now.getTime() - createdAt.getTime()) / 1000;
 
+    console.log('[POSITION-RECOVERY] Fresh comment check', {
+      commentId: comment.id,
+      created_at: createdAtValue,
+      age_seconds: ageInSeconds.toFixed(2),
+      will_skip: ageInSeconds < 10,
+      current_position: [comment.startPosition, comment.endPosition],
+      highlighted_text: comment.highlighted_text
+    });
+
     if (ageInSeconds < 10) {
       return {
         status: 'fallback',
@@ -271,6 +280,29 @@ export function recoverCommentPosition(
     comment.highlighted_text,
     comment.startPosition
   );
+
+  console.log('[POSITION-RECOVERY] Position recovery attempt', {
+    commentId: comment.id,
+    highlighted_text: comment.highlighted_text,
+    highlighted_length: comment.highlighted_text.length,
+    current_position: [comment.startPosition, comment.endPosition],
+    current_text_at_position: currentDocumentContent.substring(
+      comment.startPosition,
+      comment.endPosition
+    ),
+    match_found: !!matchResult,
+    match_quality: matchResult?.matchQuality,
+    new_position: matchResult ? [matchResult.startPosition, matchResult.endPosition] : null,
+    new_text_at_position: matchResult ? currentDocumentContent.substring(
+      matchResult.startPosition,
+      matchResult.endPosition
+    ) : null,
+    document_length: currentDocumentContent.length,
+    position_changed: matchResult && (
+      matchResult.startPosition !== comment.startPosition ||
+      matchResult.endPosition !== comment.endPosition
+    )
+  });
 
   // Text found - relocate comment
   if (matchResult) {

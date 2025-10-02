@@ -60,6 +60,15 @@ export async function createComment(
     }
 
     // Insert comment into database
+    console.log('[COMMENT-CREATE] Storing comment data', {
+      scriptId: data.scriptId,
+      startPosition: data.startPosition,
+      endPosition: data.endPosition,
+      highlightedText: data.highlightedText,
+      highlightedText_length: data.highlightedText?.length || 0,
+      content: data.content
+    });
+
     const { data: comment, error } = await supabase
       .from('comments')
       .insert({
@@ -76,6 +85,16 @@ export async function createComment(
         user:user_profiles(id, email, display_name, role)
       `)
       .single();
+
+    if (!error && comment) {
+      console.log('[COMMENT-CREATE] Comment saved to database', {
+        id: comment.id,
+        start_position: comment.start_position,
+        end_position: comment.end_position,
+        highlighted_text: comment.highlighted_text,
+        created_at: comment.created_at
+      });
+    }
 
     if (error) {
       return {
@@ -297,6 +316,17 @@ export async function getComments(
 
       // Batch update all recovered positions using Promise.allSettled for error resilience
       if (positionsToUpdate.length > 0) {
+        console.log('[POSITION-UPDATE] Saving recovered positions to database', {
+          updates_count: positionsToUpdate.length,
+          updates: positionsToUpdate.map(u => ({
+            id: u.id,
+            old_position: commentsWithUser.find(c => c.id === u.id) ?
+              [commentsWithUser.find(c => c.id === u.id)!.startPosition, commentsWithUser.find(c => c.id === u.id)!.endPosition] :
+              null,
+            new_position: [u.start_position, u.end_position]
+          }))
+        });
+
         const results = await Promise.allSettled(
           positionsToUpdate.map(update =>
             supabase
@@ -319,6 +349,10 @@ export async function getComments(
               error: r.status === 'rejected' ? r.reason : null
             }))
           );
+        } else {
+          console.log('[POSITION-UPDATE] All position updates succeeded', {
+            count: positionsToUpdate.length
+          });
         }
       }
 

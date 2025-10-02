@@ -393,13 +393,24 @@ export const TipTapEditor: React.FC = () => {
       const { supabase } = await import('../lib/supabase');
 
       // Get current document content for position recovery
-      // Use textBetween to preserve TipTap coordinate system (includes node boundaries)
+      // CRITICAL: Must use '\n\n' separator to preserve TipTap's position coordinate system
+      // TipTap positions include node boundaries - removing separators causes length mismatch
+      // Each paragraph node creates position offsets that must be preserved
       const documentContent = editor.state.doc.textBetween(
         0,
         editor.state.doc.content.size,
-        '\n',
-        '\n'
+        '\n\n',  // Double newline to clearly mark paragraph boundaries
+        '\0'     // Null char for leaf nodes (shouldn't occur in normal text)
       );
+
+      console.log('[DEBUG-DOC-EXTRACTION]', {
+        method: 'loadCommentHighlights',
+        doc_length: documentContent.length,
+        doc_size: editor.state.doc.content.size,
+        first_100_chars: documentContent.substring(0, 100),
+        separator_used: '\\n\\n for blocks, \\0 for leaves',
+        length_mismatch: editor.state.doc.content.size - documentContent.length
+      });
 
       // Load comments with position recovery enabled
       const result = await getComments(supabase, scriptId, undefined, documentContent);
@@ -410,8 +421,11 @@ export const TipTapEditor: React.FC = () => {
           .map((comment, index) => ({
             commentId: comment.id,
             commentNumber: index + 1,
-            startPosition: comment.startPosition, // Already recovered if needed
-            endPosition: comment.endPosition, // Already recovered if needed
+            // CRITICAL: Convert text indices back to TipTap positions
+            // Database stores text indices (textBetween coordinate system)
+            // TipTap highlighting needs TipTap positions (add 1 for doc opening)
+            startPosition: comment.startPosition + 1, // text index → TipTap position
+            endPosition: comment.endPosition + 1, // text index → TipTap position
             resolved: !!comment.resolvedAt, // Priority 3: Pass resolved status for visual distinction
           }));
 
@@ -456,7 +470,24 @@ export const TipTapEditor: React.FC = () => {
         setPopupPosition(null);
       } else {
         // Text is selected
-        const selectedContent = editor.state.doc.textBetween(from, to);
+        // CRITICAL: Use '\n\n' separator to match document extraction coordinate system
+        // This ensures positions captured here match positions used during recovery
+        const selectedContent = editor.state.doc.textBetween(from, to, '\n\n', '\0');
+
+        // CRITICAL FIX: TipTap selection positions vs textBetween extraction mismatch
+        // TipTap positions: 0=doc opening, 1=first char, 2=second char, etc.
+        // textBetween string: index 0=first char, 1=second char, etc.
+        // When we extract document with textBetween(0, size, '\n\n', '\0'):
+        //   - TipTap position 76 → text index 75 (because TipTap pos 0 is doc opening)
+        // Position recovery searches in the textBetween-extracted string
+        // So we must store positions adjusted to match textBetween indices
+        const storedFrom = from - 1;  // TipTap pos → text index
+        const storedTo = to - 1;
+
+        // Position conversion verified working - logging disabled for production
+        // Uncomment for debugging position issues:
+        // console.log('[DEBUG-SELECTION]', { tiptap_from: from, tiptap_to: to, stored_from: storedFrom, stored_to: storedTo });
+
         if (selectedContent.trim()) {
           // Calculate popup position based on selection coordinates
           try {
@@ -478,8 +509,8 @@ export const TipTapEditor: React.FC = () => {
 
             setSelectedText({
               text: selectedContent,
-              from,
-              to
+              from: storedFrom,
+              to: storedTo
             });
             setPopupPosition({ top, left });
             setShowCommentPopup(true);
@@ -488,8 +519,8 @@ export const TipTapEditor: React.FC = () => {
             Logger.warn('Failed to calculate popup position, using fallback', { error: (error as Error).message });
             setSelectedText({
               text: selectedContent,
-              from,
-              to
+              from: storedFrom,
+              to: storedTo
             });
             setPopupPosition(null); // Will use CSS fallback positioning
             setShowCommentPopup(true);
@@ -1277,8 +1308,8 @@ export const TipTapEditor: React.FC = () => {
             documentContent={editor.state.doc.textBetween(
               0,
               editor.state.doc.content.size,
-              '\n',
-              '\n'
+              '\n\n',  // Match above - preserve paragraph boundaries
+              '\0'
             )}
           />
         </ErrorBoundary>
