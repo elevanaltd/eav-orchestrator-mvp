@@ -1205,7 +1205,7 @@ export const TipTapEditor: React.FC = () => {
             createComment={createCommentData}
             onCommentCreated={handleCommentCreated}
             onCommentCancelled={handleCommentCancelled}
-            documentContent={editor.getText()}
+            documentContent={editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n', '\n')}
           />
         </ErrorBoundary>
       )}

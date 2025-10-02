@@ -67,28 +67,12 @@ export function findTextInDocument(
   if (exactMatches.length > 0) {
     const closest = findClosestMatch(exactMatches, originalPosition);
 
-    // POSITION MAPPING FIX:
-    // getText() returns plain text where "Start writing..." is at position 18
-    // But in TipTap coordinates, it's at position 19 (after the heading node)
-    //
-    // The general pattern is:
-    // - Plain text position N maps to TipTap position N+1 for content after first block
-    // - This is because TipTap includes node boundaries in its position count
-
-    // Calculate the TipTap position from the plain text position
-    let tipTapPosition: number;
-
-    if (closest < 18) {
-      // Content is within the first block (heading) - no adjustment needed
-      tipTapPosition = closest;
-    } else {
-      // Content is after the first block - add 1 for the node boundary
-      // This handles the common case where heading ends and paragraph begins
-      tipTapPosition = closest + 1;
-    }
+    // IMPORTANT: Since we're now using textBetween() which includes node boundaries,
+    // the positions in documentContent directly match TipTap positions.
+    // No offset adjustment is needed!
 
     // Check if the text is at the expected position (hasn't moved)
-    if (tipTapPosition === originalPosition) {
+    if (closest === originalPosition) {
       // Text is exactly where we expect - no update needed
       return {
         found: true,
@@ -101,8 +85,8 @@ export function findTextInDocument(
     // Text has moved - use the new position
     return {
       found: true,
-      startPosition: tipTapPosition,
-      endPosition: tipTapPosition + highlightedText.length,
+      startPosition: closest,
+      endPosition: closest + highlightedText.length,
       matchQuality: 'exact'
     };
   }
@@ -111,12 +95,11 @@ export function findTextInDocument(
   const caseInsensitiveMatches = findAllOccurrences(documentContent, highlightedText, false);
   if (caseInsensitiveMatches.length > 0) {
     const closest = findClosestMatch(caseInsensitiveMatches, originalPosition);
-    const positionAdjustment = calculatePositionAdjustment(documentContent, closest);
 
     return {
       found: true,
-      startPosition: closest + positionAdjustment,
-      endPosition: closest + highlightedText.length + positionAdjustment,
+      startPosition: closest,
+      endPosition: closest + highlightedText.length,
       matchQuality: 'case-insensitive'
     };
   }
@@ -124,12 +107,10 @@ export function findTextInDocument(
   // Strategy 3: Fuzzy match (for minor typos or edits)
   const fuzzyMatch = findFuzzyMatch(documentContent, highlightedText, originalPosition);
   if (fuzzyMatch) {
-    const positionAdjustment = calculatePositionAdjustment(documentContent, fuzzyMatch.position);
-
     return {
       found: true,
-      startPosition: fuzzyMatch.position + positionAdjustment,
-      endPosition: fuzzyMatch.position + fuzzyMatch.length + positionAdjustment,
+      startPosition: fuzzyMatch.position,
+      endPosition: fuzzyMatch.position + fuzzyMatch.length,
       matchQuality: 'fuzzy'
     };
   }
@@ -137,32 +118,8 @@ export function findTextInDocument(
   return null;
 }
 
-/**
- * Calculate position adjustment for TipTap document structure
- *
- * TipTap positions include node boundaries (paragraphs, headings, etc.)
- * but getText() returns plain text without these boundaries.
- *
- * The adjustment accounts for how TipTap handles block elements:
- * - First block (heading/paragraph) starts at position 1
- * - Each subsequent block adds 1 to the position count
- * - Empty paragraphs (double newlines) are treated as a single node boundary
- */
-function calculatePositionAdjustment(documentContent: string, plainTextPosition: number): number {
-  // For the typical structure "Script for Video\n\nStart writing..."
-  // The heading ends at position 16, empty paragraph at 17, new paragraph starts at 18
-  // In TipTap coordinates: heading is 1-17, new paragraph starts at 19
-  // So text at plain position 18 needs adjustment of +1 to become 19
-
-  const textBeforePosition = documentContent.substring(0, plainTextPosition);
-
-  // Count paragraph breaks (consecutive newlines count as one break)
-  const paragraphBreaks = textBeforePosition.split(/\n+/).length - 1;
-
-  // The adjustment is typically 1 for content after the first block
-  // This handles the common case of heading + empty line + paragraph
-  return Math.min(paragraphBreaks, 1);
-}
+// Position adjustment is no longer needed since we're using textBetween()
+// which preserves TipTap's coordinate system including node boundaries
 
 /**
  * Find all occurrences of text in document
