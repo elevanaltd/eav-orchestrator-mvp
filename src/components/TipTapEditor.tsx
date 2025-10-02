@@ -382,8 +382,9 @@ export const TipTapEditor: React.FC = () => {
     }
   });
 
-  // Load comment highlights from database with position recovery
+  // Load comment highlights from database
   // IMPORTANT: This must be defined before useEffects that reference it
+  // FIX (ADR-005 ADDENDUM 2): Removed documentContent parameter to prevent unnecessary recovery
   const loadCommentHighlights = useCallback(async (scriptId: string) => {
     if (!editor) return;
 
@@ -392,11 +393,9 @@ export const TipTapEditor: React.FC = () => {
       const { getComments } = await import('../lib/comments');
       const { supabase } = await import('../lib/supabase');
 
-      // Get current document content for position recovery
-      const documentContent = editor.getText();
-
-      // Load comments with position recovery enabled
-      const result = await getComments(supabase, scriptId, undefined, documentContent);
+      // Load comments WITHOUT documentContent - positions are already correct PM positions
+      // Recovery is NOT needed for stored positions (only for fresh text-based positions)
+      const result = await getComments(supabase, scriptId);
 
       if (result.success && result.data) {
         const highlights = result.data
@@ -1261,6 +1260,7 @@ export const TipTapEditor: React.FC = () => {
       </div>
 
       {/* Comments Sidebar - Phase 2.3 */}
+      {/* FIX (ADR-005 ADDENDUM 2): Removed documentContent prop from CommentSidebar */}
       {currentScript && editor && (
         <ErrorBoundary>
           <CommentSidebar
@@ -1268,7 +1268,6 @@ export const TipTapEditor: React.FC = () => {
             createComment={createCommentData}
             onCommentCreated={handleCommentCreated}
             onCommentCancelled={handleCommentCancelled}
-            documentContent={editor.getText()}
           />
         </ErrorBoundary>
       )}

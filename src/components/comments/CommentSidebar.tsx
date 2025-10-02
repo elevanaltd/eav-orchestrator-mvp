@@ -34,7 +34,7 @@ export interface CommentSidebarProps {
   } | null;
   onCommentCreated?: (commentData: CreateCommentData) => void;
   onCommentCancelled?: () => void;
-  documentContent?: string; // For position recovery
+  // FIX (ADR-005 ADDENDUM 2): Removed documentContent prop - no longer needed
 }
 
 type FilterMode = 'all' | 'open' | 'resolved';
@@ -43,8 +43,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   scriptId,
   createComment,
   onCommentCreated,
-  onCommentCancelled,
-  documentContent
+  onCommentCancelled
+  // FIX (ADR-005 ADDENDUM 2): Removed documentContent destructuring
 }) => {
   const { currentUser } = useAuth();
   const { executeWithErrorHandling } = useErrorHandling('comment operations');
@@ -78,8 +78,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
     const result = await executeWithErrorHandling(
       async () => {
-        // Pass documentContent for position recovery if available
-        const response = await getComments(supabase, scriptId, undefined, documentContent);
+        // FIX (ADR-005 ADDENDUM 2): Load comments WITHOUT documentContent
+        // Recovery is NOT needed - positions are already correct PM positions from DB
+        const response = await getComments(supabase, scriptId);
 
         if (!response.success) {
           throw new Error(response.error?.message || 'Failed to load comments');
@@ -119,7 +120,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     }
 
     setLoading(false);
-  }, [scriptId, documentContent, executeWithErrorHandling]);
+  }, [scriptId, executeWithErrorHandling]); // Removed documentContent - no longer used
 
   // Load comments without cancellation check (for manual refresh)
   const loadComments = useCallback(() => {
