@@ -986,7 +986,8 @@ export const TipTapEditor: React.FC = () => {
           cursor: pointer;
           position: relative;
           transition: all 0.2s ease;
-          padding-right: 18px; /* Space for number badge */
+          /* Remove padding-right to prevent text flow disruption */
+          display: inline;
         }
 
         .comment-highlight:hover {
@@ -994,11 +995,13 @@ export const TipTapEditor: React.FC = () => {
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
+        /* Position badge in margin to avoid text flow disruption */
         .comment-highlight::after {
           content: attr(data-comment-number);
           position: absolute;
-          top: -8px;
-          right: -6px;
+          top: -6px;
+          /* Position in left margin instead of right to avoid text issues */
+          left: -20px;
           background: #3B82F6;
           color: white;
           font-size: 10px;
@@ -1011,7 +1014,9 @@ export const TipTapEditor: React.FC = () => {
           justify-content: center;
           line-height: 1;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-          z-index: 1;
+          z-index: 10;
+          /* Ensure badge doesn't affect text layout */
+          pointer-events: none;
         }
 
         .comment-highlight.highlight-hover {
