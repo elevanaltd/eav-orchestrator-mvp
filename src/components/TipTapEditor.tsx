@@ -329,6 +329,8 @@ export const TipTapEditor: React.FC = () => {
       const { supabase } = await import('../lib/supabase');
 
       // Get current document content for position recovery
+      // Note: getText() returns plain text without node boundaries,
+      // but stored positions include node boundaries
       const documentContent = editor.getText();
 
       // Load comments with position recovery enabled

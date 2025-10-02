@@ -48,6 +48,9 @@ interface CommentData {
  * 3. Fuzzy match (Levenshtein distance)
  *
  * For multiple matches, returns the one closest to originalPosition
+ *
+ * Note: This function searches in plain text (from editor.getText()),
+ * but returns positions that need to be adjusted for TipTap's document structure
  */
 export function findTextInDocument(
   documentContent: string,
@@ -63,10 +66,26 @@ export function findTextInDocument(
   const exactMatches = findAllOccurrences(documentContent, highlightedText, true);
   if (exactMatches.length > 0) {
     const closest = findClosestMatch(exactMatches, originalPosition);
+
+    // Check if position hasn't moved (within 3 characters tolerance)
+    // If text is found at approximately the same position, return original positions
+    // This avoids adjustment errors when text hasn't actually moved
+    if (Math.abs(closest - originalPosition) <= 3) {
+      return {
+        found: true,
+        startPosition: originalPosition,
+        endPosition: originalPosition + highlightedText.length,
+        matchQuality: 'exact'
+      };
+    }
+
+    // Text has moved - calculate new position with adjustment
+    const positionAdjustment = calculatePositionAdjustment(documentContent, closest);
+
     return {
       found: true,
-      startPosition: closest,
-      endPosition: closest + highlightedText.length,
+      startPosition: closest + positionAdjustment,
+      endPosition: closest + highlightedText.length + positionAdjustment,
       matchQuality: 'exact'
     };
   }
@@ -75,10 +94,12 @@ export function findTextInDocument(
   const caseInsensitiveMatches = findAllOccurrences(documentContent, highlightedText, false);
   if (caseInsensitiveMatches.length > 0) {
     const closest = findClosestMatch(caseInsensitiveMatches, originalPosition);
+    const positionAdjustment = calculatePositionAdjustment(documentContent, closest);
+
     return {
       found: true,
-      startPosition: closest,
-      endPosition: closest + highlightedText.length,
+      startPosition: closest + positionAdjustment,
+      endPosition: closest + highlightedText.length + positionAdjustment,
       matchQuality: 'case-insensitive'
     };
   }
@@ -86,15 +107,36 @@ export function findTextInDocument(
   // Strategy 3: Fuzzy match (for minor typos or edits)
   const fuzzyMatch = findFuzzyMatch(documentContent, highlightedText, originalPosition);
   if (fuzzyMatch) {
+    const positionAdjustment = calculatePositionAdjustment(documentContent, fuzzyMatch.position);
+
     return {
       found: true,
-      startPosition: fuzzyMatch.position,
-      endPosition: fuzzyMatch.position + fuzzyMatch.length,
+      startPosition: fuzzyMatch.position + positionAdjustment,
+      endPosition: fuzzyMatch.position + fuzzyMatch.length + positionAdjustment,
       matchQuality: 'fuzzy'
     };
   }
 
   return null;
+}
+
+/**
+ * Calculate position adjustment for TipTap document structure
+ *
+ * TipTap positions include node boundaries (paragraphs, headings, etc.)
+ * but getText() returns plain text without these boundaries.
+ *
+ * For simplicity, we count newlines before the position as paragraph boundaries
+ * Each newline roughly corresponds to a node boundary that adds 1 to the position
+ */
+function calculatePositionAdjustment(documentContent: string, plainTextPosition: number): number {
+  // Count newlines before the position
+  const textBeforePosition = documentContent.substring(0, plainTextPosition);
+  const newlineCount = (textBeforePosition.match(/\n/g) || []).length;
+
+  // Each newline in plain text typically represents a node boundary in TipTap
+  // that adds 1 to the document position
+  return newlineCount;
 }
 
 /**
