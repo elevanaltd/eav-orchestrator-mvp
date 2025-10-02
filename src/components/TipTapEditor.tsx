@@ -15,6 +15,7 @@ import { Decoration, DecorationSet, EditorView } from '@tiptap/pm/view';
 import { Node, DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
+import { createCommentPositionTracker, type CommentHighlight } from './extensions/CommentPositionTracker';
 import { CommentSidebar } from './comments/CommentSidebar';
 import { ToastContainer } from './ui/Toast';
 import { useToast } from './ui/useToast';
@@ -24,6 +25,8 @@ import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
 import { Logger } from '../services/logger';
+import { useCommentPositionSync } from '../hooks/useCommentPositionSync';
+import { reconcileComments } from '../lib/comment-reconciliation';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
@@ -205,15 +208,13 @@ export const TipTapEditor: React.FC = () => {
   } | null>(null);
 
   // Comment numbering and highlighting state
-  const [, setCommentHighlights] = useState<Array<{
-    commentId: string;
-    commentNumber: number;
-    startPosition: number;
-    endPosition: number;
-  }>>([]);
+  const [commentHighlights, setCommentHighlights] = useState<CommentHighlight[]>([]);
 
   // Track component mount state to prevent updates after unmount
   const isMountedRef = useRef(true);
+
+  // Initialize position sync hook
+  const { debouncedUpdate } = useCommentPositionSync();
 
   // Helper function to generate hash
   const generateHash = (text: string): string => {
@@ -272,6 +273,24 @@ export const TipTapEditor: React.FC = () => {
               commentElement.classList.remove('highlight-hover');
             }
           }
+        }
+      }),
+      // Add position tracker plugin
+      Extension.create({
+        name: 'commentPositionTracking',
+        addProseMirrorPlugins() {
+          return [
+            createCommentPositionTracker(
+              commentHighlights,
+              (updatedHighlights) => {
+                // Update local state
+                setCommentHighlights(updatedHighlights);
+
+                // Debounced DB sync (prevents race conditions)
+                debouncedUpdate(updatedHighlights);
+              }
+            )
+          ];
         }
       })
     ],
@@ -399,13 +418,13 @@ export const TipTapEditor: React.FC = () => {
       const result = await getComments(supabase, scriptId, undefined, documentContent);
 
       if (result.success && result.data) {
-        const highlights = result.data
+        const highlights: CommentHighlight[] = result.data
           .filter(comment => !comment.parentCommentId) // Only parent comments have highlights
           .map((comment, index) => ({
             commentId: comment.id,
             commentNumber: index + 1,
-            startPosition: comment.startPosition, // Already recovered if needed
-            endPosition: comment.endPosition, // Already recovered if needed
+            from: comment.startPosition, // Use 'from' not 'startPosition'
+            to: comment.endPosition, // Use 'to' not 'endPosition'
             resolved: !!comment.resolvedAt, // Priority 3: Pass resolved status for visual distinction
           }));
 
@@ -653,6 +672,11 @@ export const TipTapEditor: React.FC = () => {
 
         // Load comment highlights for this script
         await loadCommentHighlights(script.id);
+
+        // NEW: Run reconciliation to clean orphans
+        reconcileComments(editor, script.id).catch(err => {
+          Logger.warn('Comment reconciliation failed', { error: err });
+        });
       } catch (error) {
         // Only log errors if component is still mounted
         if (!mounted) return;

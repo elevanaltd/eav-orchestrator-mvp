@@ -55,9 +55,9 @@ declare module '@tiptap/core' {
        */
       loadExistingHighlights: (highlights: Array<{
         commentId: string;
-        commentNumber: number;
-        startPosition: number;
-        endPosition: number;
+        commentNumber?: number;
+        from: number;
+        to: number;
         resolved?: boolean;
       }>) => ReturnType;
     };
@@ -218,19 +218,19 @@ export const CommentHighlightExtension = Mark.create<CommentHighlightOptions>({
         ({ state, dispatch, view: _view }) => {
           const { tr } = state;
 
-          highlights.forEach(({ commentId, commentNumber, startPosition, endPosition, resolved }) => {
+          highlights.forEach(({ commentId, commentNumber, from, to, resolved }) => {
             // Ensure positions are within document bounds
             const docSize = tr.doc.content.size;
-            const from = Math.max(0, Math.min(startPosition, docSize));
-            const to = Math.max(from, Math.min(endPosition, docSize));
+            const safeFrom = Math.max(0, Math.min(from, docSize));
+            const safeTo = Math.max(safeFrom, Math.min(to, docSize));
 
-            if (from < to) {
+            if (safeFrom < safeTo) {
               tr.addMark(
-                from,
-                to,
+                safeFrom,
+                safeTo,
                 state.schema.marks.commentHighlight.create({
                   commentId,
-                  commentNumber,
+                  commentNumber: commentNumber ?? 0,
                   resolved: resolved || false,
                 })
               );

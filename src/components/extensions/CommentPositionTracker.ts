@@ -17,6 +17,9 @@ import type { CommentHighlight } from '../../types/comments';
 
 export const CommentPositionTrackerKey = new PluginKey('commentPositionTracker');
 
+// Re-export CommentHighlight for convenience
+export type { CommentHighlight };
+
 /**
  * Create comment position tracker plugin
  *
@@ -57,8 +60,8 @@ export function createCommentPositionTracker(
         // Extract updated positions and notify
         const updatedHighlights: CommentHighlight[] = [];
         mapped.find().forEach(decoration => {
-          // Access decoration attributes
-          const attrs = (decoration as any).type.attrs;
+          // Access decoration attributes - using unknown first to avoid type mismatch
+          const attrs = (decoration as unknown as { type: { attrs: Record<string, string> } }).type.attrs;
           updatedHighlights.push({
             commentId: attrs['data-comment-id'],
             commentNumber: parseInt(attrs['data-comment-number']) || undefined,
@@ -85,38 +88,5 @@ export function createCommentPositionTracker(
   });
 }
 
-/**
- * Update comment highlights in the plugin
- *
- * Use this to add/remove/update comments without recreating the plugin
- */
-export function updateCommentHighlights(
-  highlights: CommentHighlight[]
-): (state: any) => any {
-  return (state) => {
-    const tr = state.tr;
-    const plugin = CommentPositionTrackerKey.get(state);
-
-    if (!plugin) {
-      console.warn('CommentPositionTracker plugin not found');
-      return state.apply(tr);
-    }
-
-    // Create new decoration set
-    const decorations = highlights.map(h =>
-      Decoration.inline(h.from, h.to, {
-        class: h.resolved ? 'comment-highlight comment-resolved' : 'comment-highlight',
-        'data-comment-id': h.commentId,
-        'data-comment-number': (h.commentNumber ?? 0).toString(),
-        'data-resolved': (h.resolved ?? false).toString()
-      })
-    );
-
-    const newDecorationSet = DecorationSet.create(state.doc, decorations);
-
-    // Update plugin state
-    tr.setMeta(CommentPositionTrackerKey, { decorationSet: newDecorationSet });
-
-    return state.apply(tr);
-  };
-}
+// Note: updateCommentHighlights function removed - not used in current implementation
+// The plugin automatically tracks positions through ProseMirror's mapping system

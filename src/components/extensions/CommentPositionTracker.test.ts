@@ -147,7 +147,7 @@ describe('CommentPositionTracker Plugin', () => {
       for (let i = 0; i < 10; i++) {
         const tr = currentState.tr.insertText('x', i);
         const plugin = createCommentPositionTracker(highlights, onPositionsChanged);
-        plugin.spec?.state?.apply?.(tr, currentState.plugins[0].getState(currentState)!);
+        plugin.spec?.state?.apply?.(tr, currentState.plugins[0].getState(currentState)!, currentState, currentState);
         currentState = currentState.apply(tr);
       }
       const avgDuration = (performance.now() - start) / 10;
@@ -171,7 +171,7 @@ describe('CommentPositionTracker Plugin', () => {
       const state = createTestEditorState('Hello world test', highlights);
       const tr = state.tr.insertText('NEW', 5);
       const plugin = createCommentPositionTracker(highlights, onPositionsChanged);
-      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!);
+      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!, state, state);
 
       const updatedHighlights = onPositionsChanged.mock.calls[0][0];
       expect(updatedHighlights[0].resolved).toBe(true); // State preserved
@@ -196,7 +196,7 @@ describe('CommentPositionTracker Plugin', () => {
       // Transaction with no document change (e.g., just selection change)
       const tr = state.tr.setSelection(state.selection);
       const plugin = createCommentPositionTracker(highlights, onPositionsChanged);
-      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!);
+      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!, state, state);
 
       expect(onPositionsChanged).not.toHaveBeenCalled();
     });

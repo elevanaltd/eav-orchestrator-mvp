@@ -261,14 +261,14 @@ describe('CommentHighlightExtension - TDD', () => {
         {
           commentId: 'comment-1',
           commentNumber: 1,
-          startPosition: 1,
-          endPosition: 5
+          from: 1,
+          to: 5
         },
         {
           commentId: 'comment-2',
           commentNumber: 2,
-          startPosition: 10,
-          endPosition: 15
+          from: 10,
+          to: 15
         }
       ];
 
@@ -289,8 +289,8 @@ describe('CommentHighlightExtension - TDD', () => {
         {
           commentId: 'comment-1',
           commentNumber: 1,
-          startPosition: 1000, // Beyond document end
-          endPosition: 1010
+          from: 1000, // Beyond document end
+          to: 1010
         }
       ];
 

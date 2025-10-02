@@ -67,7 +67,7 @@ describe('Comment Reconciliation', () => {
             }))
           }))
         }))
-      } as any)
+      } as unknown as ReturnType<typeof supabase.from>)
 
       await reconcileComments(mockEditor, scriptId)
 
@@ -86,7 +86,7 @@ describe('Comment Reconciliation', () => {
             }))
           }))
         }))
-      } as any)
+      } as unknown as ReturnType<typeof supabase.from>)
 
       await reconcileComments(mockEditor, scriptId)
 
@@ -123,7 +123,7 @@ describe('Comment Reconciliation', () => {
             }))
           }))
         }))
-      } as any)
+      } as unknown as ReturnType<typeof supabase.from>)
 
       await cleanOrphanedHighlights(mockEditor, scriptId, highlights)
 
@@ -147,7 +147,7 @@ describe('Comment Reconciliation', () => {
             }))
           }))
         }))
-      } as any)
+      } as unknown as ReturnType<typeof supabase.from>)
 
       await cleanOrphanedHighlights(mockEditor, scriptId, highlights)
 
@@ -167,7 +167,7 @@ describe('Comment Reconciliation', () => {
             }))
           }))
         }))
-      } as any)
+      } as unknown as ReturnType<typeof supabase.from>)
 
       await cleanOrphanedHighlights(mockEditor, scriptId, [])
 
