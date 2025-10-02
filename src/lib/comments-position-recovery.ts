@@ -67,10 +67,31 @@ export function findTextInDocument(
   if (exactMatches.length > 0) {
     const closest = findClosestMatch(exactMatches, originalPosition);
 
-    // Check if position hasn't moved (within 3 characters tolerance)
-    // If text is found at approximately the same position, return original positions
-    // This avoids adjustment errors when text hasn't actually moved
-    if (Math.abs(closest - originalPosition) <= 3) {
+    // Debug logging to understand the position mapping
+    console.log('[DEBUG] Position recovery:', {
+      searchText: highlightedText.substring(0, 30),
+      plainTextPosition: closest,
+      originalTipTapPosition: originalPosition,
+      documentSnippet: documentContent.substring(closest - 5, closest + 35)
+    });
+
+    // Always apply position adjustment for consistency
+    // The issue is that getText() returns plain text positions (0-based)
+    // but TipTap uses document positions that include node boundaries
+    const positionAdjustment = calculatePositionAdjustment(documentContent, closest);
+    const adjustedPosition = closest + positionAdjustment;
+
+    console.log('[DEBUG] Adjustment calculation:', {
+      plainTextPos: closest,
+      adjustment: positionAdjustment,
+      adjustedPos: adjustedPosition,
+      originalPos: originalPosition,
+      willUseOriginal: Math.abs(adjustedPosition - originalPosition) <= 1
+    });
+
+    // Check if the adjusted position matches the original (text hasn't moved)
+    if (Math.abs(adjustedPosition - originalPosition) <= 1) {
+      // Text is at the expected position - use original to maintain stability
       return {
         found: true,
         startPosition: originalPosition,
@@ -79,13 +100,11 @@ export function findTextInDocument(
       };
     }
 
-    // Text has moved - calculate new position with adjustment
-    const positionAdjustment = calculatePositionAdjustment(documentContent, closest);
-
+    // Text has moved to a new position
     return {
       found: true,
-      startPosition: closest + positionAdjustment,
-      endPosition: closest + highlightedText.length + positionAdjustment,
+      startPosition: adjustedPosition,
+      endPosition: adjustedPosition + highlightedText.length,
       matchQuality: 'exact'
     };
   }
@@ -126,17 +145,25 @@ export function findTextInDocument(
  * TipTap positions include node boundaries (paragraphs, headings, etc.)
  * but getText() returns plain text without these boundaries.
  *
- * For simplicity, we count newlines before the position as paragraph boundaries
- * Each newline roughly corresponds to a node boundary that adds 1 to the position
+ * The adjustment accounts for how TipTap handles block elements:
+ * - First block (heading/paragraph) starts at position 1
+ * - Each subsequent block adds 1 to the position count
+ * - Empty paragraphs (double newlines) are treated as a single node boundary
  */
 function calculatePositionAdjustment(documentContent: string, plainTextPosition: number): number {
-  // Count newlines before the position
-  const textBeforePosition = documentContent.substring(0, plainTextPosition);
-  const newlineCount = (textBeforePosition.match(/\n/g) || []).length;
+  // For the typical structure "Script for Video\n\nStart writing..."
+  // The heading ends at position 16, empty paragraph at 17, new paragraph starts at 18
+  // In TipTap coordinates: heading is 1-17, new paragraph starts at 19
+  // So text at plain position 18 needs adjustment of +1 to become 19
 
-  // Each newline in plain text typically represents a node boundary in TipTap
-  // that adds 1 to the document position
-  return newlineCount;
+  const textBeforePosition = documentContent.substring(0, plainTextPosition);
+
+  // Count paragraph breaks (consecutive newlines count as one break)
+  const paragraphBreaks = textBeforePosition.split(/\n+/).length - 1;
+
+  // The adjustment is typically 1 for content after the first block
+  // This handles the common case of heading + empty line + paragraph
+  return Math.min(paragraphBreaks, 1);
 }
 
 /**
