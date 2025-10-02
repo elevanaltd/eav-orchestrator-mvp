@@ -59,10 +59,25 @@ export function findTextInDocument(
     return null;
   }
 
+  // DEBUG: Log what we're searching for
+  console.log('[DEBUG] Position recovery search:', {
+    searchText: highlightedText,
+    searchLength: highlightedText.length,
+    originalPosition,
+    hasTrailingSpace: highlightedText.endsWith(' '),
+    hasLeadingSpace: highlightedText.startsWith(' ')
+  });
+
   // Strategy 1: Exact match (case-sensitive)
   const exactMatches = findAllOccurrences(documentContent, highlightedText, true);
   if (exactMatches.length > 0) {
     const closest = findClosestMatch(exactMatches, originalPosition);
+    console.log('[DEBUG] Found exact matches:', {
+      allMatches: exactMatches,
+      closest,
+      originalPosition,
+      offset: closest - originalPosition
+    });
     return {
       found: true,
       startPosition: closest,
@@ -232,6 +247,30 @@ export function recoverCommentPosition(
   comment: CommentData,
   currentDocumentContent: string
 ): PositionRecoveryResult {
+  // Skip recovery for recently created comments (< 10 seconds old)
+  // They're already at the correct position - recovery would apply coordinate system mismatches
+  const createdAtValue = comment.created_at as string | undefined;
+  if (createdAtValue) {
+    const createdAt = new Date(createdAtValue);
+    const now = new Date();
+    const ageInSeconds = (now.getTime() - createdAt.getTime()) / 1000;
+
+    if (ageInSeconds < 10) {
+      console.log('[DEBUG] Skipping recovery for fresh comment:', {
+        commentId: comment.id,
+        ageInSeconds: ageInSeconds.toFixed(1),
+        reason: 'Too recent - position already correct'
+      });
+      return {
+        status: 'fallback',
+        newStartPosition: comment.startPosition,
+        newEndPosition: comment.endPosition,
+        matchQuality: 'exact',
+        message: 'Fresh comment - using original position'
+      };
+    }
+  }
+
   // Fallback for legacy comments without highlighted_text
   if (!comment.highlighted_text || comment.highlighted_text.trim() === '') {
     return {
