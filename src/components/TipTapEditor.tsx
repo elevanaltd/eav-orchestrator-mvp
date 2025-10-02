@@ -393,7 +393,10 @@ export const TipTapEditor: React.FC = () => {
       const { supabase } = await import('../lib/supabase');
 
       // Get current document content for position recovery
-      const documentContent = editor.getText();
+      // IMPORTANT: Use textBetween to match TipTap selection positions
+      // editor.getText() excludes node boundaries, causing off-by-one errors
+      const docSize = editor.state.doc.content.size;
+      const documentContent = editor.state.doc.textBetween(0, docSize, '\n', '\n');
 
       // Load comments with position recovery enabled
       const result = await getComments(supabase, scriptId, undefined, documentContent);
@@ -408,6 +411,16 @@ export const TipTapEditor: React.FC = () => {
             endPosition: comment.endPosition, // Already recovered if needed
             resolved: !!comment.resolvedAt, // Priority 3: Pass resolved status for visual distinction
           }));
+
+        // DEBUG: Log positions being loaded
+        Logger.info('Loading comment highlights', {
+          highlights: highlights.map(h => ({
+            id: h.commentId,
+            start: h.startPosition,
+            end: h.endPosition,
+            length: h.endPosition - h.startPosition
+          }))
+        });
 
         setCommentHighlights(highlights);
 
@@ -1278,7 +1291,7 @@ export const TipTapEditor: React.FC = () => {
             createComment={createCommentData}
             onCommentCreated={handleCommentCreated}
             onCommentCancelled={handleCommentCancelled}
-            documentContent={editor.getText()}
+            documentContent={editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n', '\n')}
           />
         </ErrorBoundary>
       )}
