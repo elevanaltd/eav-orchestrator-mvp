@@ -393,7 +393,13 @@ export const TipTapEditor: React.FC = () => {
       const { supabase } = await import('../lib/supabase');
 
       // Get current document content for position recovery
-      const documentContent = editor.getText();
+      // Use textBetween to preserve TipTap coordinate system (includes node boundaries)
+      const documentContent = editor.state.doc.textBetween(
+        0,
+        editor.state.doc.content.size,
+        '\n',
+        '\n'
+      );
 
       // Load comments with position recovery enabled
       const result = await getComments(supabase, scriptId, undefined, documentContent);
@@ -1268,7 +1274,12 @@ export const TipTapEditor: React.FC = () => {
             createComment={createCommentData}
             onCommentCreated={handleCommentCreated}
             onCommentCancelled={handleCommentCancelled}
-            documentContent={editor.getText()}
+            documentContent={editor.state.doc.textBetween(
+              0,
+              editor.state.doc.content.size,
+              '\n',
+              '\n'
+            )}
           />
         </ErrorBoundary>
       )}
