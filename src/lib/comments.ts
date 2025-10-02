@@ -60,6 +60,12 @@ export async function createComment(
     }
 
     // Insert comment into database
+    console.log('🔍 INSERTING TO DB:', {
+      start_position: data.startPosition,
+      end_position: data.endPosition,
+      highlighted_text: data.highlightedText
+    });
+
     const { data: comment, error } = await supabase
       .from('comments')
       .insert({

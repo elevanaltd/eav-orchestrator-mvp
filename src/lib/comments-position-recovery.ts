@@ -243,13 +243,46 @@ export function recoverCommentPosition(
     const ageInSeconds = (now.getTime() - createdAt.getTime()) / 1000;
 
     if (ageInSeconds < 10) {
-      return {
-        status: 'fallback',
-        newStartPosition: comment.startPosition,
-        newEndPosition: comment.endPosition,
-        matchQuality: 'exact',  // Changed from 'none' - PM positions are exact
-        message: 'Fresh comment - ProseMirror positions preserved'
-      };
+      // CRITICAL: Validate positions before preserving
+      const textLength = comment.highlighted_text?.length || 0;
+      const storedLength = comment.endPosition - comment.startPosition;
+
+      // Check if positions make sense
+      const positionsValid = storedLength >= 0 &&
+                            comment.startPosition >= 0 &&
+                            comment.endPosition > 0 &&
+                            Math.abs(storedLength - textLength) <= 2; // Allow small variance for whitespace
+
+      console.log('🔍 FRESH COMMENT - VALIDATION:', {
+        commentId: comment.id,
+        storedPositions: { from: comment.startPosition, to: comment.endPosition },
+        highlightedText: comment.highlighted_text,
+        textLength,
+        storedLength,
+        positionsValid,
+        ageInSeconds
+      });
+
+      if (positionsValid) {
+        // Positions look correct, preserve them
+        return {
+          status: 'fallback',
+          newStartPosition: comment.startPosition,
+          newEndPosition: comment.endPosition,
+          matchQuality: 'exact',  // PM positions are exact
+          message: 'Fresh comment - ProseMirror positions preserved'
+        };
+      } else {
+        // Positions are corrupted, fall through to recovery
+        console.warn('⚠️ FRESH COMMENT HAS INVALID POSITIONS, ATTEMPTING RECOVERY:', {
+          commentId: comment.id,
+          storedPositions: { from: comment.startPosition, to: comment.endPosition },
+          textLength,
+          storedLength,
+          difference: storedLength - textLength
+        });
+        // Fall through to text-based recovery
+      }
     }
   }
 

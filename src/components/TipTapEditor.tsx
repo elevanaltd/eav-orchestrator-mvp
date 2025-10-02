@@ -470,6 +470,16 @@ export const TipTapEditor: React.FC = () => {
       } else {
         // Text is selected
         const selectedContent = editor.state.doc.textBetween(from, to);
+
+        // DEBUG: Log selection details
+        console.log('🎯 SELECTION DETAILS:', {
+          pmPositions: { from, to },
+          selectedText: selectedContent,
+          textLength: selectedContent.length,
+          positionDiff: to - from,
+          fullDocLength: editor.state.doc.content.size
+        });
+
         if (selectedContent.trim()) {
           // Calculate popup position based on selection coordinates
           try {
@@ -1325,6 +1335,15 @@ export const TipTapEditor: React.FC = () => {
             }}
             onClick={() => {
               if (selectedText) {
+                // DEBUG: Log what we're passing to comment creation
+                console.log('📝 CREATING COMMENT WITH:', {
+                  startPosition: selectedText.from,
+                  endPosition: selectedText.to,
+                  selectedText: selectedText.text,
+                  textLength: selectedText.text.length,
+                  positionDiff: selectedText.to - selectedText.from
+                });
+
                 // Set up comment creation in sidebar
                 setCreateCommentData({
                   startPosition: selectedText.from,
