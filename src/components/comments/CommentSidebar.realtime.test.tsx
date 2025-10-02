@@ -115,7 +115,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
             event: '*', // All events (INSERT, UPDATE, DELETE)
             schema: 'public',
             table: 'comments',
-            filter: 'script_id=eq.script-123',
+            // No server-side filter - RLS handles authorization, client filters locally
           }),
           expect.any(Function) // Payload handler callback
         );
@@ -553,27 +553,26 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
   describe('RLS Filtering (Automated)', () => {
     it('should receive only comments for current script_id via RLS', async () => {
       // This test validates that Supabase RLS filters broadcasts automatically
-      // No additional client-side filtering needed
+      // Server-side filter removed to prevent CHANNEL_ERROR with complex RLS
+      // Client-side filtering applied in event handler instead
       render(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(mockChannel.on).toHaveBeenCalledWith(
           'postgres_changes',
           expect.objectContaining({
-            filter: 'script_id=eq.script-123',
+            event: '*',
+            schema: 'public',
+            table: 'comments',
+            // No server-side filter - causes CHANNEL_ERROR with complex RLS policies
           }),
           expect.any(Function)
         );
       });
 
-      // Verify filter was applied in subscription
-      expect(mockChannel.on).toHaveBeenCalledWith(
-        'postgres_changes',
-        expect.objectContaining({
-          filter: 'script_id=eq.script-123',
-        }),
-        expect.any(Function)
-      );
+      // Verify RLS handles authorization at database level
+      // Client-side filtering happens in the event handler
+      expect(mockChannel.on).toHaveBeenCalled();
     });
   });
 

@@ -149,7 +149,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
           event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'comments',
-          filter: `script_id=eq.${scriptId}`, // Only this script's comments
+          // No server-side filter - RLS handles authorization, client filters by scriptId
         },
         async (payload) => {
           // Handle Realtime events
@@ -169,6 +169,11 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
               created_at: string;
               updated_at: string;
             };
+
+            // Client-side filter: only process comments for current script
+            if (commentData.script_id !== scriptId) {
+              return;
+            }
 
             try {
               // Fetch user profile for the comment
@@ -235,6 +240,11 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
               created_at: string;
               updated_at: string;
             };
+
+            // Client-side filter: only process comments for current script
+            if (commentData.script_id !== scriptId) {
+              return;
+            }
 
             try {
               // Fetch user profile for the updated comment
