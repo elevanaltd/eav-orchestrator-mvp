@@ -7,9 +7,10 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { EditorState } from '@tiptap/pm/state';
-import { Schema, DOMParser } from '@tiptap/pm/model';
+import { DOMParser } from '@tiptap/pm/model';
 import { schema as basicSchema } from '@tiptap/pm/schema-basic';
-import { createCommentPositionTracker, type CommentHighlight } from './CommentPositionTracker';
+import { createCommentPositionTracker } from './CommentPositionTracker';
+import type { CommentHighlight } from '../../types/comments';
 
 // Helper to create test editor state
 function createTestEditorState(content: string, highlights: CommentHighlight[] = []) {
@@ -31,9 +32,9 @@ describe('CommentPositionTracker Plugin', () => {
 
       const highlights: CommentHighlight[] = [{
         commentId: 'comment-1',
-        commentNumber: 1,
         from: 10,
         to: 20,
+        commentNumber: 1,
         resolved: false
       }];
 
@@ -42,7 +43,8 @@ describe('CommentPositionTracker Plugin', () => {
 
       // Insert "INSERTED" (8 chars) at position 5
       const tr = state.tr.insertText('INSERTED', 5);
-      const newPluginState = plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!);
+      const newState = state.apply(tr);
+      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!, state, newState);
 
       // Expect callback with shifted positions
       expect(onPositionsChanged).toHaveBeenCalled();
@@ -68,7 +70,8 @@ describe('CommentPositionTracker Plugin', () => {
       // Insert at position 15 (after comment)
       const tr = state.tr.insertText(' ADDED', 15);
       const plugin = createCommentPositionTracker(highlights, onPositionsChanged);
-      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!);
+      const newState = state.apply(tr);
+      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!, state, newState);
 
       // Positions should not change
       const updatedHighlights = onPositionsChanged.mock.calls[0][0];
@@ -94,7 +97,8 @@ describe('CommentPositionTracker Plugin', () => {
       // Delete "DELETE_ME " (10 chars) from position 1 (after opening <p> tag)
       const tr = state.tr.delete(1, 11);
       const plugin = createCommentPositionTracker(highlights, onPositionsChanged);
-      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!);
+      const newState = state.apply(tr);
+      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!, state, newState);
 
       const updatedHighlights = onPositionsChanged.mock.calls[0][0];
       expect(updatedHighlights[0].from).toBe(7);  // 17 - 10
@@ -118,7 +122,8 @@ describe('CommentPositionTracker Plugin', () => {
       const start = performance.now();
       const tr = state.tr.insertText('x', 0);
       const plugin = createCommentPositionTracker(highlights, onPositionsChanged);
-      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!);
+      const newState = state.apply(tr);
+      plugin.spec?.state?.apply?.(tr, state.plugins[0].getState(state)!, state, newState);
       const duration = performance.now() - start;
 
       expect(duration).toBeLessThan(5); // <5ms requirement

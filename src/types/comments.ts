@@ -162,3 +162,12 @@ export interface CommentRecoveryResult {
 export interface CommentWithRecovery extends CommentWithUser {
   recovery?: CommentRecoveryResult;
 }
+
+// Comment highlight for position tracking (Phase 2)
+export interface CommentHighlight {
+  commentId: string
+  from: number
+  to: number
+  commentNumber?: number
+  resolved?: boolean
+}

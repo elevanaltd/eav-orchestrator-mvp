@@ -13,16 +13,9 @@
 
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { DecorationSet, Decoration } from '@tiptap/pm/view';
+import type { CommentHighlight } from '../../types/comments';
 
 export const CommentPositionTrackerKey = new PluginKey('commentPositionTracker');
-
-export interface CommentHighlight {
-  commentId: string;
-  commentNumber: number;
-  from: number;
-  to: number;
-  resolved: boolean;
-}
 
 /**
  * Create comment position tracker plugin
@@ -45,8 +38,8 @@ export function createCommentPositionTracker(
           Decoration.inline(h.from, h.to, {
             class: h.resolved ? 'comment-highlight comment-resolved' : 'comment-highlight',
             'data-comment-id': h.commentId,
-            'data-comment-number': h.commentNumber.toString(),
-            'data-resolved': h.resolved.toString()
+            'data-comment-number': (h.commentNumber ?? 0).toString(),
+            'data-resolved': (h.resolved ?? false).toString()
           })
         );
         return DecorationSet.create(state.doc, decorations);
@@ -68,10 +61,10 @@ export function createCommentPositionTracker(
           const attrs = (decoration as any).type.attrs;
           updatedHighlights.push({
             commentId: attrs['data-comment-id'],
-            commentNumber: parseInt(attrs['data-comment-number']),
+            commentNumber: parseInt(attrs['data-comment-number']) || undefined,
             from: decoration.from,
             to: decoration.to,
-            resolved: attrs['data-resolved'] === 'true'
+            resolved: attrs['data-resolved'] === 'true' || undefined
           });
         });
 
@@ -114,8 +107,8 @@ export function updateCommentHighlights(
       Decoration.inline(h.from, h.to, {
         class: h.resolved ? 'comment-highlight comment-resolved' : 'comment-highlight',
         'data-comment-id': h.commentId,
-        'data-comment-number': h.commentNumber.toString(),
-        'data-resolved': h.resolved.toString()
+        'data-comment-number': (h.commentNumber ?? 0).toString(),
+        'data-resolved': (h.resolved ?? false).toString()
       })
     );
 
