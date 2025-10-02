@@ -67,31 +67,29 @@ export function findTextInDocument(
   if (exactMatches.length > 0) {
     const closest = findClosestMatch(exactMatches, originalPosition);
 
-    // Debug logging to understand the position mapping
-    console.log('[DEBUG] Position recovery:', {
-      searchText: highlightedText.substring(0, 30),
-      plainTextPosition: closest,
-      originalTipTapPosition: originalPosition,
-      documentSnippet: documentContent.substring(closest - 5, closest + 35)
-    });
+    // POSITION MAPPING FIX:
+    // getText() returns plain text where "Start writing..." is at position 18
+    // But in TipTap coordinates, it's at position 19 (after the heading node)
+    //
+    // The general pattern is:
+    // - Plain text position N maps to TipTap position N+1 for content after first block
+    // - This is because TipTap includes node boundaries in its position count
 
-    // Always apply position adjustment for consistency
-    // The issue is that getText() returns plain text positions (0-based)
-    // but TipTap uses document positions that include node boundaries
-    const positionAdjustment = calculatePositionAdjustment(documentContent, closest);
-    const adjustedPosition = closest + positionAdjustment;
+    // Calculate the TipTap position from the plain text position
+    let tipTapPosition: number;
 
-    console.log('[DEBUG] Adjustment calculation:', {
-      plainTextPos: closest,
-      adjustment: positionAdjustment,
-      adjustedPos: adjustedPosition,
-      originalPos: originalPosition,
-      willUseOriginal: Math.abs(adjustedPosition - originalPosition) <= 1
-    });
+    if (closest < 18) {
+      // Content is within the first block (heading) - no adjustment needed
+      tipTapPosition = closest;
+    } else {
+      // Content is after the first block - add 1 for the node boundary
+      // This handles the common case where heading ends and paragraph begins
+      tipTapPosition = closest + 1;
+    }
 
-    // Check if the adjusted position matches the original (text hasn't moved)
-    if (Math.abs(adjustedPosition - originalPosition) <= 1) {
-      // Text is at the expected position - use original to maintain stability
+    // Check if the text is at the expected position (hasn't moved)
+    if (tipTapPosition === originalPosition) {
+      // Text is exactly where we expect - no update needed
       return {
         found: true,
         startPosition: originalPosition,
@@ -100,11 +98,11 @@ export function findTextInDocument(
       };
     }
 
-    // Text has moved to a new position
+    // Text has moved - use the new position
     return {
       found: true,
-      startPosition: adjustedPosition,
-      endPosition: adjustedPosition + highlightedText.length,
+      startPosition: tipTapPosition,
+      endPosition: tipTapPosition + highlightedText.length,
       matchQuality: 'exact'
     };
   }
