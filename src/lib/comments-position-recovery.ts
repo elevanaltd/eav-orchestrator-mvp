@@ -36,6 +36,7 @@ interface CommentData {
   startPosition: number;
   endPosition: number;
   highlighted_text: string;
+  created_at?: string; // CRITICAL FIX: Required for fresh comment detection
   [key: string]: unknown;
 }
 
@@ -232,6 +233,27 @@ export function recoverCommentPosition(
   comment: CommentData,
   currentDocumentContent: string
 ): PositionRecoveryResult {
+  // CRITICAL FIX: Skip position recovery for fresh comments (< 10 seconds old)
+  // Fresh comments are already at correct TipTap positions
+  // Position recovery uses plain text coordinates which causes offset bug
+  // This restores the proven fix from commit 374cbae (PR#43)
+  const createdAtValue = comment.created_at;
+  if (createdAtValue) {
+    const createdAt = new Date(createdAtValue);
+    const now = new Date();
+    const ageInSeconds = (now.getTime() - createdAt.getTime()) / 1000;
+
+    if (ageInSeconds < 10) {
+      return {
+        status: 'fallback',
+        newStartPosition: comment.startPosition,
+        newEndPosition: comment.endPosition,
+        matchQuality: 'none',
+        message: 'Fresh comment - using original position'
+      };
+    }
+  }
+
   // Fallback for legacy comments without highlighted_text
   if (!comment.highlighted_text || comment.highlighted_text.trim() === '') {
     return {
