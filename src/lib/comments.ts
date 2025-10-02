@@ -184,7 +184,7 @@ export async function getComments(
     const userIds = [...new Set((comments || []).flatMap(comment => [comment.user_id, comment.resolved_by]).filter(Boolean) as string[])];
 
     // Step 2: Fetch user profiles with caching - only query uncached profiles
-    const userProfilesMap = new Map<string, { id: string; email: string; display_name: string | null }>();
+    const userProfilesMap = new Map<string, { id: string; email: string; display_name: string | null; role: string | null }>();
 
     if (userIds.length > 0) {
       // Check cache first and identify missing profiles
@@ -230,6 +230,9 @@ export async function getComments(
 
     // Step 4: Transform to application format with efficient user lookup
     const commentsWithUser: CommentWithUser[] = (comments || []).map(comment => {
+      const userProfile = userProfilesMap.get(comment.user_id);
+      const resolvedByProfile = comment.resolved_by ? userProfilesMap.get(comment.resolved_by) : null;
+
       return {
         id: comment.id,
         scriptId: comment.script_id,
@@ -243,8 +246,18 @@ export async function getComments(
         resolvedBy: comment.resolved_by,
         createdAt: comment.created_at,
         updatedAt: comment.updated_at,
-        user: userProfilesMap.get(comment.user_id),
-        resolvedByUser: comment.resolved_by ? userProfilesMap.get(comment.resolved_by) : null,
+        user: userProfile ? {
+          id: userProfile.id,
+          email: userProfile.email,
+          displayName: userProfile.display_name, // Transform snake_case to camelCase
+          role: userProfile.role
+        } : undefined,
+        resolvedByUser: resolvedByProfile ? {
+          id: resolvedByProfile.id,
+          email: resolvedByProfile.email,
+          displayName: resolvedByProfile.display_name, // Transform snake_case to camelCase
+          role: resolvedByProfile.role
+        } : null,
       };
     });
 
