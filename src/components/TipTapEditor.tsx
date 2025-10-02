@@ -451,6 +451,17 @@ export const TipTapEditor: React.FC = () => {
       } else {
         // Text is selected
         const selectedContent = editor.state.doc.textBetween(from, to);
+
+        // DEBUG: Log selection details
+        Logger.info('Selection debug', {
+          from,
+          to,
+          selectedContent,
+          contentLength: selectedContent.length,
+          trimmedContent: selectedContent.trim(),
+          trimmedLength: selectedContent.trim().length
+        });
+
         if (selectedContent.trim()) {
           // Calculate popup position based on selection coordinates
           try {

@@ -153,6 +153,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       Logger.info('Initializing realtime channel', { scriptId, userId: session.user.id });
 
       // Create Realtime channel scoped to this script
+      // NOTE: We don't use filter here because it conflicts with complex RLS policies
+      // Instead, RLS policies filter broadcasts per-subscriber (WALRUS function)
+      // We filter client-side in the event handler for this script's comments only
       const channel = supabase
         .channel(`comments:${scriptId}`)
       .on(
@@ -161,9 +164,19 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
           event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'comments',
-          filter: `script_id=eq.${scriptId}`, // Only this script's comments
+          // NO FILTER - RLS handles authorization, we filter client-side below
         },
         async (payload) => {
+          // CLIENT-SIDE FILTER: Only process events for this script
+          // (RLS already filtered to comments user can see, we just filter by script_id)
+          const eventScriptId = (payload.new as { script_id?: string })?.script_id ||
+                                (payload.old as { script_id?: string })?.script_id;
+
+          if (eventScriptId !== scriptId) {
+            // Event is for a different script, ignore it
+            return;
+          }
+
           // Handle Realtime events
           if (payload.eventType === 'INSERT') {
             // TYPE SAFETY FIX: payload.new only contains raw table data, no JOINs
@@ -315,7 +328,13 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
           Logger.info('Realtime channel subscribed', { scriptId });
           setError(null); // Clear any previous errors
         } else if (status === 'CHANNEL_ERROR') {
-          Logger.error('Realtime channel error', { scriptId });
+          Logger.error('Realtime channel error', { scriptId, status });
+          // Log channel state for debugging
+          Logger.error('Channel error details', {
+            channelState: channel.state,
+            topic: channel.topic,
+            params: channel.params
+          });
           // Don't show error immediately - Supabase will auto-reconnect
           // Only show error if it persists beyond automatic retry
         } else if (status === 'TIMED_OUT') {
