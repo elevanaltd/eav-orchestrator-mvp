@@ -233,10 +233,9 @@ export function recoverCommentPosition(
   comment: CommentData,
   currentDocumentContent: string
 ): PositionRecoveryResult {
-  // CRITICAL FIX: Skip position recovery for fresh comments (< 10 seconds old)
-  // Fresh comments are already at correct TipTap positions
-  // Position recovery uses plain text coordinates which causes offset bug
-  // This restores the proven fix from commit 374cbae (PR#43)
+  // ARCHITECTURAL NOTE: Fresh comments (< 10 seconds old) store ProseMirror positions directly
+  // These positions are already correct and should NOT be processed through text-based recovery
+  // Position recovery is ONLY for legacy comments with string-based indices
   const createdAtValue = comment.created_at;
   if (createdAtValue) {
     const createdAt = new Date(createdAtValue);
@@ -248,8 +247,8 @@ export function recoverCommentPosition(
         status: 'fallback',
         newStartPosition: comment.startPosition,
         newEndPosition: comment.endPosition,
-        matchQuality: 'none',
-        message: 'Fresh comment - using original position'
+        matchQuality: 'exact',  // Changed from 'none' - PM positions are exact
+        message: 'Fresh comment - ProseMirror positions preserved'
       };
     }
   }

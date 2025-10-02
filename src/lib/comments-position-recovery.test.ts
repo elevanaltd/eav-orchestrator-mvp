@@ -35,7 +35,8 @@ describe('Position Recovery - Fresh Comment Detection (Bug Fix)', () => {
     const result = recoverCommentPosition(freshComment, ORIGINAL_DOC);
 
     expect(result.status).toBe('fallback');
-    expect(result.message).toBe('Fresh comment - using original position');
+    expect(result.message).toBe('Fresh comment - ProseMirror positions preserved');
+    expect(result.matchQuality).toBe('exact'); // PM positions are exact
     expect(result.newStartPosition).toBe(19);
     expect(result.newEndPosition).toBe(23);
   });
