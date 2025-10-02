@@ -279,11 +279,19 @@ export async function getComments(
 
       for (const [commentId, recovery] of recoveryResults.entries()) {
         if (recovery.status === 'relocated') {
-          positionsToUpdate.push({
-            id: commentId,
-            start_position: recovery.newStartPosition,
-            end_position: recovery.newEndPosition
-          });
+          // Find original comment to compare positions
+          const originalComment = commentsWithUser.find(c => c.id === commentId);
+
+          // Only update if positions actually changed (prevent cascade loop)
+          if (originalComment &&
+              (originalComment.startPosition !== recovery.newStartPosition ||
+               originalComment.endPosition !== recovery.newEndPosition)) {
+            positionsToUpdate.push({
+              id: commentId,
+              start_position: recovery.newStartPosition,
+              end_position: recovery.newEndPosition
+            });
+          }
         }
       }
 

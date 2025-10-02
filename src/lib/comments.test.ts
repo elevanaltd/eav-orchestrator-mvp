@@ -1148,4 +1148,203 @@ describe('Comments CRUD Functions - TDD Phase', () => {
       // When one delete fails, verify entire transaction is rolled back
     });
   });
+
+  describe('Position Recovery - Cascade Loop Prevention (RED PHASE)', () => {
+    test('should not update database if recovered positions match current positions', async () => {
+      // Setup: Comment at position 10-20 with correct highlighted_text
+      // MUST be OLD comment (> 10 seconds) to trigger position recovery
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create old timestamp (20 seconds ago) to bypass fresh comment check
+      const oldTimestamp = new Date(Date.now() - 20000).toISOString();
+
+      // Create comment at position 13-23 where "moved text" actually exists
+      const { data: comment } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Test comment',
+        start_position: 13,
+        end_position: 23,
+        highlighted_text: 'moved text',
+        created_at: oldTimestamp  // Old comment to trigger recovery
+      }).select().single();
+
+      // Document content where "moved text" is at position 13-23
+      const documentContent = 'Some content moved text here';
+
+      // Track how many times positions are updated
+      const originalFrom = supabaseClient.from.bind(supabaseClient);
+      let updateCallCount = 0;
+
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      supabaseClient.from = ((table: any) => {
+        const builder = originalFrom(table);
+        if (table === 'comments') {
+          const originalUpdate = builder.update.bind(builder);
+          builder.update = ((arg: any) => {
+            updateCallCount++;
+            return originalUpdate(arg);
+          }) as any;
+        }
+        return builder;
+      }) as any;
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+
+      try {
+        // Call getComments with recovery - positions are already correct
+        const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID, undefined, documentContent);
+
+        expect(result.success).toBe(true);
+
+        // ASSERT: No database update should occur (positions unchanged)
+        // THIS WILL FAIL until fix is implemented
+        expect(updateCallCount).toBe(0);
+
+        // Verify comment positions remain unchanged in database
+        const { data: dbComment } = await supabaseClient
+          .from('comments')
+          .select('start_position, end_position')
+          .eq('id', comment!.id)
+          .single();
+
+        expect(dbComment?.start_position).toBe(13);
+        expect(dbComment?.end_position).toBe(23);
+
+      } finally {
+        // Restore original from method
+        supabaseClient.from = originalFrom;
+      }
+    });
+
+    test('should update database only when positions actually change', async () => {
+      // Setup: Comment at WRONG position 5-10, but text is at 13-23
+      // MUST be OLD comment (> 10 seconds) to trigger position recovery
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create old timestamp (20 seconds ago) to bypass fresh comment check
+      const oldTimestamp = new Date(Date.now() - 20000).toISOString();
+
+      const { data: comment } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Test comment',
+        start_position: 5,  // WRONG position
+        end_position: 10,   // WRONG position
+        highlighted_text: 'moved text',
+        created_at: oldTimestamp  // Old comment to trigger recovery
+      }).select().single();
+
+      const documentContent = 'Some content moved text here';
+
+      // Track update calls
+      const originalFrom = supabaseClient.from.bind(supabaseClient);
+      let updateCallCount = 0;
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      let updatedData: any = null;
+      supabaseClient.from = ((table: any) => {
+        const builder = originalFrom(table);
+        if (table === 'comments') {
+          const originalUpdate = builder.update.bind(builder);
+          builder.update = ((data: any) => {
+            updateCallCount++;
+            updatedData = data;
+            return originalUpdate(data);
+          }) as any;
+        }
+        return builder;
+      }) as any;
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+
+      try {
+        const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID, undefined, documentContent);
+
+        expect(result.success).toBe(true);
+
+        // ASSERT: Database update SHOULD occur (positions need correction)
+        expect(updateCallCount).toBeGreaterThan(0);
+
+        // Verify correct positions were used
+        if (updatedData && Array.isArray(updatedData)) {
+          expect(updatedData).toHaveLength(1);
+          expect(updatedData[0].start_position).toBe(13); // Correct position
+          expect(updatedData[0].end_position).toBe(23);
+        } else if (updatedData) {
+          // Single object update (not array)
+          expect(updatedData.start_position).toBe(13);
+          expect(updatedData.end_position).toBe(23);
+        }
+
+        // Verify positions are corrected in database
+        const { data: dbComment } = await supabaseClient
+          .from('comments')
+          .select('start_position, end_position')
+          .eq('id', comment!.id)
+          .single();
+
+        expect(dbComment?.start_position).toBe(13);
+        expect(dbComment?.end_position).toBe(23);
+
+      } finally {
+        supabaseClient.from = originalFrom;
+      }
+    });
+
+    test('should prevent cascade loop from realtime subscription triggers', async () => {
+      // This test validates that position recovery doesn't trigger infinite loops
+      // when Supabase realtime subscriptions fire on position updates
+
+      const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+      // Create old timestamp (20 seconds ago) to bypass fresh comment check
+      const oldTimestamp = new Date(Date.now() - 20000).toISOString();
+
+      // Create comment with correct positions
+      const { data: comment } = await supabaseClient.from('comments').insert({
+        script_id: TEST_SCRIPT_ID,
+        user_id: adminUserId,
+        content: 'Test comment for cascade prevention',
+        start_position: 13,
+        end_position: 23,
+        highlighted_text: 'moved text',
+        created_at: oldTimestamp  // Old comment to trigger recovery
+      }).select().single();
+
+      const documentContent = 'Some content moved text here';
+
+      // Track consecutive getComments calls that result in updates
+      const originalFrom = supabaseClient.from.bind(supabaseClient);
+      let consecutiveUpdates = 0;
+
+      /* eslint-disable @typescript-eslint/no-explicit-any */
+      supabaseClient.from = ((table: any) => {
+        const builder = originalFrom(table);
+        if (table === 'comments') {
+          const originalUpdate = builder.update.bind(builder);
+          builder.update = ((arg: any) => {
+            consecutiveUpdates++;
+            return originalUpdate(arg);
+          }) as any;
+        }
+        return builder;
+      }) as any;
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+
+      try {
+        // Simulate multiple getComments calls (as would happen with realtime subscriptions)
+        for (let i = 0; i < 5; i++) {
+          await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID, undefined, documentContent);
+        }
+
+        // ASSERT: No cascade loop should occur - no updates should happen
+        // THIS WILL FAIL until fix is implemented
+        expect(consecutiveUpdates).toBe(0);
+
+      } finally {
+        supabaseClient.from = originalFrom;
+
+        // Cleanup
+        await supabaseClient.from('comments').delete().eq('id', comment!.id);
+      }
+    });
+  });
 });
