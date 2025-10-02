@@ -22,6 +22,61 @@ import {
 // Mock document content for testing
 const ORIGINAL_DOC = 'Hello world. This is a test document. The quick brown fox jumps over the lazy dog.';
 
+describe('Position Recovery - Fresh Comment Detection (Bug Fix)', () => {
+  it('should skip position recovery for comments < 10 seconds old', () => {
+    const freshComment = {
+      id: 'comment-1',
+      startPosition: 19,
+      endPosition: 23,
+      highlighted_text: 'test',
+      created_at: new Date().toISOString(), // Fresh comment (just now)
+    };
+
+    const result = recoverCommentPosition(freshComment, ORIGINAL_DOC);
+
+    expect(result.status).toBe('fallback');
+    expect(result.message).toBe('Fresh comment - using original position');
+    expect(result.newStartPosition).toBe(19);
+    expect(result.newEndPosition).toBe(23);
+  });
+
+  it('should run position recovery for comments >= 10 seconds old', () => {
+    const oldDate = new Date();
+    oldDate.setSeconds(oldDate.getSeconds() - 11); // 11 seconds ago
+
+    const oldComment = {
+      id: 'comment-1',
+      startPosition: 0,
+      endPosition: 4,
+      highlighted_text: 'test',
+      created_at: oldDate.toISOString(),
+    };
+
+    const result = recoverCommentPosition(oldComment, ORIGINAL_DOC);
+
+    // Should run recovery and relocate to where "test" actually appears (position 23)
+    expect(result.status).toBe('relocated');
+    expect(result.newStartPosition).toBe(23); // Actual position of "test" in document
+  });
+
+  it('should handle missing created_at field gracefully', () => {
+    const commentWithoutDate = {
+      id: 'comment-1',
+      startPosition: 0,
+      endPosition: 4,
+      highlighted_text: 'test',
+      // No created_at field
+    };
+
+    const result = recoverCommentPosition(commentWithoutDate, ORIGINAL_DOC);
+
+    // Should proceed with normal recovery logic (not crash)
+    expect(result).toBeDefined();
+    expect(result.status).toBe('relocated');
+    expect(result.newStartPosition).toBe(23); // Relocates to actual position
+  });
+});
+
 describe('Position Recovery - Text Matching', () => {
   describe('findTextInDocument', () => {
     it('should find exact text match and return new position', () => {

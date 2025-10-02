@@ -268,7 +268,8 @@ export async function getComments(
           id: c.id,
           startPosition: c.startPosition,
           endPosition: c.endPosition,
-          highlighted_text: c.highlightedText || ''
+          highlighted_text: c.highlightedText || '',
+          created_at: c.createdAt // CRITICAL FIX: Pass created_at for fresh comment detection
         })),
         documentContent
       );
