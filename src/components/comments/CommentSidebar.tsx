@@ -140,9 +140,21 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   useEffect(() => {
     if (!scriptId) return;
 
-    // Create Realtime channel scoped to this script
-    const channel = supabase
-      .channel(`comments:${scriptId}`)
+    // Verify user is authenticated before subscribing to realtime
+    const checkAuthAndSubscribe = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        Logger.warn('No active session for realtime subscription', { scriptId });
+        setError('Please log in to see live updates');
+        return null;
+      }
+
+      Logger.info('Initializing realtime channel', { scriptId, userId: session.user.id });
+
+      // Create Realtime channel scoped to this script
+      const channel = supabase
+        .channel(`comments:${scriptId}`)
       .on(
         'postgres_changes',
         {
@@ -301,21 +313,39 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         // Channel status monitoring for connection health
         if (status === 'SUBSCRIBED') {
           Logger.info('Realtime channel subscribed', { scriptId });
+          setError(null); // Clear any previous errors
         } else if (status === 'CHANNEL_ERROR') {
           Logger.error('Realtime channel error', { scriptId });
-          setError('Realtime updates unavailable. Refresh to reconnect.');
+          // Don't show error immediately - Supabase will auto-reconnect
+          // Only show error if it persists beyond automatic retry
         } else if (status === 'TIMED_OUT') {
           Logger.warn('Realtime channel timed out', { scriptId });
-          setError('Connection timeout. Refresh to reconnect.');
+          setError('Connection timeout. Trying to reconnect...');
         } else if (status === 'CLOSED') {
           Logger.info('Realtime channel closed', { scriptId });
+          // Connection closed - this is normal during cleanup or reconnection
         }
       });
 
+      return channel;
+    };
+
+    // Initialize subscription
+    let channelRef: ReturnType<typeof supabase.channel> | null = null;
+
+    checkAuthAndSubscribe().then(channel => {
+      channelRef = channel;
+    }).catch(err => {
+      Logger.error('Failed to initialize realtime subscription', { error: err, scriptId });
+      setError('Realtime updates unavailable');
+    });
+
     // Cleanup: unsubscribe when scriptId changes or component unmounts
     return () => {
-      Logger.info('Unsubscribing from realtime channel', { scriptId });
-      channel.unsubscribe();
+      if (channelRef) {
+        Logger.info('Unsubscribing from realtime channel', { scriptId });
+        channelRef.unsubscribe();
+      }
     };
   }, [scriptId]);
 
