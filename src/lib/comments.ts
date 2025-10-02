@@ -13,6 +13,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import { Logger } from '../services/logger';
 import type { Database } from '../types/database.types';
 import type {
   CommentWithUser,
@@ -58,6 +59,14 @@ export async function createComment(
         }
       };
     }
+
+    // DEBUG: Log positions being saved
+    Logger.info('Creating comment with positions', {
+      startPosition: data.startPosition,
+      endPosition: data.endPosition,
+      highlightedText: data.highlightedText,
+      textLength: data.highlightedText?.length
+    });
 
     // Insert comment into database
     const { data: comment, error } = await supabase
@@ -268,7 +277,8 @@ export async function getComments(
           id: c.id,
           startPosition: c.startPosition,
           endPosition: c.endPosition,
-          highlighted_text: c.highlightedText || ''
+          highlighted_text: c.highlightedText || '',
+          created_at: c.createdAt // Pass creation timestamp for fresh comment detection
         })),
         documentContent
       );
