@@ -396,7 +396,10 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       }
       channel.unsubscribe();
     };
-  }, [scriptId, reconnectionTimer, fetchUserProfileCached]);
+    // ESLint false positive: reconnectionTimer is managed internally and must NOT trigger re-subscription
+    // Including it in deps caused infinite loop bug (subscribe→unsubscribe→close→repeat)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scriptId, fetchUserProfileCached]);
 
   // Filter comments based on resolved status
   const filteredComments = comments.filter(comment => {
