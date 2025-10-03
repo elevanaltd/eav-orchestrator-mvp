@@ -9,9 +9,8 @@
  * Solution: Clear cache when scriptId changes
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
-import { CommentSidebar } from './CommentSidebar';
+import { describe, it, expect, beforeEach } from 'vitest';
+import fs from 'fs';
 
 // Mock dependencies
 vi.mock('../../lib/supabase', () => ({
@@ -82,7 +81,7 @@ describe('CommentSidebar - User Profile Cache Management', () => {
     // This is a structural test - verify the fix exists in code
     // Will pass once useEffect cleanup is added to CommentSidebar.tsx
 
-    const CommentSidebarSource = require('fs').readFileSync(
+    const CommentSidebarSource = fs.readFileSync(
       '/Volumes/HestAI-Projects/eav-orchestrator-mvp/eav-orchestrator-mvp/src/components/comments/CommentSidebar.tsx',
       'utf8'
     );

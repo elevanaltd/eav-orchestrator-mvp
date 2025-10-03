@@ -9,12 +9,13 @@
  * Solution: Add isCancelledRef to prevent post-unmount execution
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import fs from 'fs';
 
 describe('CommentSidebar - Reconnection Timer Safety', () => {
   it('should include cancellation check in reconnection timer (RED STATE)', () => {
     // Structural test - verify the fix exists in code
-    const CommentSidebarSource = require('fs').readFileSync(
+    const CommentSidebarSource = fs.readFileSync(
       '/Volumes/HestAI-Projects/eav-orchestrator-mvp/eav-orchestrator-mvp/src/components/comments/CommentSidebar.tsx',
       'utf8'
     );
