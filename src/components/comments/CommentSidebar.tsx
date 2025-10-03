@@ -167,10 +167,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setLoading(false);
   }, [scriptId, documentContent, executeWithErrorHandling]);
 
-  // Load comments without cancellation check (for manual refresh)
-  const loadComments = useCallback(() => {
-    loadCommentsWithCleanup(); // No cancellation check
-  }, [loadCommentsWithCleanup]);
+  // Note: Manual refresh removed - realtime handles all updates automatically
+  // loadCommentsWithCleanup() used only for initial mount/scriptId change
 
   useEffect(() => {
     let isCancelled = false; // Cleanup flag for async operations
@@ -462,7 +460,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
     if (result.success) {
       setCommentText('');
-      await loadComments(); // Refresh comments to show the new one
+      // Realtime subscription will add the comment automatically - no need to reload
 
       // Call the callback if provided (for parent component to reload highlights)
       if (onCommentCreated) {
@@ -525,7 +523,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       // Reset reply state
       setReplyingTo(null);
       setReplyText('');
-      await loadComments(); // Refresh comments to show the new reply
+      // Realtime subscription will add the reply automatically - no need to reload
     }
 
     setSubmittingReply(false);
@@ -563,7 +561,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     );
 
     if (result.success) {
-      await loadComments(); // Refresh comments to show the updated state
+      // Realtime subscription will update the comment automatically - no need to reload
     }
   };
 
@@ -597,7 +595,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
     if (result.success) {
       setDeleteConfirming(null);
-      await loadComments(); // Refresh comments to show the updated state
+      // Realtime subscription will remove the comment automatically - no need to reload
     }
 
     setDeleting(false);
@@ -639,7 +637,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     if (result.success) {
       setEditing(null);
       setEditText('');
-      await loadComments(); // Refresh comments to show the updated content
+      // Realtime subscription will update the comment automatically - no need to reload
     }
 
     setSubmittingEdit(false);
