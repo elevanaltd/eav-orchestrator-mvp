@@ -9,7 +9,7 @@
  * - Comment creation form
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -58,6 +58,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
   // Connection state for realtime resilience
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected');
+  const [reconnectionTimer, setReconnectionTimer] = useState<NodeJS.Timeout | null>(null);
+  const reconnectionAttemptsRef = useRef(0);
 
   // Reply functionality state
   const [replyingTo, setReplyingTo] = useState<string | null>(null); // commentId being replied to
@@ -316,24 +318,58 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         if (status === 'SUBSCRIBED') {
           Logger.info('Realtime channel subscribed', { scriptId });
           setConnectionStatus('connected');
-        } else if (status === 'CHANNEL_ERROR') {
-          Logger.error('Realtime channel error', { scriptId });
+          reconnectionAttemptsRef.current = 0; // Reset on successful connection
+          if (reconnectionTimer) {
+            clearTimeout(reconnectionTimer);
+            setReconnectionTimer(null);
+          }
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          const eventType = status === 'CHANNEL_ERROR' ? 'error' : status === 'TIMED_OUT' ? 'timeout' : 'closed';
+          Logger.warn(`Realtime channel ${eventType}`, { scriptId });
+
+          reconnectionAttemptsRef.current += 1;
+          const nextAttempt = reconnectionAttemptsRef.current;
+
+          if (nextAttempt >= 4) {
+            // After 4 failed attempts, move to degraded state
+            Logger.error('Realtime connection degraded after 4 failed attempts', { scriptId });
+            setConnectionStatus('degraded');
+            return;
+          }
+
+          // Set reconnecting state
           setConnectionStatus('reconnecting');
-        } else if (status === 'TIMED_OUT') {
-          Logger.warn('Realtime channel timed out', { scriptId });
-          setConnectionStatus('reconnecting');
-        } else if (status === 'CLOSED') {
-          Logger.info('Realtime channel closed', { scriptId });
-          setConnectionStatus('reconnecting');
+
+          // Calculate exponential backoff with jitter: 2^attempt * 1000ms + random(0-500ms)
+          const baseDelay = Math.pow(2, nextAttempt) * 1000;
+          const jitter = Math.random() * 500;
+          const delay = baseDelay + jitter;
+
+          Logger.info(`Scheduling reconnection attempt ${nextAttempt}`, {
+            scriptId,
+            delayMs: Math.round(delay)
+          });
+
+          // Schedule reconnection attempt
+          const timer = setTimeout(() => {
+            Logger.info(`Executing reconnection attempt ${nextAttempt}`, { scriptId });
+            // Supabase will automatically attempt to reconnect when we try to use the channel
+            channel.subscribe();
+          }, delay);
+
+          setReconnectionTimer(timer);
         }
       });
 
     // Cleanup: unsubscribe when scriptId changes or component unmounts
     return () => {
       Logger.info('Unsubscribing from realtime channel', { scriptId });
+      if (reconnectionTimer) {
+        clearTimeout(reconnectionTimer);
+      }
       channel.unsubscribe();
     };
-  }, [scriptId]);
+  }, [scriptId, reconnectionTimer]);
 
   // Filter comments based on resolved status
   const filteredComments = comments.filter(comment => {

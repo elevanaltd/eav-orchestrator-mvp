@@ -55,7 +55,6 @@ vi.mock('../../contexts/AuthContext', () => ({
 
 // Import component after mocks
 import { CommentSidebar } from './CommentSidebar';
-import { supabase } from '../../lib/supabase';
 import * as commentsLib from '../../lib/comments';
 
 describe('CommentSidebar - Connection State Machine', () => {
@@ -67,13 +66,14 @@ describe('CommentSidebar - Connection State Machine', () => {
     // Setup mock channel with subscribe callback capture
     mockChannel.subscribe = vi.fn((callback) => {
       subscribeCallback = callback;
-      // Immediately trigger SUBSCRIBED to set connected state
-      setTimeout(() => callback('SUBSCRIBED'), 0);
+      // Synchronously trigger SUBSCRIBED to set connected state
+      // (setTimeout doesn't work with fake timers in tests)
+      queueMicrotask(() => callback('SUBSCRIBED'));
       return mockChannel;
     });
 
     // Mock initial comments load
-    (commentsLib.getComments as any).mockResolvedValue({
+    vi.mocked(commentsLib.getComments).mockResolvedValue({
       success: true,
       data: [
         {
@@ -188,15 +188,15 @@ describe('CommentSidebar - Connection State Machine', () => {
       for (let i = 0; i < 4; i++) {
         act(() => {
           subscribeCallback('TIMED_OUT');
+          // Fast-forward past reconnection delay
+          vi.advanceTimersByTime(10000);
         });
-        // Fast-forward past reconnection delay
-        vi.advanceTimersByTime(10000);
       }
 
       // Should show degraded state banner
       await waitFor(() => {
         expect(screen.getByText(/connection degraded/i)).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
 
       vi.useRealTimers();
     });
@@ -364,14 +364,14 @@ describe('CommentSidebar - Connection State Machine', () => {
       for (let i = 0; i < 4; i++) {
         act(() => {
           subscribeCallback('TIMED_OUT');
+          vi.advanceTimersByTime(10000);
         });
-        vi.advanceTimersByTime(10000);
       }
 
       await waitFor(() => {
         const banner = screen.getByText(/connection degraded/i);
         expect(banner).toBeInTheDocument();
-      });
+      }, { timeout: 1000 });
 
       vi.useRealTimers();
     });
