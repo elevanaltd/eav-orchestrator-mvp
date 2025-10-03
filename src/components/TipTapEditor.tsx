@@ -15,7 +15,10 @@ import { Decoration, DecorationSet, EditorView } from '@tiptap/pm/view';
 import { Node, DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
+import { CommentPositionTracker } from './extensions/CommentPositionTracker';
 import { CommentSidebar } from './comments/CommentSidebar';
+import { useCommentPositionSync } from '../hooks/useCommentPositionSync';
+import { supabase } from '../lib/supabase';
 import { ToastContainer } from './ui/Toast';
 import { useToast } from './ui/useToast';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -243,6 +246,46 @@ export const TipTapEditor: React.FC = () => {
     setExtractedComponents(components);
   }, []);
 
+  // Position sync hook for comment tracking (Scenario 3)
+  const { debouncedUpdate } = useCommentPositionSync({
+    onUpdate: async (highlights) => {
+      // Sync updated positions to database
+      Logger.info('Position update triggered', {
+        commentCount: highlights.length,
+        positions: highlights.map(h => ({
+          id: h.commentId,
+          from: h.startPosition,
+          to: h.endPosition
+        }))
+      });
+
+      for (const highlight of highlights) {
+        try {
+          const { error } = await supabase
+            .from('comments')
+            .update({
+              start_position: highlight.startPosition,
+              end_position: highlight.endPosition
+            })
+            .eq('id', highlight.commentId);
+
+          if (error) {
+            Logger.error('Failed to update comment position', {
+              commentId: highlight.commentId,
+              error: error.message
+            });
+          }
+        } catch (error) {
+          Logger.error('Exception updating comment position', {
+            commentId: highlight.commentId,
+            error: (error as Error).message
+          });
+        }
+      }
+    },
+    debounceMs: 500
+  });
+
   // Create editor first
   const editor = useEditor({
     extensions: [
@@ -273,6 +316,10 @@ export const TipTapEditor: React.FC = () => {
             }
           }
         }
+      }),
+      // Position tracker for dynamic comment position updates (Scenario 3)
+      CommentPositionTracker.configure({
+        onPositionUpdate: debouncedUpdate
       })
     ],
     content: '',
@@ -382,8 +429,9 @@ export const TipTapEditor: React.FC = () => {
     }
   });
 
-  // Load comment highlights from database with position recovery
+  // Load comment highlights from database
   // IMPORTANT: This must be defined before useEffects that reference it
+  // FIX (ADR-005 ADDENDUM 2): Removed documentContent parameter to prevent unnecessary recovery
   const loadCommentHighlights = useCallback(async (scriptId: string) => {
     if (!editor) return;
 
@@ -392,11 +440,9 @@ export const TipTapEditor: React.FC = () => {
       const { getComments } = await import('../lib/comments');
       const { supabase } = await import('../lib/supabase');
 
-      // Get current document content for position recovery
-      const documentContent = editor.getText();
-
-      // Load comments with position recovery enabled
-      const result = await getComments(supabase, scriptId, undefined, documentContent);
+      // Load comments WITHOUT documentContent - positions are already correct PM positions
+      // Recovery is NOT needed for stored positions (only for fresh text-based positions)
+      const result = await getComments(supabase, scriptId);
 
       if (result.success && result.data) {
         const highlights = result.data
@@ -1261,6 +1307,7 @@ export const TipTapEditor: React.FC = () => {
       </div>
 
       {/* Comments Sidebar - Phase 2.3 */}
+      {/* FIX (ADR-005 ADDENDUM 2): Removed documentContent prop from CommentSidebar */}
       {currentScript && editor && (
         <ErrorBoundary>
           <CommentSidebar
@@ -1268,7 +1315,6 @@ export const TipTapEditor: React.FC = () => {
             createComment={createCommentData}
             onCommentCreated={handleCommentCreated}
             onCommentCancelled={handleCommentCancelled}
-            documentContent={editor.getText()}
           />
         </ErrorBoundary>
       )}
