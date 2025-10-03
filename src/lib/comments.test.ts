@@ -864,11 +864,11 @@ describe('Comments CRUD Functions - TDD Phase', () => {
         highlighted_text: 'test content'
       }).select().single();
 
-      // Document content where text has moved (simulate drift)
-      const documentContent = 'prefix added test content and more text';
+      // FIX (PR#47): Position recovery removed - use stored PM positions
+      // No longer need documentContent parameter
 
-      // Get comments with position recovery
-      const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID, undefined, documentContent);
+      // Get comments without position recovery
+      const result = await commentsLib.getComments(supabaseClient, TEST_SCRIPT_ID);
 
       expect(result.success).toBe(true);
 
