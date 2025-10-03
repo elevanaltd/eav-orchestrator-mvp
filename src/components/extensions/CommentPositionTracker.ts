@@ -1,3 +1,4 @@
+// Critical-Engineer: consulted for Comment position tracking logic and test strategy
 /**
  * CommentPositionTracker - TipTap Extension with ProseMirror Plugin
  *
@@ -97,6 +98,7 @@ export const CommentPositionTracker = Extension.create<CommentPositionTrackerOpt
                     });
                   } else {
                     // Extend range if same comment spans multiple text nodes
+                    existing.startPosition = Math.min(existing.startPosition, from);
                     existing.endPosition = Math.max(existing.endPosition, to);
                   }
                 }
@@ -104,17 +106,9 @@ export const CommentPositionTracker = Extension.create<CommentPositionTrackerOpt
             }
           });
 
-          // Debounced callback notification (500ms)
+          // Immediate callback notification (debouncing handled by useCommentPositionSync)
           if (highlights.length > 0) {
-            // Clear existing timer
-            if (this.storage.debounceTimer) {
-              clearTimeout(this.storage.debounceTimer);
-            }
-
-            // Set new timer
-            this.storage.debounceTimer = setTimeout(() => {
-              this.options.onPositionUpdate(highlights);
-            }, 500);
+            this.options.onPositionUpdate(highlights);
           }
 
           // No transaction needed - we're just observing
