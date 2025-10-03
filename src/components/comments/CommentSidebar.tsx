@@ -38,6 +38,7 @@ export interface CommentSidebarProps {
 }
 
 type FilterMode = 'all' | 'open' | 'resolved';
+type ConnectionStatus = 'connected' | 'reconnecting' | 'degraded';
 
 export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   scriptId,
@@ -54,6 +55,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Connection state for realtime resilience
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected');
 
   // Reply functionality state
   const [replyingTo, setReplyingTo] = useState<string | null>(null); // commentId being replied to
@@ -308,17 +312,19 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         }
       )
       .subscribe((status) => {
-        // Channel status monitoring for connection health
+        // Connection state machine - resilient handling instead of destructive errors
         if (status === 'SUBSCRIBED') {
           Logger.info('Realtime channel subscribed', { scriptId });
+          setConnectionStatus('connected');
         } else if (status === 'CHANNEL_ERROR') {
           Logger.error('Realtime channel error', { scriptId });
-          setError('Realtime updates unavailable. Refresh to reconnect.');
+          setConnectionStatus('reconnecting');
         } else if (status === 'TIMED_OUT') {
           Logger.warn('Realtime channel timed out', { scriptId });
-          setError('Connection timeout. Refresh to reconnect.');
+          setConnectionStatus('reconnecting');
         } else if (status === 'CLOSED') {
           Logger.info('Realtime channel closed', { scriptId });
+          setConnectionStatus('reconnecting');
         }
       });
 
@@ -622,36 +628,39 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     );
   }
 
-  if (error) {
-    return (
-      <aside className="comments-sidebar" role="complementary" aria-label="Comments Sidebar">
-        <div className="error-state">
-          <div role="alert" className="error-message">
-            <div className="error-icon">⚠️</div>
-            <div className="error-text">
-              <h3>Unable to load comments</h3>
-              <p>{error}</p>
-            </div>
-          </div>
-          <div className="error-actions">
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                loadComments();
-              }}
-              className="retry-button"
-            >
-              Try Again
-            </button>
-          </div>
+  // Render connection status banner (non-destructive overlay)
+  const renderConnectionBanner = () => {
+    if (connectionStatus === 'reconnecting') {
+      return (
+        <div className="connection-status-banner reconnecting" role="status">
+          <span>Reconnecting to live updates...</span>
         </div>
-      </aside>
-    );
-  }
+      );
+    }
+
+    if (connectionStatus === 'degraded') {
+      return (
+        <div className="connection-status-banner degraded" role="alert">
+          <span>Connection degraded. Some features may be unavailable.</span>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="reconnect-button"
+          >
+            Reconnect
+          </button>
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <aside className="comments-sidebar" role="complementary" aria-label="Comments Sidebar">
+      {/* Connection Status Banner (non-destructive overlay) */}
+      {renderConnectionBanner()}
+
       {/* Priority 4: Sticky Header Container - stays visible while comments scroll */}
       <div className="comments-sticky-header">
         {/* Header */}
@@ -720,7 +729,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
             <button
               type="submit"
               aria-label="Submit"
-              disabled={!commentText.trim() || submitting}
+              disabled={!commentText.trim() || submitting || connectionStatus !== 'connected'}
             >
               Submit
             </button>
@@ -872,7 +881,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                     <button
                       type="submit"
                       aria-label="Submit Reply"
-                      disabled={!replyText.trim() || submittingReply}
+                      disabled={!replyText.trim() || submittingReply || connectionStatus !== 'connected'}
                     >
                       Submit Reply
                     </button>
@@ -983,7 +992,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                         <button
                           type="submit"
                           aria-label="Submit Reply"
-                          disabled={!replyText.trim() || submittingReply}
+                          disabled={!replyText.trim() || submittingReply || connectionStatus !== 'connected'}
                         >
                           Submit Reply
                         </button>

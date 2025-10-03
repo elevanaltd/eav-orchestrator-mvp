@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 
 // Mock channel for Realtime subscriptions
 const mockChannel = {
@@ -67,6 +67,8 @@ describe('CommentSidebar - Connection State Machine', () => {
     // Setup mock channel with subscribe callback capture
     mockChannel.subscribe = vi.fn((callback) => {
       subscribeCallback = callback;
+      // Immediately trigger SUBSCRIBED to set connected state
+      setTimeout(() => callback('SUBSCRIBED'), 0);
       return mockChannel;
     });
 
@@ -115,7 +117,9 @@ describe('CommentSidebar - Connection State Machine', () => {
       expect(screen.queryByText(/reconnecting/i)).not.toBeInTheDocument();
 
       // Simulate TIMED_OUT event
-      subscribeCallback('TIMED_OUT');
+      act(() => {
+        subscribeCallback('TIMED_OUT');
+      });
 
       // Should show reconnecting banner
       await waitFor(() => {
@@ -131,7 +135,9 @@ describe('CommentSidebar - Connection State Machine', () => {
       });
 
       // Simulate CHANNEL_ERROR event
-      subscribeCallback('CHANNEL_ERROR');
+      act(() => {
+        subscribeCallback('CHANNEL_ERROR');
+      });
 
       // Should show reconnecting banner
       await waitFor(() => {
@@ -147,13 +153,17 @@ describe('CommentSidebar - Connection State Machine', () => {
       });
 
       // Go to reconnecting state
-      subscribeCallback('TIMED_OUT');
+      act(() => {
+        subscribeCallback('TIMED_OUT');
+      });
       await waitFor(() => {
         expect(screen.getByText(/reconnecting/i)).toBeInTheDocument();
       });
 
       // Successful reconnection
-      subscribeCallback('SUBSCRIBED');
+      act(() => {
+        subscribeCallback('SUBSCRIBED');
+      });
 
       // Should hide reconnecting banner
       await waitFor(() => {
@@ -176,7 +186,9 @@ describe('CommentSidebar - Connection State Machine', () => {
 
       // Simulate 4 consecutive timeouts
       for (let i = 0; i < 4; i++) {
-        subscribeCallback('TIMED_OUT');
+        act(() => {
+          subscribeCallback('TIMED_OUT');
+        });
         // Fast-forward past reconnection delay
         vi.advanceTimersByTime(10000);
       }
@@ -203,7 +215,9 @@ describe('CommentSidebar - Connection State Machine', () => {
       });
 
       // Trigger reconnecting state
-      subscribeCallback('TIMED_OUT');
+      act(() => {
+        subscribeCallback('TIMED_OUT');
+      });
 
       // Comments should still be visible
       expect(screen.getByText('Test comment')).toBeInTheDocument();
@@ -224,7 +238,9 @@ describe('CommentSidebar - Connection State Machine', () => {
       });
 
       // Trigger reconnecting state
-      subscribeCallback('CHANNEL_ERROR');
+      act(() => {
+        subscribeCallback('CHANNEL_ERROR');
+      });
 
       // Should NOT show error state (no error message replacing comments)
       expect(screen.queryByText(/failed to load comments/i)).not.toBeInTheDocument();
@@ -259,7 +275,9 @@ describe('CommentSidebar - Connection State Machine', () => {
       expect(submitButton?.disabled).toBe(false);
 
       // Trigger reconnecting state
-      subscribeCallback('TIMED_OUT');
+      act(() => {
+        subscribeCallback('TIMED_OUT');
+      });
 
       // Submit button should be disabled
       await waitFor(() => {
@@ -288,13 +306,17 @@ describe('CommentSidebar - Connection State Machine', () => {
       const submitButton = container.querySelector('button[type="submit"]') as HTMLButtonElement;
 
       // Go to reconnecting (disabled)
-      subscribeCallback('TIMED_OUT');
+      act(() => {
+        subscribeCallback('TIMED_OUT');
+      });
       await waitFor(() => {
         expect(submitButton?.disabled).toBe(true);
       });
 
       // Return to connected (enabled)
-      subscribeCallback('SUBSCRIBED');
+      act(() => {
+        subscribeCallback('SUBSCRIBED');
+      });
       await waitFor(() => {
         expect(submitButton?.disabled).toBe(false);
       });
@@ -313,7 +335,9 @@ describe('CommentSidebar - Connection State Machine', () => {
         expect(screen.getByText('Test comment')).toBeInTheDocument();
       });
 
-      subscribeCallback('TIMED_OUT');
+      act(() => {
+        subscribeCallback('TIMED_OUT');
+      });
 
       // Banner should be visible
       await waitFor(() => {
@@ -338,7 +362,9 @@ describe('CommentSidebar - Connection State Machine', () => {
 
       // Trigger degraded state (4 failed attempts)
       for (let i = 0; i < 4; i++) {
-        subscribeCallback('TIMED_OUT');
+        act(() => {
+          subscribeCallback('TIMED_OUT');
+        });
         vi.advanceTimersByTime(10000);
       }
 
@@ -362,13 +388,17 @@ describe('CommentSidebar - Connection State Machine', () => {
       });
 
       // Go to reconnecting
-      subscribeCallback('TIMED_OUT');
+      act(() => {
+        subscribeCallback('TIMED_OUT');
+      });
       await waitFor(() => {
         expect(screen.getByText(/reconnecting/i)).toBeInTheDocument();
       });
 
       // Return to connected
-      subscribeCallback('SUBSCRIBED');
+      act(() => {
+        subscribeCallback('SUBSCRIBED');
+      });
 
       // Banner should be hidden
       await waitFor(() => {
