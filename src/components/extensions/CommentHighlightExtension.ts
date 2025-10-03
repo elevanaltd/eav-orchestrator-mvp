@@ -64,6 +64,7 @@ declare module '@tiptap/core' {
   }
 }
 
+// Critical-Engineer: consulted for Comment position tracking logic and test strategy
 /**
  * CommentHighlightExtension with Numbering Support
  *
@@ -73,6 +74,10 @@ declare module '@tiptap/core' {
  */
 export const CommentHighlightExtension = Mark.create<CommentHighlightOptions>({
   name: 'commentHighlight',
+
+  // Explicit inclusivity: false prevents accidental expansion when typing at edges
+  // This makes mark behavior predictable and prevents comments from growing unexpectedly
+  inclusive: false,
 
   addOptions() {
     return {
