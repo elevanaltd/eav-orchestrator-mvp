@@ -66,6 +66,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [replyText, setReplyText] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
 
+  // User profile cache to prevent N+1 queries (critical-engineer validated solution)
+  const userProfileCacheRef = useRef<Map<string, { id: string; email: string; displayName: string | null; role: string | null }>>(new Map());
+
   // Delete functionality state
   const [deleteConfirming, setDeleteConfirming] = useState<string | null>(null); // commentId being confirmed for deletion
   const [deleting, setDeleting] = useState(false);
@@ -74,6 +77,43 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [editing, setEditing] = useState<string | null>(null); // commentId being edited
   const [editText, setEditText] = useState('');
   const [submittingEdit, setSubmittingEdit] = useState(false);
+
+  // Fetch user profile with caching to prevent N+1 queries
+  const fetchUserProfileCached = useCallback(async (userId: string) => {
+    // Check cache first
+    const cached = userProfileCacheRef.current.get(userId);
+    if (cached) {
+      return cached;
+    }
+
+    // Fetch from database if not cached
+    try {
+      const { data: userProfile, error: userError } = await supabase
+        .from('user_profiles')
+        .select('id, email, display_name, role')
+        .eq('id', userId)
+        .single();
+
+      if (userError) {
+        Logger.error('Failed to fetch user profile', { error: userError, userId });
+        return null;
+      }
+
+      // Cache the result
+      const profileData = {
+        id: userProfile.id,
+        email: userProfile.email,
+        displayName: userProfile.display_name,
+        role: userProfile.role
+      };
+      userProfileCacheRef.current.set(userId, profileData);
+
+      return profileData;
+    } catch (err) {
+      Logger.error('Exception fetching user profile', { error: err, userId });
+      return null;
+    }
+  }, []);
 
   // Unified comment loading function with optional cancellation check
   const loadCommentsWithCleanup = useCallback(async (cancellationCheck?: () => boolean) => {
@@ -182,20 +222,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
             }
 
             try {
-              // Fetch user profile for the comment
-              const { data: userProfile, error: userError } = await supabase
-                .from('user_profiles')
-                .select('id, email, display_name, role')
-                .eq('id', commentData.user_id)
-                .single();
-
-              if (userError) {
-                Logger.error('Failed to fetch user profile for realtime comment', {
-                  error: userError,
-                  userId: commentData.user_id
-                });
-                return; // Skip this comment update
-              }
+              // Fetch user profile with cache (prevents N+1 queries)
+              const userProfile = await fetchUserProfileCached(commentData.user_id);
 
               // Construct CommentWithUser with enriched data
               const commentWithUser: CommentWithUser = {
@@ -211,12 +239,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                 resolvedBy: commentData.resolved_by,
                 createdAt: commentData.created_at,
                 updatedAt: commentData.updated_at,
-                user: userProfile ? {
-                  id: userProfile.id,
-                  email: userProfile.email,
-                  displayName: userProfile.display_name,
-                  role: userProfile.role
-                } : undefined
+                user: userProfile || undefined
               };
 
               // Add new comment to state (avoid duplicates)
@@ -253,20 +276,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
             }
 
             try {
-              // Fetch user profile for the updated comment
-              const { data: userProfile, error: userError } = await supabase
-                .from('user_profiles')
-                .select('id, email, display_name, role')
-                .eq('id', commentData.user_id)
-                .single();
-
-              if (userError) {
-                Logger.error('Failed to fetch user profile for realtime update', {
-                  error: userError,
-                  userId: commentData.user_id
-                });
-                return; // Skip this update
-              }
+              // Fetch user profile with cache (prevents N+1 queries)
+              const userProfile = await fetchUserProfileCached(commentData.user_id);
 
               // Construct CommentWithUser with enriched data
               const commentWithUser: CommentWithUser = {
@@ -282,12 +293,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                 resolvedBy: commentData.resolved_by,
                 createdAt: commentData.created_at,
                 updatedAt: commentData.updated_at,
-                user: userProfile ? {
-                  id: userProfile.id,
-                  email: userProfile.email,
-                  displayName: userProfile.display_name,
-                  role: userProfile.role
-                } : undefined
+                user: userProfile || undefined
               };
 
               // Update existing comment in state
@@ -369,7 +375,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       }
       channel.unsubscribe();
     };
-  }, [scriptId, reconnectionTimer]);
+  }, [scriptId, reconnectionTimer, fetchUserProfileCached]);
 
   // Filter comments based on resolved status
   const filteredComments = comments.filter(comment => {
