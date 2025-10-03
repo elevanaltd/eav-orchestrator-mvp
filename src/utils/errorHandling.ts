@@ -176,9 +176,57 @@ export function shouldRetryError(error: Error | string | unknown): boolean {
 
 /**
  * Get user-friendly error message while hiding sensitive information
+ * Now supports context-specific messages based on operation type
  */
-export function getUserFriendlyErrorMessage(error: Error | string | unknown): string {
+export function getUserFriendlyErrorMessage(
+  error: Error | string | unknown,
+  context?: {
+    operation?: 'load' | 'create' | 'update' | 'delete' | 'resolve' | 'unresolve' | 'reply';
+    resource?: string; // e.g., 'comments', 'comment', 'reply'
+  }
+): string {
   const errorInfo = categorizeError(error);
+
+  // If context provided, generate context-specific message
+  if (context?.operation && context?.resource) {
+    const { operation, resource } = context;
+
+    // Network errors - operation-specific
+    if (errorInfo.category === 'network') {
+      if (operation === 'load') return `Unable to load ${resource}. Please check your connection and try again.`;
+      if (operation === 'create') return `Error creating ${resource}. Please try again.`;
+      if (operation === 'update') return `Error updating ${resource}. Please try again.`;
+      if (operation === 'delete') return `Error deleting ${resource}. Please try again.`;
+      if (operation === 'resolve') return `Error resolving ${resource}. Please try again.`;
+      if (operation === 'unresolve') return `Error reopening ${resource}. Please try again.`;
+      if (operation === 'reply') return `Error creating ${resource}. Please try again.`;
+    }
+
+    // Authentication errors - operation-specific
+    if (errorInfo.category === 'authentication') {
+      return 'Your session has expired. Please log in again.';
+    }
+
+    // Permission errors - operation-specific
+    if (errorInfo.category === 'permission') {
+      if (operation === 'delete') return `Cannot delete this ${resource}. You don't have permission.`;
+      if (operation === 'update') return `Cannot edit this ${resource}. You don't have permission.`;
+      if (operation === 'reply') return `Cannot reply to this ${resource}. You don't have permission.`;
+      return `You don't have permission to ${operation} this ${resource}.`;
+    }
+
+    // Validation errors - use the actual error message if available
+    if (errorInfo.category === 'validation') {
+      // If the error message itself is user-friendly (like "Comment content is required"), use it
+      const message = error instanceof Error ? error.message : String(error);
+      if (message && !message.includes('400') && !message.toLowerCase().includes('bad request')) {
+        return message;
+      }
+      return `Please check your input and try again.`;
+    }
+  }
+
+  // Fallback to generic message
   return errorInfo.userMessage;
 }
 

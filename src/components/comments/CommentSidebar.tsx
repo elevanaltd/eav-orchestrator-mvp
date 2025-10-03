@@ -23,7 +23,7 @@ import {
   updateComment
 } from '../../lib/comments';
 import { Logger } from '../../services/logger';
-import { useErrorHandling } from '../../utils/errorHandling';
+import { useErrorHandling, getUserFriendlyErrorMessage } from '../../utils/errorHandling';
 
 export interface CommentSidebarProps {
   scriptId: string;
@@ -136,8 +136,12 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       (errorInfo) => {
         if (cancellationCheck?.()) return; // Don't update state if cancelled
 
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation: 'load', resource: 'comments' }
+        );
+        setError(contextualMessage);
         // Log the error for debugging
         Logger.error('Comment loading error', { error: errorInfo.message });
       },
@@ -452,8 +456,12 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data;
       },
       (errorInfo) => {
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation: 'create', resource: 'comment' }
+        );
+        setError(contextualMessage);
       },
       { maxAttempts: 2, baseDelayMs: 500 }
     );
@@ -513,8 +521,12 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data;
       },
       (errorInfo) => {
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation: 'reply', resource: 'reply' }
+        );
+        setError(contextualMessage);
       },
       { maxAttempts: 2, baseDelayMs: 500 }
     );
@@ -554,8 +566,13 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data;
       },
       (errorInfo) => {
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const operation = isCurrentlyResolved ? 'unresolve' : 'resolve';
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation, resource: 'comment' }
+        );
+        setError(contextualMessage);
       },
       { maxAttempts: 2, baseDelayMs: 500 }
     );
@@ -587,8 +604,12 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data;
       },
       (errorInfo) => {
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation: 'delete', resource: 'comment' }
+        );
+        setError(contextualMessage);
       },
       { maxAttempts: 1, baseDelayMs: 500 } // Only retry once for delete operations
     );
@@ -628,8 +649,12 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data;
       },
       (errorInfo) => {
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation: 'update', resource: 'comment' }
+        );
+        setError(contextualMessage);
       },
       { maxAttempts: 2, baseDelayMs: 500 }
     );
