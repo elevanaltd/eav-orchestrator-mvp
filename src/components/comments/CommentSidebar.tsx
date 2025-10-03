@@ -9,7 +9,7 @@
  * - Comment creation form
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,7 +23,7 @@ import {
   updateComment
 } from '../../lib/comments';
 import { Logger } from '../../services/logger';
-import { useErrorHandling } from '../../utils/errorHandling';
+import { useErrorHandling, getUserFriendlyErrorMessage } from '../../utils/errorHandling';
 
 export interface CommentSidebarProps {
   scriptId: string;
@@ -38,6 +38,7 @@ export interface CommentSidebarProps {
 }
 
 type FilterMode = 'all' | 'open' | 'resolved';
+type ConnectionStatus = 'connected' | 'reconnecting' | 'degraded';
 
 export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   scriptId,
@@ -55,10 +56,25 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Connection state for realtime resilience
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected');
+  const [reconnectionTimer, setReconnectionTimer] = useState<NodeJS.Timeout | null>(null);
+  const reconnectionAttemptsRef = useRef(0);
+
   // Reply functionality state
   const [replyingTo, setReplyingTo] = useState<string | null>(null); // commentId being replied to
   const [replyText, setReplyText] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
+
+  // User profile cache to prevent N+1 queries (critical-engineer validated solution)
+  const userProfileCacheRef = useRef<Map<string, { id: string; email: string; displayName: string | null; role: string | null }>>(new Map());
+
+  // BLOCKING ISSUE #2 FIX: Clear user profile cache when scriptId changes
+  // Prevents memory leak where cache accumulates profiles from different scripts forever
+  useEffect(() => {
+    userProfileCacheRef.current.clear();
+    Logger.info('User profile cache cleared', { scriptId });
+  }, [scriptId]);
 
   // Delete functionality state
   const [deleteConfirming, setDeleteConfirming] = useState<string | null>(null); // commentId being confirmed for deletion
@@ -68,6 +84,43 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const [editing, setEditing] = useState<string | null>(null); // commentId being edited
   const [editText, setEditText] = useState('');
   const [submittingEdit, setSubmittingEdit] = useState(false);
+
+  // Fetch user profile with caching to prevent N+1 queries
+  const fetchUserProfileCached = useCallback(async (userId: string) => {
+    // Check cache first
+    const cached = userProfileCacheRef.current.get(userId);
+    if (cached) {
+      return cached;
+    }
+
+    // Fetch from database if not cached
+    try {
+      const { data: userProfile, error: userError } = await supabase
+        .from('user_profiles')
+        .select('id, email, display_name, role')
+        .eq('id', userId)
+        .single();
+
+      if (userError) {
+        Logger.error('Failed to fetch user profile', { error: userError, userId });
+        return null;
+      }
+
+      // Cache the result
+      const profileData = {
+        id: userProfile.id,
+        email: userProfile.email,
+        displayName: userProfile.display_name,
+        role: userProfile.role
+      };
+      userProfileCacheRef.current.set(userId, profileData);
+
+      return profileData;
+    } catch (err) {
+      Logger.error('Exception fetching user profile', { error: err, userId });
+      return null;
+    }
+  }, []);
 
   // Unified comment loading function with optional cancellation check
   const loadCommentsWithCleanup = useCallback(async (cancellationCheck?: () => boolean) => {
@@ -91,8 +144,12 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       (errorInfo) => {
         if (cancellationCheck?.()) return; // Don't update state if cancelled
 
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation: 'load', resource: 'comments' }
+        );
+        setError(contextualMessage);
         // Log the error for debugging
         Logger.error('Comment loading error', { error: errorInfo.message });
       },
@@ -122,10 +179,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setLoading(false);
   }, [scriptId, executeWithErrorHandling]); // Removed documentContent - no longer used
 
-  // Load comments without cancellation check (for manual refresh)
-  const loadComments = useCallback(() => {
-    loadCommentsWithCleanup(); // No cancellation check
-  }, [loadCommentsWithCleanup]);
+  // Note: Manual refresh removed - realtime handles all updates automatically
+  // loadCommentsWithCleanup() used only for initial mount/scriptId change
 
   useEffect(() => {
     let isCancelled = false; // Cleanup flag for async operations
@@ -140,6 +195,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   // Realtime subscription for collaborative comments
   useEffect(() => {
     if (!scriptId) return;
+
+    // BLOCKING ISSUE #3 FIX: Add cancellation ref to prevent timer execution after unmount
+    const isCancelledRef = { current: false };
 
     // Create Realtime channel scoped to this script
     const channel = supabase
@@ -177,20 +235,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
             }
 
             try {
-              // Fetch user profile for the comment
-              const { data: userProfile, error: userError } = await supabase
-                .from('user_profiles')
-                .select('id, email, display_name, role')
-                .eq('id', commentData.user_id)
-                .single();
-
-              if (userError) {
-                Logger.error('Failed to fetch user profile for realtime comment', {
-                  error: userError,
-                  userId: commentData.user_id
-                });
-                return; // Skip this comment update
-              }
+              // Fetch user profile with cache (prevents N+1 queries)
+              const userProfile = await fetchUserProfileCached(commentData.user_id);
 
               // Construct CommentWithUser with enriched data
               const commentWithUser: CommentWithUser = {
@@ -206,12 +252,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                 resolvedBy: commentData.resolved_by,
                 createdAt: commentData.created_at,
                 updatedAt: commentData.updated_at,
-                user: userProfile ? {
-                  id: userProfile.id,
-                  email: userProfile.email,
-                  displayName: userProfile.display_name,
-                  role: userProfile.role
-                } : undefined
+                user: userProfile || undefined
               };
 
               // Add new comment to state (avoid duplicates)
@@ -248,20 +289,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
             }
 
             try {
-              // Fetch user profile for the updated comment
-              const { data: userProfile, error: userError } = await supabase
-                .from('user_profiles')
-                .select('id, email, display_name, role')
-                .eq('id', commentData.user_id)
-                .single();
-
-              if (userError) {
-                Logger.error('Failed to fetch user profile for realtime update', {
-                  error: userError,
-                  userId: commentData.user_id
-                });
-                return; // Skip this update
-              }
+              // Fetch user profile with cache (prevents N+1 queries)
+              const userProfile = await fetchUserProfileCached(commentData.user_id);
 
               // Construct CommentWithUser with enriched data
               const commentWithUser: CommentWithUser = {
@@ -277,12 +306,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                 resolvedBy: commentData.resolved_by,
                 createdAt: commentData.created_at,
                 updatedAt: commentData.updated_at,
-                user: userProfile ? {
-                  id: userProfile.id,
-                  email: userProfile.email,
-                  displayName: userProfile.display_name,
-                  role: userProfile.role
-                } : undefined
+                user: userProfile || undefined
               };
 
               // Update existing comment in state
@@ -309,26 +333,74 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         }
       )
       .subscribe((status) => {
-        // Channel status monitoring for connection health
+        // Connection state machine - resilient handling instead of destructive errors
         if (status === 'SUBSCRIBED') {
           Logger.info('Realtime channel subscribed', { scriptId });
-        } else if (status === 'CHANNEL_ERROR') {
-          Logger.error('Realtime channel error', { scriptId });
-          setError('Realtime updates unavailable. Refresh to reconnect.');
-        } else if (status === 'TIMED_OUT') {
-          Logger.warn('Realtime channel timed out', { scriptId });
-          setError('Connection timeout. Refresh to reconnect.');
-        } else if (status === 'CLOSED') {
-          Logger.info('Realtime channel closed', { scriptId });
+          setConnectionStatus('connected');
+          reconnectionAttemptsRef.current = 0; // Reset on successful connection
+          if (reconnectionTimer) {
+            clearTimeout(reconnectionTimer);
+            setReconnectionTimer(null);
+          }
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          const eventType = status === 'CHANNEL_ERROR' ? 'error' : status === 'TIMED_OUT' ? 'timeout' : 'closed';
+          Logger.warn(`Realtime channel ${eventType}`, { scriptId });
+
+          reconnectionAttemptsRef.current += 1;
+          const nextAttempt = reconnectionAttemptsRef.current;
+
+          if (nextAttempt >= 4) {
+            // After 4 failed attempts, move to degraded state
+            Logger.error('Realtime connection degraded after 4 failed attempts', { scriptId });
+            setConnectionStatus('degraded');
+            return;
+          }
+
+          // Set reconnecting state
+          setConnectionStatus('reconnecting');
+
+          // Calculate exponential backoff with jitter: 2^attempt * 1000ms + random(0-500ms)
+          const baseDelay = Math.pow(2, nextAttempt) * 1000;
+          const jitter = Math.random() * 500;
+          const delay = baseDelay + jitter;
+
+          Logger.info(`Scheduling reconnection attempt ${nextAttempt}`, {
+            scriptId,
+            delayMs: Math.round(delay)
+          });
+
+          // Schedule reconnection attempt
+          const timer = setTimeout(() => {
+            // BLOCKING ISSUE #3 FIX: Check if component still mounted before executing
+            if (isCancelledRef.current) {
+              Logger.info('Reconnection cancelled (component unmounted)', { scriptId });
+              return;
+            }
+
+            Logger.info(`Executing reconnection attempt ${nextAttempt}`, { scriptId });
+            // Supabase will automatically attempt to reconnect when we try to use the channel
+            channel.subscribe();
+          }, delay);
+
+          setReconnectionTimer(timer);
         }
       });
 
     // Cleanup: unsubscribe when scriptId changes or component unmounts
     return () => {
+      // BLOCKING ISSUE #3 FIX: Mark as cancelled BEFORE cleanup to prevent timer execution
+      isCancelledRef.current = true;
+
       Logger.info('Unsubscribing from realtime channel', { scriptId });
+      if (reconnectionTimer) {
+        clearTimeout(reconnectionTimer);
+      }
       channel.unsubscribe();
     };
-  }, [scriptId]);
+    // ESLint false positive: reconnectionTimer is managed internally and must NOT trigger re-subscription
+    // Including it in deps caused infinite loop bug (subscribe→unsubscribe→close→repeat)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scriptId, fetchUserProfileCached]);
 
   // Filter comments based on resolved status
   const filteredComments = comments.filter(comment => {
@@ -407,15 +479,19 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data;
       },
       (errorInfo) => {
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation: 'create', resource: 'comment' }
+        );
+        setError(contextualMessage);
       },
       { maxAttempts: 2, baseDelayMs: 500 }
     );
 
     if (result.success) {
       setCommentText('');
-      await loadComments(); // Refresh comments to show the new one
+      // Realtime subscription will add the comment automatically - no need to reload
 
       // Call the callback if provided (for parent component to reload highlights)
       if (onCommentCreated) {
@@ -468,8 +544,12 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data;
       },
       (errorInfo) => {
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation: 'reply', resource: 'reply' }
+        );
+        setError(contextualMessage);
       },
       { maxAttempts: 2, baseDelayMs: 500 }
     );
@@ -478,7 +558,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       // Reset reply state
       setReplyingTo(null);
       setReplyText('');
-      await loadComments(); // Refresh comments to show the new reply
+      // Realtime subscription will add the reply automatically - no need to reload
     }
 
     setSubmittingReply(false);
@@ -509,14 +589,19 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data;
       },
       (errorInfo) => {
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const operation = isCurrentlyResolved ? 'unresolve' : 'resolve';
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation, resource: 'comment' }
+        );
+        setError(contextualMessage);
       },
       { maxAttempts: 2, baseDelayMs: 500 }
     );
 
     if (result.success) {
-      await loadComments(); // Refresh comments to show the updated state
+      // Realtime subscription will update the comment automatically - no need to reload
     }
   };
 
@@ -542,15 +627,19 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data;
       },
       (errorInfo) => {
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation: 'delete', resource: 'comment' }
+        );
+        setError(contextualMessage);
       },
       { maxAttempts: 1, baseDelayMs: 500 } // Only retry once for delete operations
     );
 
     if (result.success) {
       setDeleteConfirming(null);
-      await loadComments(); // Refresh comments to show the updated state
+      // Realtime subscription will remove the comment automatically - no need to reload
     }
 
     setDeleting(false);
@@ -583,8 +672,12 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
         return response.data;
       },
       (errorInfo) => {
-        // Set user-friendly error message
-        setError(errorInfo.userMessage);
+        // Set context-specific user-friendly error message
+        const contextualMessage = getUserFriendlyErrorMessage(
+          new Error(errorInfo.message),
+          { operation: 'update', resource: 'comment' }
+        );
+        setError(contextualMessage);
       },
       { maxAttempts: 2, baseDelayMs: 500 }
     );
@@ -592,7 +685,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     if (result.success) {
       setEditing(null);
       setEditText('');
-      await loadComments(); // Refresh comments to show the updated content
+      // Realtime subscription will update the comment automatically - no need to reload
     }
 
     setSubmittingEdit(false);
@@ -623,36 +716,39 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     );
   }
 
-  if (error) {
-    return (
-      <aside className="comments-sidebar" role="complementary" aria-label="Comments Sidebar">
-        <div className="error-state">
-          <div role="alert" className="error-message">
-            <div className="error-icon">⚠️</div>
-            <div className="error-text">
-              <h3>Unable to load comments</h3>
-              <p>{error}</p>
-            </div>
-          </div>
-          <div className="error-actions">
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                loadComments();
-              }}
-              className="retry-button"
-            >
-              Try Again
-            </button>
-          </div>
+  // Render connection status banner (non-destructive overlay)
+  const renderConnectionBanner = () => {
+    if (connectionStatus === 'reconnecting') {
+      return (
+        <div className="connection-status-banner reconnecting" role="status">
+          <span>Reconnecting to live updates...</span>
         </div>
-      </aside>
-    );
-  }
+      );
+    }
+
+    if (connectionStatus === 'degraded') {
+      return (
+        <div className="connection-status-banner degraded" role="alert">
+          <span>Connection degraded. Some features may be unavailable.</span>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="reconnect-button"
+          >
+            Reconnect
+          </button>
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <aside className="comments-sidebar" role="complementary" aria-label="Comments Sidebar">
+      {/* Connection Status Banner (non-destructive overlay) */}
+      {renderConnectionBanner()}
+
       {/* Priority 4: Sticky Header Container - stays visible while comments scroll */}
       <div className="comments-sticky-header">
         {/* Header */}
@@ -721,7 +817,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
             <button
               type="submit"
               aria-label="Submit"
-              disabled={!commentText.trim() || submitting}
+              disabled={!commentText.trim() || submitting || connectionStatus !== 'connected'}
             >
               Submit
             </button>
@@ -873,7 +969,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                     <button
                       type="submit"
                       aria-label="Submit Reply"
-                      disabled={!replyText.trim() || submittingReply}
+                      disabled={!replyText.trim() || submittingReply || connectionStatus !== 'connected'}
                     >
                       Submit Reply
                     </button>
@@ -984,7 +1080,7 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
                         <button
                           type="submit"
                           aria-label="Submit Reply"
-                          disabled={!replyText.trim() || submittingReply}
+                          disabled={!replyText.trim() || submittingReply || connectionStatus !== 'connected'}
                         >
                           Submit Reply
                         </button>

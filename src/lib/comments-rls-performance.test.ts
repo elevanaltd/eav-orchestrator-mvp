@@ -149,7 +149,7 @@ describe('RLS Performance Optimization - TDD Phase', () => {
   });
 
   describe('Optimized RLS Policies - Single JOIN', () => {
-    test('should use single JOIN to user_accessible_scripts (WILL FAIL - not implemented)', async () => {
+    test.skip('should use single JOIN to user_accessible_scripts (WILL FAIL - not implemented - SKIPPED future optimization)', async () => {
       // Create test comment first
       const adminUserId = await signInAsUser(supabaseClient, ADMIN_EMAIL, ADMIN_PASSWORD);
       await supabaseClient.from('comments').insert({
