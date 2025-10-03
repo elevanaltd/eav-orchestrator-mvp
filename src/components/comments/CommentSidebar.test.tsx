@@ -15,7 +15,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import type { Comment } from '../../types/comments';
+import type { CommentWithUser } from '../../types/comments';
 
 // Mock comments library
 vi.mock('../../lib/comments', () => ({
@@ -49,11 +49,17 @@ import { CommentSidebar } from './CommentSidebar';
 import * as commentsLib from '../../lib/comments';
 
 // Sample test data
-const sampleComments: Comment[] = [
+const sampleComments: CommentWithUser[] = [
   {
     id: 'comment-1',
     scriptId: 'script-1',
     userId: 'user-1',
+    user: {
+      id: 'user-1',
+      email: 'user1@example.com',
+      displayName: 'Test User 1',
+      role: 'client',
+    },
     content: 'This needs revision.',
     startPosition: 10,
     endPosition: 25,
@@ -67,6 +73,12 @@ const sampleComments: Comment[] = [
     id: 'comment-2',
     scriptId: 'script-1',
     userId: 'user-2',
+    user: {
+      id: 'user-2',
+      email: 'user2@example.com',
+      displayName: 'Test User 2',
+      role: 'client',
+    },
     content: 'I agree with this change.',
     startPosition: 10,
     endPosition: 25,
@@ -80,6 +92,12 @@ const sampleComments: Comment[] = [
     id: 'comment-3',
     scriptId: 'script-1',
     userId: 'user-1',
+    user: {
+      id: 'user-1',
+      email: 'user1@example.com',
+      displayName: 'Test User 1',
+      role: 'client',
+    },
     content: 'Fixed in new version.',
     startPosition: 50,
     endPosition: 65,
@@ -716,11 +734,17 @@ describe('CommentSidebar', () => {
   // Priority 1: Stale Data Fix (TDD - RED phase)
   describe('Navigation Script Changes - Stale Data Prevention', () => {
     it('should clear comments immediately when scriptId changes', async () => {
-      const script1Comments: Comment[] = [
+      const script1Comments: CommentWithUser[] = [
         {
           id: 'script1-comment-1',
           scriptId: 'script-1',
           userId: 'user-1',
+          user: {
+            id: 'user-1',
+            email: 'user1@example.com',
+            displayName: 'Test User 1',
+            role: 'client',
+          },
           content: 'Comment for script 1',
           startPosition: 10,
           endPosition: 25,
@@ -732,11 +756,17 @@ describe('CommentSidebar', () => {
         },
       ];
 
-      const script2Comments: Comment[] = [
+      const script2Comments: CommentWithUser[] = [
         {
           id: 'script2-comment-1',
           scriptId: 'script-2',
           userId: 'user-1',
+          user: {
+            id: 'user-1',
+            email: 'user1@example.com',
+            displayName: 'Test User 1',
+            role: 'client',
+          },
           content: 'Comment for script 2',
           startPosition: 5,
           endPosition: 15,
@@ -780,11 +810,17 @@ describe('CommentSidebar', () => {
     });
 
     it('should show loading state during script transition', async () => {
-      const script1Comments: Comment[] = [
+      const script1Comments: CommentWithUser[] = [
         {
           id: 'script1-comment-1',
           scriptId: 'script-1',
           userId: 'user-1',
+          user: {
+            id: 'user-1',
+            email: 'user1@example.com',
+            displayName: 'Test User 1',
+            role: 'client',
+          },
           content: 'Comment for script 1',
           startPosition: 10,
           endPosition: 25,
@@ -824,11 +860,17 @@ describe('CommentSidebar', () => {
     });
 
     it('should handle rapid script switching without stale data', async () => {
-      const script1Comments: Comment[] = [
+      const script1Comments: CommentWithUser[] = [
         {
           id: 'script1-comment-1',
           scriptId: 'script-1',
           userId: 'user-1',
+          user: {
+            id: 'user-1',
+            email: 'user1@example.com',
+            displayName: 'Test User 1',
+            role: 'client',
+          },
           content: 'Comment for script 1',
           startPosition: 10,
           endPosition: 25,
@@ -840,11 +882,17 @@ describe('CommentSidebar', () => {
         },
       ];
 
-      const script2Comments: Comment[] = [
+      const script2Comments: CommentWithUser[] = [
         {
           id: 'script2-comment-1',
           scriptId: 'script-2',
           userId: 'user-1',
+          user: {
+            id: 'user-1',
+            email: 'user1@example.com',
+            displayName: 'Test User 1',
+            role: 'client',
+          },
           content: 'Comment for script 2',
           startPosition: 5,
           endPosition: 15,
@@ -856,11 +904,17 @@ describe('CommentSidebar', () => {
         },
       ];
 
-      const script3Comments: Comment[] = [
+      const script3Comments: CommentWithUser[] = [
         {
           id: 'script3-comment-1',
           scriptId: 'script-3',
           userId: 'user-1',
+          user: {
+            id: 'user-1',
+            email: 'user1@example.com',
+            displayName: 'Test User 1',
+            role: 'client',
+          },
           content: 'Comment for script 3',
           startPosition: 20,
           endPosition: 30,
@@ -887,8 +941,8 @@ describe('CommentSidebar', () => {
       });
 
       // RAPIDLY switch to script-2 (mock with delay to simulate async)
-      let script2Resolve: ((value: { success: boolean; data: Comment[]; error: null }) => void) | undefined;
-      const script2Promise = new Promise<{ success: boolean; data: Comment[]; error: null }>((resolve) => {
+      let script2Resolve: ((value: { success: boolean; data: CommentWithUser[]; error: null }) => void) | undefined;
+      const script2Promise = new Promise<{ success: boolean; data: CommentWithUser[]; error: null }>((resolve) => {
         script2Resolve = resolve;
       });
       mockGetComments.mockReturnValue(script2Promise);
@@ -928,7 +982,7 @@ describe('CommentSidebar', () => {
   describe('Cleanup and Memory Safety', () => {
     it('should handle unmount during async loading without errors', async () => {
       // Mock a slow/never-resolving fetch
-      type CommentResponse = { success: boolean; data: Comment[]; error: null };
+      type CommentResponse = { success: boolean; data: CommentWithUser[]; error: null };
       let resolveComments: ((value: CommentResponse) => void) | undefined;
       const pendingPromise = new Promise<CommentResponse>((resolve) => {
         resolveComments = resolve;
@@ -952,6 +1006,12 @@ describe('CommentSidebar', () => {
             id: 'comment-1',
             scriptId: 'script-1',
             userId: 'user-1',
+            user: {
+              id: 'user-1',
+              email: 'user1@example.com',
+              displayName: 'Test User 1',
+              role: 'client',
+            },
             content: 'Should not cause error',
             startPosition: 0,
             endPosition: 10,
