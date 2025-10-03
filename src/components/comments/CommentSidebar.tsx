@@ -69,6 +69,13 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   // User profile cache to prevent N+1 queries (critical-engineer validated solution)
   const userProfileCacheRef = useRef<Map<string, { id: string; email: string; displayName: string | null; role: string | null }>>(new Map());
 
+  // BLOCKING ISSUE #2 FIX: Clear user profile cache when scriptId changes
+  // Prevents memory leak where cache accumulates profiles from different scripts forever
+  useEffect(() => {
+    userProfileCacheRef.current.clear();
+    Logger.info('User profile cache cleared', { scriptId });
+  }, [scriptId]);
+
   // Delete functionality state
   const [deleteConfirming, setDeleteConfirming] = useState<string | null>(null); // commentId being confirmed for deletion
   const [deleting, setDeleting] = useState(false);
