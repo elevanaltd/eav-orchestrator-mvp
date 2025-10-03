@@ -195,6 +195,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   useEffect(() => {
     if (!scriptId) return;
 
+    // BLOCKING ISSUE #3 FIX: Add cancellation ref to prevent timer execution after unmount
+    const isCancelledRef = { current: false };
+
     // Create Realtime channel scoped to this script
     const channel = supabase
       .channel(`comments:${scriptId}`)
@@ -367,6 +370,12 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
           // Schedule reconnection attempt
           const timer = setTimeout(() => {
+            // BLOCKING ISSUE #3 FIX: Check if component still mounted before executing
+            if (isCancelledRef.current) {
+              Logger.info('Reconnection cancelled (component unmounted)', { scriptId });
+              return;
+            }
+
             Logger.info(`Executing reconnection attempt ${nextAttempt}`, { scriptId });
             // Supabase will automatically attempt to reconnect when we try to use the channel
             channel.subscribe();
@@ -378,6 +387,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
     // Cleanup: unsubscribe when scriptId changes or component unmounts
     return () => {
+      // BLOCKING ISSUE #3 FIX: Mark as cancelled BEFORE cleanup to prevent timer execution
+      isCancelledRef.current = true;
+
       Logger.info('Unsubscribing from realtime channel', { scriptId });
       if (reconnectionTimer) {
         clearTimeout(reconnectionTimer);
