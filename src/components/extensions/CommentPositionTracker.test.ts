@@ -9,7 +9,7 @@
  * Based on ADR-005: Scenario 3 - Comments track text during edits
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { CommentHighlightExtension } from './CommentHighlightExtension';
@@ -377,9 +377,9 @@ describe('CommentPositionTracker - TDD RED Phase', () => {
       });
 
       // Rapid edits
-      editor.commands.insertText('A', { from: 0, to: 0 });
-      editor.commands.insertText('B', { from: 0, to: 0 });
-      editor.commands.insertText('C', { from: 0, to: 0 });
+      editor.commands.insertContentAt(0, 'A');
+      editor.commands.insertContentAt(0, 'B');
+      editor.commands.insertContentAt(0, 'C');
 
       // Should NOT have synced yet
       expect(mockUpdate).not.toHaveBeenCalled();
@@ -443,15 +443,15 @@ describe('CommentPositionTracker - TDD RED Phase', () => {
       });
 
       // First edit
-      editor.commands.insertText('A');
+      editor.commands.insertContentAt(0, 'A');
       await new Promise(resolve => setTimeout(resolve, 300));
 
       // Second edit (should reset timer)
-      editor.commands.insertText('B');
+      editor.commands.insertContentAt(0, 'B');
       await new Promise(resolve => setTimeout(resolve, 300));
 
       // Third edit (should reset timer again)
-      editor.commands.insertText('C');
+      editor.commands.insertContentAt(0, 'C');
 
       // Should still not have called yet (timer keeps resetting)
       expect(mockUpdate).not.toHaveBeenCalled();
