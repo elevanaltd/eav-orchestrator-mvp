@@ -12,12 +12,13 @@ BEGIN
      OR NEW.final_invoice_sent IS NOT NULL THEN
 
     -- Delete all comments for this project's scripts
+    -- Use IS NOT DISTINCT FROM for NULL-safe comparison
     DELETE FROM comments
     WHERE script_id IN (
       SELECT s.id
       FROM scripts s
       JOIN videos v ON v.id = s.video_id
-      WHERE v.eav_code = NEW.eav_code
+      WHERE v.eav_code IS NOT DISTINCT FROM NEW.eav_code
     );
 
   END IF;
