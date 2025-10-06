@@ -600,6 +600,19 @@ export const TipTapEditor: React.FC = () => {
       return;
     }
 
+    // SECURITY: Only admin/employee can save scripts (per North Star)
+    // Prevents clients from triggering unauthorized saves via auto-save
+    // Issue: Comment creation changes editor state → triggers auto-save → 403 error
+    // Fix: Guard at call site to prevent unauthorized RPC invocation
+    if (!permissions.canEditScript) {
+      Logger.warn('Client attempted script save - blocked by permissions', {
+        scriptId: currentScript.id,
+        userRole: userProfile?.role,
+        trigger: 'handleSave called without edit permission'
+      });
+      return; // Silent return - clients shouldn't trigger saves
+    }
+
     setSaveStatus('saving');
     try {
       const plainText = editor.getText();
@@ -630,7 +643,7 @@ export const TipTapEditor: React.FC = () => {
         setSaveStatus('error');
       }
     }
-  }, [currentScript, editor, extractedComponents, loadCommentHighlights]);
+  }, [currentScript, editor, extractedComponents, loadCommentHighlights, permissions.canEditScript, userProfile?.role]);
 
   // Handle comment creation from sidebar
   const handleCommentCreated = useCallback(async () => {
@@ -811,6 +824,15 @@ export const TipTapEditor: React.FC = () => {
     }
     // We only care about the length of extractedComponents, not the array reference
   }, [saveStatus, lastSaved, extractedComponents.length, currentScript, updateScriptStatus, clearScriptStatus]);
+
+  // Update editor editability when permissions change
+  // Per Vercel Bot PR#56 review: Editor editability only set at initialization
+  // Fix: Reactively update when permissions.canEditScript changes during session
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(permissions.canEditScript);
+    }
+  }, [editor, permissions.canEditScript]);
 
   // Add cleanup effect to handle component unmounting
   useEffect(() => {

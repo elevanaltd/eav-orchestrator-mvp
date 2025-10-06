@@ -5,11 +5,10 @@
  * Tests written BEFORE implementation per constitutional TDD requirement
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { usePermissions } from './usePermissions';
 import { useAuth } from '../contexts/AuthContext';
-import type { ReactNode } from 'react';
 
 // Mock the useAuth hook
 vi.mock('../contexts/AuthContext', () => ({
@@ -28,7 +27,7 @@ describe('usePermissions', () => {
       mockUseAuth.mockReturnValue({
         currentUser: null,
         userProfile: null,
-        isLoading: false,
+        loading: false,
       });
 
       const { result } = renderHook(() => usePermissions());
@@ -53,9 +52,9 @@ describe('usePermissions', () => {
           id: 'client-1',
           email: 'client@example.com',
           role: 'client',
-          displayName: 'Test Client',
+          display_name: 'Test Client',
         },
-        isLoading: false,
+        loading: false,
       });
     });
 
@@ -95,9 +94,9 @@ describe('usePermissions', () => {
           id: 'employee-1',
           email: 'employee@example.com',
           role: 'employee',
-          displayName: 'Test Employee',
+          display_name: 'Test Employee',
         },
-        isLoading: false,
+        loading: false,
       });
     });
 
@@ -137,9 +136,9 @@ describe('usePermissions', () => {
           id: 'admin-1',
           email: 'admin@example.com',
           role: 'admin',
-          displayName: 'Test Admin',
+          display_name: 'Test Admin',
         },
-        isLoading: false,
+        loading: false,
       });
     });
 
@@ -191,9 +190,9 @@ describe('usePermissions', () => {
             id: 'user-1',
             email: 'user@example.com',
             role,
-            displayName: 'Test User',
+            display_name: 'Test User',
           },
-          isLoading: false,
+          loading: false,
         });
 
         const { result } = renderHook(() => usePermissions());
