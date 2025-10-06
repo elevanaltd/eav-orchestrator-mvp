@@ -1,3 +1,4 @@
+Connecting to db 5432
 export type Json =
   | string
   | number
@@ -7,11 +8,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
-  }
   public: {
     Tables: {
       comments: {
@@ -69,10 +65,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments_with_users"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "comments_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -82,7 +92,8 @@ export type Database = {
           client_filter: string | null
           created_at: string | null
           due_date: string | null
-          eav_code: string
+          eav_code: string | null
+          final_invoice_sent: string | null
           id: string
           project_phase: string | null
           title: string
@@ -92,7 +103,8 @@ export type Database = {
           client_filter?: string | null
           created_at?: string | null
           due_date?: string | null
-          eav_code: string
+          eav_code?: string | null
+          final_invoice_sent?: string | null
           id: string
           project_phase?: string | null
           title: string
@@ -102,7 +114,8 @@ export type Database = {
           client_filter?: string | null
           created_at?: string | null
           due_date?: string | null
-          eav_code?: string
+          eav_code?: string | null
+          final_invoice_sent?: string | null
           id?: string
           project_phase?: string | null
           title?: string
@@ -151,6 +164,7 @@ export type Database = {
           created_at: string | null
           id: string
           plain_text: string | null
+          status: string
           updated_at: string | null
           video_id: string | null
           yjs_state: string | null
@@ -160,6 +174,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           plain_text?: string | null
+          status?: string
           updated_at?: string | null
           video_id?: string | null
           yjs_state?: string | null
@@ -169,6 +184,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           plain_text?: string | null
+          status?: string
           updated_at?: string | null
           video_id?: string | null
           yjs_state?: string | null
@@ -271,21 +287,54 @@ export type Database = {
       }
     }
     Views: {
-      available_clients: {
+      comments_with_users: {
         Row: {
-          name: string | null
-        }
-        Relationships: []
-      }
-      debug_user_access: {
-        Row: {
-          accessible_projects: number | null
-          accessible_videos: number | null
-          client_filters: string[] | null
+          content: string | null
+          created_at: string | null
+          end_position: number | null
+          highlighted_text: string | null
+          id: string | null
+          parent_comment_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          script_id: string | null
+          start_position: number | null
+          updated_at: string | null
+          user_display_name: string | null
+          user_email: string | null
           user_id: string | null
           user_role: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments_with_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_accessible_scripts: {
         Row: {
@@ -313,14 +362,6 @@ export type Database = {
           current_user_role: string
         }[]
       }
-      debug_client_access: {
-        Args: { user_uuid: string }
-        Returns: {
-          client_filters: string[]
-          matching_projects: Json
-          user_role: string
-        }[]
-      }
       get_comment_descendants: {
         Args: { parent_id: string }
         Returns: {
@@ -331,6 +372,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      refresh_user_accessible_scripts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       save_script_with_components: {
         Args: {
           p_components: Json
@@ -340,6 +385,14 @@ export type Database = {
         }
         Returns: {
           like: Database["public"]["Tables"]["scripts"]["Row"]
+        }[]
+      }
+      test_comments_rls_performance: {
+        Args: { script_id_param: string }
+        Returns: {
+          duration_ms: number
+          operation: string
+          row_count: number
         }[]
       }
     }
@@ -474,3 +527,6 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+A new version of Supabase CLI is available: v2.48.3 (currently installed v2.47.2)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
