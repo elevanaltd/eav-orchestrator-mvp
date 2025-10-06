@@ -19,6 +19,9 @@ import {
   type ComponentData
 } from '../lib/validation';
 
+// Workflow status enum for scripts
+export type ScriptWorkflowStatus = 'draft' | 'in_review' | 'rework' | 'approved';
+
 // Type definitions for scripts matching normalized database schema
 export interface Script {
   id: string;
@@ -26,6 +29,7 @@ export interface Script {
   yjs_state?: Uint8Array | null; // BYTEA field for Y.js document state (primary content storage)
   plain_text?: string; // Extracted plain text for search/display
   component_count?: number;
+  status?: ScriptWorkflowStatus; // Workflow status (defaults to 'draft')
   components: ComponentData[]; // Loaded from script_components table
   created_at: string;
   updated_at: string;
@@ -311,6 +315,73 @@ function generateContentHash(content: string): string {
 
 // Note: Plain text extraction moved to client-side editor.getText()
 // This ensures consistency between what the editor shows and what we store
+
+/**
+ * Update script workflow status
+ * Allows any authenticated user to change script status for collaboration
+ */
+export async function updateScriptStatus(
+  scriptId: string,
+  status: ScriptWorkflowStatus
+): Promise<Script> {
+  try {
+    // SECURITY: Validate inputs before database operation
+    const validatedScriptId = validateScriptId(scriptId);
+
+    // Validate status is one of the allowed values
+    const validStatuses: ScriptWorkflowStatus[] = ['draft', 'in_review', 'rework', 'approved'];
+    if (!validStatuses.includes(status)) {
+      throw new ValidationError(`Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
+    }
+
+    // Update script status (RLS policies will enforce authorization)
+    const { data: updatedScript, error } = await supabase
+      .from('scripts')
+      .update({
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', validatedScriptId)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new ScriptServiceError(`Failed to update script status: ${error.message}`, error.code);
+    }
+
+    // Load components for complete script object
+    const { data: components, error: componentsError } = await supabase
+      .from('script_components')
+      .select('*')
+      .eq('script_id', validatedScriptId)
+      .order('component_number', { ascending: true });
+
+    if (componentsError) {
+      throw new ScriptServiceError(`Failed to load script components: ${componentsError.message}`, componentsError.code);
+    }
+
+    // Transform components to expected format
+    const transformedComponents: ComponentData[] = (components || []).map(comp => ({
+      number: comp.component_number,
+      content: comp.content,
+      wordCount: comp.word_count || 0,
+      hash: generateContentHash(comp.content)
+    }));
+
+    return {
+      ...updatedScript,
+      components: transformedComponents
+    };
+  } catch (error) {
+    if (error instanceof ScriptServiceError) {
+      throw error;
+    }
+    if (error instanceof ValidationError) {
+      throw new ScriptServiceError(`Input validation failed: ${error.message}`);
+    }
+    throw new ScriptServiceError(`Unexpected error updating script status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
 
 /**
  * Custom error class for script service operations
