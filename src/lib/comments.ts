@@ -384,10 +384,20 @@ export async function updateComment(
       .eq('id', commentId)
       .eq('user_id', userId)
       .select('*, user:user_profiles(id, email, display_name, role)')
-      .single();
+      .maybeSingle();
 
     if (error) {
       return { success: false, error: { code: 'DATABASE_ERROR', message: error.message, details: error } };
+    }
+
+    if (!comment) {
+      return {
+        success: false,
+        error: {
+          code: 'PERMISSION_DENIED',
+          message: 'Comment not found or you do not have permission to edit it'
+        }
+      };
     }
 
     const commentWithUser: CommentWithUser = {
@@ -531,14 +541,14 @@ export async function deleteComment(
       .select('id, user_id')
       .eq('id', commentId)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (parentError) {
       return {
         success: false,
         error: {
-          code: 'COMMENT_NOT_FOUND',
-          message: 'Comment not found or you do not have permission to delete it',
+          code: 'DATABASE_ERROR',
+          message: 'Failed to verify comment ownership',
           details: parentError
         }
       };
@@ -549,7 +559,7 @@ export async function deleteComment(
         success: false,
         error: {
           code: 'PERMISSION_DENIED',
-          message: 'You can only delete your own comments'
+          message: 'Comment not found or you do not have permission to delete it'
         }
       };
     }
