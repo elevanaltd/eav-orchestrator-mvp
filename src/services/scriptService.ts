@@ -319,6 +319,9 @@ function generateContentHash(content: string): string {
 /**
  * Update script workflow status
  * Allows any authenticated user to change script status for collaboration
+ *
+ * Critical-Engineer: consulted for Database security model for client-initiated updates
+ * Uses secure RPC function to enforce column-level permissions (RLS cannot restrict to single column)
  */
 export async function updateScriptStatus(
   scriptId: string,
@@ -334,19 +337,30 @@ export async function updateScriptStatus(
       throw new ValidationError(`Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
     }
 
-    // Update script status (RLS policies will enforce authorization)
-    const { data: updatedScript, error } = await supabase
-      .from('scripts')
-      .update({
-        status,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', validatedScriptId)
-      .select('*')
-      .single();
+    // Call secure RPC function that updates ONLY status column
+    // RPC provides column-level security that RLS policies cannot enforce
+    const { data: updatedScriptArray, error } = await supabase
+      .rpc('update_script_status', {
+        p_script_id: validatedScriptId,
+        p_new_status: status
+      });
 
     if (error) {
+      // Check for specific permission error from RPC
+      if (error.message.includes('Permission denied') || error.code === '42501') {
+        throw new ScriptServiceError('Update not permitted for this script', '403');
+      }
+      if (error.code === 'P0002') {
+        throw new ScriptServiceError('Script not found', '404');
+      }
       throw new ScriptServiceError(`Failed to update script status: ${error.message}`, error.code);
+    }
+
+    // RPC returns array, extract first element
+    const updatedScript = updatedScriptArray?.[0];
+
+    if (!updatedScript) {
+      throw new ScriptServiceError('Script not found or update not permitted', 'PGRST116');
     }
 
     // Load components for complete script object
