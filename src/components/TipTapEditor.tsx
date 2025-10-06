@@ -660,6 +660,9 @@ export const TipTapEditor: React.FC = () => {
   const handleStatusChange = useCallback(async (newStatus: ScriptWorkflowStatus) => {
     if (!currentScript) return;
 
+    // Capture original status BEFORE optimistic update to prevent closure bug
+    const originalStatus = currentScript.status;
+
     try {
       // Optimistic UI update
       setCurrentScript(prev => prev ? { ...prev, status: newStatus } : null);
@@ -671,8 +674,8 @@ export const TipTapEditor: React.FC = () => {
       setCurrentScript(updatedScript);
       showSuccess(`Status updated to ${newStatus.replace('_', ' ')}`);
     } catch (error) {
-      // Rollback on error
-      setCurrentScript(prev => prev ? { ...prev, status: currentScript.status } : null);
+      // Rollback to original status (captured before optimistic update)
+      setCurrentScript(prev => prev ? { ...prev, status: originalStatus } : null);
       Logger.error('Failed to update script status', { error: (error as Error).message });
       showError('Failed to update status');
     }
