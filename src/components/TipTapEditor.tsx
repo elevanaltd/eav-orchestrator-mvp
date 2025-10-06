@@ -25,7 +25,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
-import { loadScriptForVideo, saveScript, ComponentData, Script } from '../services/scriptService';
+import { loadScriptForVideo, saveScript, updateScriptStatus as updateScriptWorkflowStatus, ComponentData, Script, ScriptWorkflowStatus } from '../services/scriptService';
 import { Logger } from '../services/logger';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
@@ -656,6 +656,28 @@ export const TipTapEditor: React.FC = () => {
     setPopupPosition(null);
   }, []);
 
+  // Handle script status changes (GREEN phase implementation)
+  const handleStatusChange = useCallback(async (newStatus: ScriptWorkflowStatus) => {
+    if (!currentScript) return;
+
+    try {
+      // Optimistic UI update
+      setCurrentScript(prev => prev ? { ...prev, status: newStatus } : null);
+
+      // Persist to database
+      const updatedScript = await updateScriptWorkflowStatus(currentScript.id, newStatus);
+
+      // Confirm update with server response
+      setCurrentScript(updatedScript);
+      showSuccess(`Status updated to ${newStatus.replace('_', ' ')}`);
+    } catch (error) {
+      // Rollback on error
+      setCurrentScript(prev => prev ? { ...prev, status: currentScript.status } : null);
+      Logger.error('Failed to update script status', { error: (error as Error).message });
+      showError('Failed to update status');
+    }
+  }, [currentScript, showSuccess, showError]);
+
   // Load script when selected video changes
   useEffect(() => {
     let mounted = true;
@@ -1183,6 +1205,32 @@ export const TipTapEditor: React.FC = () => {
                   </span>
                 )}
               </p>
+              {/* GREEN Phase: Workflow Status Selector */}
+              {currentScript && (
+                <div style={{ marginTop: '12px' }}>
+                  <label htmlFor="workflow-status" style={{ fontSize: '14px', fontWeight: '500', marginRight: '8px' }}>
+                    Workflow Status:
+                  </label>
+                  <select
+                    id="workflow-status"
+                    value={currentScript.status || 'draft'}
+                    onChange={(e) => handleStatusChange(e.target.value as ScriptWorkflowStatus)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '14px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      backgroundColor: 'white',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="in_review">In Review</option>
+                    <option value="rework">Rework</option>
+                    <option value="approved">Approved</option>
+                  </select>
+                </div>
+              )}
             </div>
             {selectedVideo && editor && (
               <button
