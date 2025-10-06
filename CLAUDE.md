@@ -6,8 +6,8 @@
 **Project:** EAV Orchestrator Production Foundation
 **Repository:** `/Volumes/HestAI-Projects/eav-orchestrator-mvp/dev/` (🟢 **ACTIVE PRODUCTION BUILD**)
 **Purpose:** Production-grade video workflow system with paragraph=component architecture
-**Last Updated:** 2025-10-07
-**Status:** PRODUCTION BUILD - Phase 2.9 Complete: Database Hardened, Zero Linter Warnings
+**Last Updated:** 2025-10-07 (Security Crisis Resolution)
+**Status:** PR#56 - 5 Critical Security Fixes Applied + UX Improvements
 
 ## Current State Overview
 
@@ -25,7 +25,14 @@ The paragraph=component model has been **successfully validated and is now in pr
 - **Security Score:** 9/10 excellent rating
 
 ### 🚀 CURRENT FOCUS
-**Checkpoint 2 Complete** - TDD constitutional compliance restored, system optimized to production standards. Ready for Phase 2 workflow implementation with reduced scope.
+**Security Crisis Resolved (2025-10-07)** - 5 critical issues fixed in PR#56:
+1. ✅ NULL role bypass (CATASTROPHIC) - Fixed authorization check
+2. ✅ Client save trigger → 403 error - Added permission guard
+3. ✅ Client comment deletion blocked - Simplified RLS policy
+4. ✅ Editor editability not reactive - Added useEffect for permissions
+5. ✅ Test mock interface mismatch - Aligned with AuthContext
+
+**Production Status:** Migrations applied via Supabase MCP. Ready for PR merge and client testing.
 
 ## Production Requirements (From North Star)
 
@@ -139,6 +146,46 @@ npm run build               # Production build
 npm run preview            # Preview production build
 ```
 
+## Database Migration Best Practices
+
+### ✅ PREFERRED: Supabase MCP Tools (Recommended)
+Use Supabase MCP tools for direct production database access:
+
+```typescript
+// For DDL operations (CREATE, ALTER, DROP)
+mcp__supabase__apply_migration({
+  project_id: "zbxvjyrbkycbfhwmmnmy",
+  name: "descriptive_migration_name",
+  query: "CREATE TABLE ... or ALTER TABLE ..."
+})
+
+// For DML operations or complex queries
+mcp__supabase__execute_sql({
+  project_id: "zbxvjyrbkycbfhwmmnmy",
+  query: "INSERT INTO ... or UPDATE ... or DROP POLICY ..."
+})
+```
+
+**Advantages:**
+- ✅ Direct production access (no connection string issues)
+- ✅ Automatic authentication via MCP server
+- ✅ Works reliably across all environments
+- ✅ Tracks migrations in Supabase schema_migrations table
+
+### ❌ AVOID: Supabase CLI `db push`
+The CLI often fails with connection errors:
+```bash
+# This frequently fails with "Tenant or user not found"
+npx supabase db push --db-url "..."  # ❌ Unreliable
+```
+
+### Migration Workflow
+1. Create migration file in `supabase/migrations/`
+2. Test locally with Supabase Docker (if needed)
+3. Apply to production via MCP tools
+4. Verify with `list_migrations` or Dashboard
+5. Commit migration file to git
+
 ## Implementation Roadmap
 
 ### ✅ Completed
@@ -233,6 +280,13 @@ npm run preview            # Preview production build
   - vendor-utils: 73KB (Zod, DOMPurify, Y.js)
   - vendor-router: 32KB (React Router)
   - Main app: 49KB (application code)
+
+### Resolved Issues (2025-10-07 - Security Crisis)
+- ✅ **NULL Role Bypass (CATASTROPHIC)** - Fixed authorization check in save_script_with_components
+- ✅ **Client Save Trigger** - Added permission guard to prevent 403 errors
+- ✅ **Client Comment Deletion** - Simplified RLS policy for ownership-based deletion
+- ✅ **Editor Editability** - Made reactive to permission changes
+- ✅ **Test Mocks** - Aligned interface property names (loading, display_name)
 
 ### Resolved Issues (2025-10-07 - Phase 2.9)
 - ✅ **Database Hardening Complete** - Zero Supabase linter errors/warnings
