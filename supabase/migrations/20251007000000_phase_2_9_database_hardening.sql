@@ -47,7 +47,7 @@ CREATE FUNCTION public.save_script_with_components(
     p_plain_text text,
     p_components jsonb
 )
-RETURNS TABLE("like" public.scripts)
+RETURNS TABLE(LIKE public.scripts)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''  -- SECURITY: Prevent function hijacking
