@@ -600,18 +600,11 @@ export const TipTapEditor: React.FC = () => {
       return;
     }
 
-    // SECURITY: Only admin/employee can save scripts (per North Star)
-    // Prevents clients from triggering unauthorized saves via auto-save
-    // Issue: Comment creation changes editor state → triggers auto-save → 403 error
-    // Fix: Guard at call site to prevent unauthorized RPC invocation
-    if (!permissions.canEditScript) {
-      Logger.warn('Client attempted script save - blocked by permissions', {
-        scriptId: currentScript.id,
-        userRole: userProfile?.role,
-        trigger: 'handleSave called without edit permission'
-      });
-      return; // Silent return - clients shouldn't trigger saves
-    }
+    // SECURITY NOTE: RLS policy on save_script_with_components handles authorization
+    // - Clients cannot edit script text (editor.setEditable(false) for client role)
+    // - Database function has NULL role bypass protection (migration 20251007050000)
+    // - No need for redundant client-side permission check
+    // - Removing this guard eliminates "unsaved changes" UX confusion
 
     setSaveStatus('saving');
     try {
@@ -643,7 +636,7 @@ export const TipTapEditor: React.FC = () => {
         setSaveStatus('error');
       }
     }
-  }, [currentScript, editor, extractedComponents, loadCommentHighlights, permissions.canEditScript, userProfile?.role]);
+  }, [currentScript, editor, extractedComponents, loadCommentHighlights]);
 
   // Handle comment creation from sidebar
   const handleCommentCreated = useCallback(async () => {
