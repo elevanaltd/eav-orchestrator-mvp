@@ -1,0 +1,100 @@
+        [33mrole[39m=[32m"complementary"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"comments-sticky-header"[39m
+        [36m>[39m
+          [36m<header[39m
+            [33maria-label[39m=[32m"Comments Header"[39m
+            [33mrole[39m=[32m"banner"[39m
+          [36m>[39m
+            [36m<h2>[39m
+              [0mComments[0m
+            [36m</h2>[39m
+          [36m</header>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"inline-error"[39m
+            [33mrole[39m=[32m"alert"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"error-content"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"error-icon-small"[39m
+              [36m>[39m
+                [0m⚠️[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"error-message-small"[39m
+              [36m>[39m
+                [0mServer error occurred. Please try again in a few moments.[0m
+              [36m</span>[39m
+              [36m<button[39m
+                [33maria-label[39m=[32m"Dismiss error"[39m
+                [33mclass[39m=[32m"error-dismiss"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0m×[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"comment-filters"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"All Comments"[39m
+              [33mclass[39m=[32m"active"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mAll Comments[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Open Comments"[39m
+              [33mclass[39m=[32m""[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mOpen Comments[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Resolved Comments"[39m
+              [33mclass[39m=[32m""[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mResolved Comments[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"comments-list"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"empty-state"[39m
+          [36m>[39m
+            [36m<p>[39m
+              [0mNo comments yet.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mSelect text to add a comment.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</aside>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m...
+ ❯ Proxy.waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ src/components/comments/CommentSidebar.test.tsx:390:13
+    388|       render(<CommentSidebar scriptId="script-1" />);
+    389| 
+    390|       await waitFor(() => {
+       |             ^
+    391|         expect(screen.getByRole('alert')).toBeInTheDocument();
+    392|         expect(screen.getByText(/error loading comments/i)).toBeInTheD…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[79/80]⎯
+
+
+ Test Files  11 failed | 34 passed | 2 skipped (47)
+      Tests  78 failed | 324 passed | 61 skipped (463)
+   Start at  03:30:30
+   Duration  78.68s (transform 469ms, setup 3.16s, collect 1.37s, tests 173.72s, environment 8.38s, prepare 1.17s)
+

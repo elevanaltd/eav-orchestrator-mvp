@@ -41,7 +41,7 @@ const TEST_SCRIPT_ID = '0395f3f7-8eb7-4a1f-aa17-27d0d3a38680';
 
 // Session cache to prevent Supabase auth rate limiting (CRITICAL FIX)
 let lastAuthTime = 0;
-const MIN_AUTH_DELAY_MS = 500; // Increased to avoid Supabase rate limits
+const MIN_AUTH_DELAY_MS = 750; // Balanced delay for rate limit protection (Phase 2.95A fix)
 
 // Helper to add delay between auth operations to avoid rate limiting
 async function authDelay() {
