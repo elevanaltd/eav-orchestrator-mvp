@@ -4,6 +4,9 @@
  * Each paragraph is automatically a component
  * Integrates with NavigationContext to load/save scripts for selected videos
  * Clean copy/paste with visual indicators only
+ *
+ * Critical-Engineer: consulted for Architecture pattern selection (Hybrid Refactor)
+ * Verdict: Extract permission logic into usePermissions hook, apply UX fixes to clean architecture
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -25,6 +28,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { loadScriptForVideo, saveScript, updateScriptStatus as updateScriptWorkflowStatus, ComponentData, Script, ScriptWorkflowStatus } from '../services/scriptService';
 import { Logger } from '../services/logger';
 
@@ -180,6 +184,7 @@ export const TipTapEditor: React.FC = () => {
   const { selectedVideo } = useNavigation();
   const { updateScriptStatus, clearScriptStatus } = useScriptStatus();
   const { userProfile } = useAuth();
+  const permissions = usePermissions();
   const { toasts, showSuccess, showError } = useToast();
 
   // Script management state
@@ -287,7 +292,9 @@ export const TipTapEditor: React.FC = () => {
   });
 
   // Create editor first
+  // Editor editability controlled by permissions (clients are read-only)
   const editor = useEditor({
+    editable: permissions.canEditScript,
     extensions: [
       StarterKit.configure({
         paragraph: {
@@ -593,6 +600,12 @@ export const TipTapEditor: React.FC = () => {
       return;
     }
 
+    // SECURITY NOTE: RLS policy on save_script_with_components handles authorization
+    // - Clients cannot edit script text (editor.setEditable(false) for client role)
+    // - Database function has NULL role bypass protection (migration 20251007050000)
+    // - No need for redundant client-side permission check
+    // - Removing this guard eliminates "unsaved changes" UX confusion
+
     setSaveStatus('saving');
     try {
       const plainText = editor.getText();
@@ -699,11 +712,8 @@ export const TipTapEditor: React.FC = () => {
 
         setCurrentScript(script);
 
-        // Set editor editability based on whether script is readonly
-        const isReadonly = script.id.startsWith('readonly-');
-        editor.setEditable(!isReadonly);
-
         // Initialize editor content from Y.js state or plain text
+        // Note: Editor editability is controlled by usePermissions hook at initialization
         // ISSUE: Y.js State Deserialization
         // Priority: High | Scope: Phase 4 (Real-time Collaboration)
         // Requirements: Implement Y.js state deserialization for collaborative editing
@@ -807,6 +817,15 @@ export const TipTapEditor: React.FC = () => {
     }
     // We only care about the length of extractedComponents, not the array reference
   }, [saveStatus, lastSaved, extractedComponents.length, currentScript, updateScriptStatus, clearScriptStatus]);
+
+  // Update editor editability when permissions change
+  // Per Vercel Bot PR#56 review: Editor editability only set at initialization
+  // Fix: Reactively update when permissions.canEditScript changes during session
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(permissions.canEditScript);
+    }
+  }, [editor, permissions.canEditScript]);
 
   // Add cleanup effect to handle component unmounting
   useEffect(() => {
@@ -1208,8 +1227,8 @@ export const TipTapEditor: React.FC = () => {
                   </span>
                 )}
               </p>
-              {/* GREEN Phase: Workflow Status Selector */}
-              {currentScript && (
+              {/* GREEN Phase: Workflow Status Selector - Admin/Employee Only */}
+              {currentScript && permissions.canChangeWorkflowStatus && (
                 <div style={{ marginTop: '12px' }}>
                   <label htmlFor="workflow-status" style={{ fontSize: '14px', fontWeight: '500', marginRight: '8px' }}>
                     Workflow Status:
@@ -1235,7 +1254,8 @@ export const TipTapEditor: React.FC = () => {
                 </div>
               )}
             </div>
-            {selectedVideo && editor && (
+            {/* Convert Soft Enters Button - Admin/Employee Only */}
+            {selectedVideo && editor && permissions.canConvertSoftEnters && (
               <button
                 onClick={() => {
                   if (!editor) return;

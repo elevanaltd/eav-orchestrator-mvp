@@ -7,7 +7,7 @@ interface UserProfile {
   id: string
   email: string
   display_name: string | null
-  role: 'admin' | 'client' | null
+  role: 'admin' | 'employee' | 'client' | null
   created_at: string
   client_filter?: string | null
 }

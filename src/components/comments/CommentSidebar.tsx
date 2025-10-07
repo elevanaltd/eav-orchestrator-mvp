@@ -639,7 +639,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
     if (result.success) {
       setDeleteConfirming(null);
-      // Realtime subscription will remove the comment automatically - no need to reload
+      // Force reload to ensure UI consistency (realtime may be delayed)
+      void loadCommentsWithCleanup();
     }
 
     setDeleting(false);
