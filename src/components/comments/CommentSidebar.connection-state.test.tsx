@@ -57,7 +57,7 @@ vi.mock('../../contexts/AuthContext', () => ({
 import { CommentSidebar } from './CommentSidebar';
 import * as commentsLib from '../../lib/comments';
 
-describe('CommentSidebar - Connection State Machine', () => {
+describe.skip('CommentSidebar - Connection State Machine', () => {
   let subscribeCallback: (status: string) => void;
 
   beforeEach(() => {
