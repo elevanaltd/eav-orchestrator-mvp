@@ -126,6 +126,14 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   const loadCommentsWithCleanup = useCallback(async (cancellationCheck?: () => boolean) => {
     // PRIORITY 1 FIX: Clear comments immediately when scriptId changes to prevent stale data
     setComments([]);
+
+    // Don't load comments for readonly placeholder scripts (no script created yet)
+    if (scriptId.startsWith('readonly-')) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -450,6 +458,11 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   // Handle comment creation using CRUD functions with error handling
   const handleCreateComment = async () => {
     if (!createComment || !commentText.trim() || !currentUser) return;
+
+    // Don't allow comment creation on readonly placeholder scripts (no script created yet)
+    if (scriptId.startsWith('readonly-')) {
+      return;
+    }
 
     setSubmitting(true);
     setError(null);

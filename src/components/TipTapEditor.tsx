@@ -335,7 +335,12 @@ export const TipTapEditor: React.FC = () => {
       if (!isMountedRef.current) return;
 
       extractComponents(editor);
-      setSaveStatus('unsaved');
+
+      // Only set unsaved status if user can actually edit/save scripts
+      // Clients cannot edit scripts (editor is read-only) so no need to show "unsaved"
+      if (permissions.canEditScript) {
+        setSaveStatus('unsaved');
+      }
       // Context will be updated via useEffect when extractedComponents changes
     },
     onCreate: ({ editor }) => {
@@ -441,6 +446,11 @@ export const TipTapEditor: React.FC = () => {
   // FIX (ADR-005 ADDENDUM 2): Removed documentContent parameter to prevent unnecessary recovery
   const loadCommentHighlights = useCallback(async (scriptId: string) => {
     if (!editor) return;
+
+    // Don't load comments for readonly placeholder scripts (no script created yet)
+    if (scriptId.startsWith('readonly-')) {
+      return;
+    }
 
     try {
       // Import the comments module and load highlights
@@ -600,11 +610,12 @@ export const TipTapEditor: React.FC = () => {
       return;
     }
 
-    // SECURITY NOTE: RLS policy on save_script_with_components handles authorization
-    // - Clients cannot edit script text (editor.setEditable(false) for client role)
-    // - Database function has NULL role bypass protection (migration 20251007050000)
-    // - No need for redundant client-side permission check
-    // - Removing this guard eliminates "unsaved changes" UX confusion
+    // DEFENSE IN DEPTH: Additional permission check (should never trigger due to onUpdate guard)
+    // Primary protection: onUpdate only sets 'unsaved' status for users with canEditScript
+    // This guard ensures handleSave never executes for clients even if called directly
+    if (!permissions.canEditScript) {
+      return;
+    }
 
     setSaveStatus('saving');
     try {
@@ -636,7 +647,7 @@ export const TipTapEditor: React.FC = () => {
         setSaveStatus('error');
       }
     }
-  }, [currentScript, editor, extractedComponents, loadCommentHighlights]);
+  }, [currentScript, editor, extractedComponents, loadCommentHighlights, permissions.canEditScript]);
 
   // Handle comment creation from sidebar
   const handleCommentCreated = useCallback(async () => {
@@ -1391,7 +1402,7 @@ export const TipTapEditor: React.FC = () => {
       )}
 
       {/* Comment Selection Popup - Phase 2.2 */}
-      {showCommentPopup && selectedText && (
+      {showCommentPopup && selectedText && currentScript && !currentScript.id.startsWith('readonly-') && (
         <div
           className="comment-selection-popup"
           data-testid="comment-selection-popup"
