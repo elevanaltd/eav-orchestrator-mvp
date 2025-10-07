@@ -192,10 +192,17 @@ describe('CommentSidebar', () => {
     it('should display comment metadata correctly', async () => {
       render(<CommentSidebar scriptId="script-1" />);
 
+      // Wait for async loading to complete
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
+
       await waitFor(() => {
         // Should show user info, timestamp, content
         expect(screen.getByText('This needs revision.')).toBeInTheDocument();
-        expect(screen.getByText(/user-1/)).toBeInTheDocument();
+        // Multiple comments from Test User 1, so use getAllByText
+        const userElements = screen.getAllByText(/Test User 1/);
+        expect(userElements.length).toBeGreaterThan(0);
       });
     });
 
@@ -235,8 +242,17 @@ describe('CommentSidebar', () => {
     it('should filter to show only open comments', async () => {
       render(<CommentSidebar scriptId="script-1" />);
 
+      // Wait for async loading to complete
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
+
+      // NOW buttons exist in DOM
       const openFilter = screen.getByRole('button', { name: /open comments/i });
-      fireEvent.click(openFilter);
+
+      await act(async () => {
+        fireEvent.click(openFilter);
+      });
 
       await waitFor(() => {
         // Should show only unresolved comments
@@ -249,8 +265,17 @@ describe('CommentSidebar', () => {
     it('should filter to show only resolved comments', async () => {
       render(<CommentSidebar scriptId="script-1" />);
 
+      // Wait for async loading to complete
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
+
+      // NOW buttons exist in DOM
       const resolvedFilter = screen.getByRole('button', { name: /resolved comments/i });
-      fireEvent.click(resolvedFilter);
+
+      await act(async () => {
+        fireEvent.click(resolvedFilter);
+      });
 
       await waitFor(() => {
         // Should show only resolved comments
@@ -273,7 +298,7 @@ describe('CommentSidebar', () => {
   });
 
   describe('Comment Creation', () => {
-    it('should show creation form when createComment prop is provided', () => {
+    it('should show creation form when createComment prop is provided', async () => {
       const createCommentData = {
         startPosition: 10,
         endPosition: 25,
@@ -281,6 +306,11 @@ describe('CommentSidebar', () => {
       };
 
       render(<CommentSidebar scriptId="script-1" createComment={createCommentData} />);
+
+      // Wait for async loading to complete
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
 
       expect(screen.getByRole('form', { name: /new comment/i })).toBeInTheDocument();
       expect(screen.getByRole('textbox', { name: /comment text/i })).toBeInTheDocument();
@@ -295,6 +325,14 @@ describe('CommentSidebar', () => {
     });
 
     it('should call onCommentCreated when form is submitted', async () => {
+      // Mock createComment to return success
+      const mockCreateComment = vi.mocked(commentsLib.createComment);
+      mockCreateComment.mockResolvedValue({
+        success: true,
+        data: undefined,
+        error: undefined,
+      });
+
       const onCommentCreated = vi.fn();
       const createCommentData = {
         startPosition: 10,
@@ -310,11 +348,18 @@ describe('CommentSidebar', () => {
         />
       );
 
+      // Wait for async loading to complete
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
+
       const textarea = screen.getByRole('textbox', { name: /comment text/i });
       const submitButton = screen.getByRole('button', { name: /submit/i });
 
-      fireEvent.change(textarea, { target: { value: 'New comment text' } });
-      fireEvent.click(submitButton);
+      await act(async () => {
+        fireEvent.change(textarea, { target: { value: 'New comment text' } });
+        fireEvent.click(submitButton);
+      });
 
       await waitFor(() => {
         expect(onCommentCreated).toHaveBeenCalledWith({
@@ -323,6 +368,7 @@ describe('CommentSidebar', () => {
           startPosition: 10,
           endPosition: 25,
           parentCommentId: null,
+          highlightedText: 'selected text',
         });
       });
     });
@@ -387,9 +433,14 @@ describe('CommentSidebar', () => {
 
       render(<CommentSidebar scriptId="script-1" />);
 
+      // Wait for loading to complete and error state to render
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
+
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText(/error loading comments/i)).toBeInTheDocument();
+        expect(screen.getByText(/server error occurred/i)).toBeInTheDocument();
       });
     });
   });
