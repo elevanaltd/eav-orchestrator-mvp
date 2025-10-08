@@ -17,6 +17,7 @@ interface UpdateCommentParams {
 
 interface ResolveCommentParams {
   commentId: string
+  scriptId: string
 }
 
 /**
@@ -131,50 +132,48 @@ export const useCommentMutations = () => {
 
       return result.data
     },
-    onMutate: async ({ commentId }) => {
+    onMutate: async ({ commentId, scriptId }) => {
       // Gap G2: Optimistic UI update for comment resolution
+      const queryKey = ['comments', scriptId] as const
+
       // Cancel outgoing refetches to prevent overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ['comments'] })
+      await queryClient.cancelQueries({ queryKey })
 
-      // Snapshot ALL comment queries for rollback (preserves all query keys)
-      const previousComments = queryClient.getQueriesData({ queryKey: ['comments'] })
+      // Snapshot current cache for this specific script
+      const previousComments = queryClient.getQueryData<CommentWithRecovery[]>(queryKey)
 
-      // Optimistically update each comment cache individually
+      // Optimistically update comment cache for this script
       const now = new Date().toISOString()
-      previousComments.forEach(([queryKey]) => {
-        queryClient.setQueryData<CommentWithRecovery[]>(queryKey, (old) => {
-          if (!Array.isArray(old)) return old
+      queryClient.setQueryData<CommentWithRecovery[]>(queryKey, (old) => {
+        if (!Array.isArray(old)) return old
 
-          return old.map((comment) =>
-            comment.id === commentId
-              ? {
-                  ...comment,
-                  resolvedAt: now,
-                  resolvedBy: currentUser?.id || null,
-                  resolvedByUser: currentUser ? {
-                    id: currentUser.id,
-                    email: currentUser.email || '',
-                    displayName: userProfile?.display_name || null,
-                  } : null,
-                }
-              : comment
-          )
-        })
+        return old.map((comment) =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                resolvedAt: now,
+                resolvedBy: currentUser?.id || null,
+                resolvedByUser: currentUser ? {
+                  id: currentUser.id,
+                  email: currentUser.email || '',
+                  displayName: userProfile?.display_name || null,
+                } : null,
+              }
+            : comment
+        )
       })
 
-      return { previousComments }
+      return { previousComments, queryKey }
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ['comments']
+        queryKey: ['comments', variables.scriptId]
       })
     },
     onError: (_err, _variables, context) => {
-      // Rollback ALL comment queries to previous state
-      if (context?.previousComments) {
-        context.previousComments.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data)
-        })
+      // Rollback comment cache to previous state
+      if (context?.previousComments && context?.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousComments)
       }
     },
   })
@@ -194,45 +193,43 @@ export const useCommentMutations = () => {
 
       return result.data
     },
-    onMutate: async ({ commentId }) => {
+    onMutate: async ({ commentId, scriptId }) => {
       // Gap G2: Optimistic UI update for comment unresolve
+      const queryKey = ['comments', scriptId] as const
+
       // Cancel outgoing refetches to prevent overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ['comments'] })
+      await queryClient.cancelQueries({ queryKey })
 
-      // Snapshot ALL comment queries for rollback (preserves all query keys)
-      const previousComments = queryClient.getQueriesData({ queryKey: ['comments'] })
+      // Snapshot current cache for this specific script
+      const previousComments = queryClient.getQueryData<CommentWithRecovery[]>(queryKey)
 
-      // Optimistically update each comment cache individually
-      previousComments.forEach(([queryKey]) => {
-        queryClient.setQueryData<CommentWithRecovery[]>(queryKey, (old) => {
-          if (!Array.isArray(old)) return old
+      // Optimistically update comment cache for this script
+      queryClient.setQueryData<CommentWithRecovery[]>(queryKey, (old) => {
+        if (!Array.isArray(old)) return old
 
-          return old.map((comment) =>
-            comment.id === commentId
-              ? {
-                  ...comment,
-                  resolvedAt: null,
-                  resolvedBy: null,
-                  resolvedByUser: null,
-                }
-              : comment
-          )
-        })
+        return old.map((comment) =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                resolvedAt: null,
+                resolvedBy: null,
+                resolvedByUser: null,
+              }
+            : comment
+        )
       })
 
-      return { previousComments }
+      return { previousComments, queryKey }
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ['comments']
+        queryKey: ['comments', variables.scriptId]
       })
     },
     onError: (_err, _variables, context) => {
-      // Rollback ALL comment queries to previous state
-      if (context?.previousComments) {
-        context.previousComments.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data)
-        })
+      // Rollback comment cache to previous state
+      if (context?.previousComments && context?.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousComments)
       }
     },
   })
@@ -252,36 +249,34 @@ export const useCommentMutations = () => {
 
       return result.success
     },
-    onMutate: async ({ commentId }) => {
+    onMutate: async ({ commentId, scriptId }) => {
       // Gap G2: Optimistic UI update for comment deletion
+      const queryKey = ['comments', scriptId] as const
+
       // Cancel outgoing refetches to prevent overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ['comments'] })
+      await queryClient.cancelQueries({ queryKey })
 
-      // Snapshot ALL comment queries for rollback (preserves all query keys)
-      const previousComments = queryClient.getQueriesData({ queryKey: ['comments'] })
+      // Snapshot current cache for this specific script
+      const previousComments = queryClient.getQueryData<CommentWithRecovery[]>(queryKey)
 
-      // Optimistically remove comment from each comment cache individually
-      previousComments.forEach(([queryKey]) => {
-        queryClient.setQueryData<CommentWithRecovery[]>(queryKey, (old) => {
-          if (!Array.isArray(old)) return old
+      // Optimistically remove comment from cache for this script
+      queryClient.setQueryData<CommentWithRecovery[]>(queryKey, (old) => {
+        if (!Array.isArray(old)) return old
 
-          return old.filter((comment) => comment.id !== commentId)
-        })
+        return old.filter((comment) => comment.id !== commentId)
       })
 
-      return { previousComments }
+      return { previousComments, queryKey }
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ['comments']
+        queryKey: ['comments', variables.scriptId]
       })
     },
     onError: (_err, _variables, context) => {
-      // Rollback ALL comment queries to previous state
-      if (context?.previousComments) {
-        context.previousComments.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data)
-        })
+      // Rollback comment cache to previous state
+      if (context?.previousComments && context?.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousComments)
       }
     },
   })

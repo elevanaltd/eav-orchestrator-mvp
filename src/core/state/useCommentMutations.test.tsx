@@ -199,6 +199,7 @@ describe('useCommentMutations - Integration Tests (Testguard-Approved)', () => {
       act(() => {
         result.current.resolveMutation.mutate({
           commentId: 'comment-123',
+          scriptId: 'script-456',
         })
       })
 
@@ -206,9 +207,9 @@ describe('useCommentMutations - Integration Tests (Testguard-Approved)', () => {
         expect(result.current.resolveMutation.isSuccess).toBe(true)
       })
 
-      // Verify cache invalidation
+      // Verify cache invalidation with specific scriptId
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ['comments']
+        queryKey: ['comments', 'script-456']
       })
     })
 
@@ -256,6 +257,7 @@ describe('useCommentMutations - Integration Tests (Testguard-Approved)', () => {
       act(() => {
         result.current.resolveMutation.mutate({
           commentId: 'comment-123',
+          scriptId: 'script-456',
         })
       })
 
@@ -298,6 +300,7 @@ describe('useCommentMutations - Integration Tests (Testguard-Approved)', () => {
       act(() => {
         result.current.resolveMutation.mutate({
           commentId: 'comment-123',
+          scriptId: 'script-456',
         })
       })
 
@@ -357,6 +360,7 @@ describe('useCommentMutations - Integration Tests (Testguard-Approved)', () => {
       act(() => {
         result.current.unresolveMutation.mutate({
           commentId: 'comment-123',
+          scriptId: 'script-456',
         })
       })
 
@@ -398,6 +402,7 @@ describe('useCommentMutations - Integration Tests (Testguard-Approved)', () => {
       act(() => {
         result.current.unresolveMutation.mutate({
           commentId: 'comment-123',
+          scriptId: 'script-456',
         })
       })
 
@@ -434,6 +439,7 @@ describe('useCommentMutations - Integration Tests (Testguard-Approved)', () => {
       act(() => {
         result.current.deleteMutation.mutate({
           commentId: 'comment-123',
+          scriptId: 'script-456',
         })
       })
 
@@ -441,9 +447,9 @@ describe('useCommentMutations - Integration Tests (Testguard-Approved)', () => {
         expect(result.current.deleteMutation.isSuccess).toBe(true)
       })
 
-      // Verify cache invalidation
+      // Verify cache invalidation with specific scriptId
       expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: ['comments']
+        queryKey: ['comments', 'script-456']
       })
     })
 
@@ -481,6 +487,7 @@ describe('useCommentMutations - Integration Tests (Testguard-Approved)', () => {
       act(() => {
         result.current.deleteMutation.mutate({
           commentId: 'comment-123',
+          scriptId: 'script-456',
         })
       })
 
@@ -519,6 +526,7 @@ describe('useCommentMutations - Integration Tests (Testguard-Approved)', () => {
       act(() => {
         result.current.deleteMutation.mutate({
           commentId: 'comment-123',
+          scriptId: 'script-456',
         })
       })
 

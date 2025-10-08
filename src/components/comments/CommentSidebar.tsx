@@ -590,11 +590,11 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setError(null);
 
     try {
-      // Use optimistic UI mutation hooks
+      // Use optimistic UI mutation hooks with scriptId
       if (isCurrentlyResolved) {
-        unresolveMutation.mutate({ commentId });
+        unresolveMutation.mutate({ commentId, scriptId });
       } else {
-        resolveMutation.mutate({ commentId });
+        resolveMutation.mutate({ commentId, scriptId });
       }
     } catch (error) {
       const operation = isCurrentlyResolved ? 'unresolve' : 'resolve';
@@ -619,8 +619,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setError(null);
 
     try {
-      // Use optimistic UI mutation hook
-      deleteMutation.mutate({ commentId });
+      // Use optimistic UI mutation hook with scriptId
+      deleteMutation.mutate({ commentId, scriptId });
       setDeleteConfirming(null);
     } catch (error) {
       const contextualMessage = getUserFriendlyErrorMessage(
