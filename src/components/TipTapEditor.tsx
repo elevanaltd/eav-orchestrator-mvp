@@ -19,6 +19,7 @@ import { Node, DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
 import { CommentPositionTracker } from './extensions/CommentPositionTracker';
+import { HeaderPatternExtension } from './extensions/HeaderPatternExtension';
 import { CommentSidebar } from './comments/CommentSidebar';
 import { useCommentPositionSync } from '../hooks/useCommentPositionSync';
 import { supabase } from '../lib/supabase';
@@ -134,10 +135,20 @@ const ParagraphComponentTracker = Extension.create({
             const decorations: Decoration[] = [];
             let componentNumber = 0;
 
+            // Pattern to detect [[HEADER]] paragraphs (same as extractComponents)
+            const headerPattern = /^\[\[([A-Z0-9\s\-_]+)\]\]$/;
+
             // Iterate through the document
             state.doc.forEach((node, offset) => {
-              // Each paragraph becomes a component
+              // Each paragraph becomes a component (except [[HEADER]] paragraphs)
               if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
+                const trimmedText = node.textContent.trim();
+
+                // Skip [[HEADER]] paragraphs - they are NOT components
+                if (headerPattern.test(trimmedText)) {
+                  return; // Don't show Cx label for header paragraphs
+                }
+
                 componentNumber++;
 
                 // Add a widget decoration for the component label
@@ -236,8 +247,19 @@ export const TipTapEditor: React.FC = () => {
     const components: ComponentData[] = [];
     let componentNum = 0;
 
+    // Pattern to detect [[HEADER]] paragraphs (these are NOT components)
+    const headerPattern = /^\[\[([A-Z0-9\s\-_]+)\]\]$/;
+
     editor.state.doc.forEach((node: Node) => {
       if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
+        const trimmedText = node.textContent.trim();
+
+        // Skip paragraphs that are ONLY [[HEADER]] patterns
+        // These are visual subheaders for ElevenLabs, not production components
+        if (headerPattern.test(trimmedText)) {
+          return; // Skip this paragraph - it's a header, not a component
+        }
+
         componentNum++;
         components.push({
           number: componentNum,
@@ -304,6 +326,7 @@ export const TipTapEditor: React.FC = () => {
         }
       }),
       ParagraphComponentTracker,
+      HeaderPatternExtension,
       CommentHighlightExtension.configure({
         onHighlightClick: (commentId: string, _commentNumber: number) => {
           // Scroll to comment in sidebar when highlight is clicked

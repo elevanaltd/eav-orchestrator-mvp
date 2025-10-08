@@ -113,6 +113,15 @@
   line-height: 1.6;
 }
 
+/* Header Pattern Extension - [[HEADER]] Visual Styling */
+.ProseMirror .header-pattern {
+  font-weight: 700;
+  color: #6b7280; /* gray-500 */
+  font-size: 1.1em;
+  letter-spacing: 0.02em;
+  user-select: text; /* Allow selecting for editing */
+}
+
 .component-info {
   background-color: #f8f9fa;
   border-top: 1px solid #e5e5e5;
