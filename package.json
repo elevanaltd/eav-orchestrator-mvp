@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
+    "@tanstack/react-query": "^5.90.2",
     "@tiptap/extension-collaboration": "^2.1.13",
     "@tiptap/extension-collaboration-cursor": "^2.1.13",
     "@tiptap/react": "^2.1.13",
@@ -31,7 +32,8 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.9.2",
     "yjs": "^13.6.8",
-    "zod": "^4.1.11"
+    "zod": "^4.1.11",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.1.4",

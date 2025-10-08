@@ -625,7 +625,13 @@ export const TipTapEditor: React.FC = () => {
       // Requirements: Implement Y.js serialization for collaborative state sync
       // Dependencies: Y.js library, WebSocket infrastructure, conflict resolution
       const yjsState = null; // Placeholder until Y.js integration in Phase 4
-      const updatedScript = await saveScript(currentScript.id, yjsState, plainText, extractedComponents);
+
+      // Amendment #3: PATCH pattern - only send changed fields
+      const updatedScript = await saveScript(currentScript.id, {
+        yjs_state: yjsState,
+        plain_text: plainText,
+        component_count: extractedComponents.length
+      });
 
       // Only update state if still mounted
       if (isMountedRef.current) {

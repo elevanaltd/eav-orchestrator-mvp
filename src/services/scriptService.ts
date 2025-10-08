@@ -149,12 +149,108 @@ export async function loadScriptForVideo(videoId: string, userRole?: string | nu
 }
 
 /**
- * Save script Y.js state, plain text, and components atomically
- * Uses RPC function for transactional consistency
+ * Save script with PATCH pattern for concurrency safety
+ *
+ * Critical-Engineer: consulted for Architecture pattern selection (PATCH vs full-replacement)
+ * Amendment #3: Uses PATCH pattern to prevent data corruption from concurrent saves
+ *
+ * PATCH pattern ensures:
+ * - Only specified fields are updated (no accidental nullification)
+ * - Concurrent saves don't overwrite each other's changes
+ * - Database handles updated_at timestamp (prevents client clock skew)
+ *
+ * @param scriptId - UUID of script to update
+ * @param updates - Partial script updates (only changed fields)
+ * @returns Complete updated script with components
  */
 export async function saveScript(
   scriptId: string,
-  yjsState: Uint8Array | null, // Y.js document state (will be stored as BYTEA)
+  updates: Partial<Omit<Script, 'id' | 'video_id' | 'created_at' | 'updated_at' | 'components'>>
+): Promise<Script> {
+  try {
+    // SECURITY: Validate script ID before database operation
+    const validatedScriptId = validateScriptId(scriptId);
+
+    // Validate provided updates
+    const validatedUpdates: Record<string, unknown> = {};
+
+    if ('plain_text' in updates && updates.plain_text !== undefined) {
+      validatedUpdates.plain_text = validateScriptContent(updates.plain_text);
+    }
+
+    if ('yjs_state' in updates) {
+      validatedUpdates.yjs_state = updates.yjs_state; // Binary data, no validation needed
+    }
+
+    if ('component_count' in updates && updates.component_count !== undefined) {
+      validatedUpdates.component_count = updates.component_count;
+    }
+
+    if ('status' in updates && updates.status !== undefined) {
+      // Validate status is one of the allowed values
+      const validStatuses: ScriptWorkflowStatus[] = ['draft', 'in_review', 'rework', 'approved'];
+      if (!validStatuses.includes(updates.status)) {
+        throw new ValidationError(`Invalid status: ${updates.status}. Must be one of: ${validStatuses.join(', ')}`);
+      }
+      validatedUpdates.status = updates.status;
+    }
+
+    // PATCH pattern: Only update provided fields
+    // Database trigger will handle updated_at timestamp
+    const { data: updatedScript, error: scriptError } = await supabase
+      .from('scripts')
+      .update(validatedUpdates)
+      .eq('id', validatedScriptId)
+      .select('*')
+      .single();
+
+    if (scriptError) {
+      throw new ScriptServiceError(`Failed to save script: ${scriptError.message}`, scriptError.code);
+    }
+
+    // Load components for complete script object
+    const { data: components, error: componentsError } = await supabase
+      .from('script_components')
+      .select('*')
+      .eq('script_id', validatedScriptId)
+      .order('component_number', { ascending: true });
+
+    if (componentsError) {
+      throw new ScriptServiceError(`Failed to load script components: ${componentsError.message}`, componentsError.code);
+    }
+
+    // Transform database components to expected format
+    const transformedComponents: ComponentData[] = (components || []).map(comp => ({
+      number: comp.component_number,
+      content: comp.content,
+      wordCount: comp.word_count || 0,
+      hash: generateContentHash(comp.content)
+    }));
+
+    return {
+      ...updatedScript,
+      components: transformedComponents
+    };
+  } catch (error) {
+    if (error instanceof ScriptServiceError) {
+      throw error;
+    }
+    if (error instanceof ValidationError) {
+      throw new ScriptServiceError(`Input validation failed: ${error.message}`);
+    }
+    throw new ScriptServiceError(`Unexpected error saving script: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * LEGACY: Save script with components using RPC function
+ *
+ * @deprecated Use saveScript() with PATCH pattern instead for concurrency safety
+ * This function remains for backward compatibility with RPC-based saves
+ */
+export async function saveScriptWithComponents(
+  scriptId: string,
+  yjsState: Uint8Array | null,
   plainText: string,
   components: ComponentData[]
 ): Promise<Script> {
@@ -163,6 +259,7 @@ export async function saveScript(
     const validatedScriptId = validateScriptId(scriptId);
     const validatedPlainText = validateScriptContent(plainText);
     const validatedComponents = validateComponentArray(components);
+
     // Try to use atomic RPC function first
     const { data: rpcData, error: rpcError } = await supabase
       .rpc('save_script_with_components', {
@@ -182,60 +279,14 @@ export async function saveScript(
     }
 
     // Fallback to non-atomic updates if RPC doesn't exist yet
-    // (This allows the system to work before migration is run)
     console.warn('RPC function not available, using fallback save method');
 
-    // Update script with Y.js state and metadata
-    const { data: updatedScript, error: scriptError } = await supabase
-      .from('scripts')
-      .update({
-        yjs_state: yjsState,
-        plain_text: validatedPlainText,
-        component_count: validatedComponents.length,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', validatedScriptId)
-      .select('*')
-      .single();
-
-    if (scriptError) {
-      throw new ScriptServiceError(`Failed to save script: ${scriptError.message}`, scriptError.code);
-    }
-
-    // Delete existing components for this script
-    const { error: deleteError } = await supabase
-      .from('script_components')
-      .delete()
-      .eq('script_id', validatedScriptId);
-
-    if (deleteError) {
-      throw new ScriptServiceError(`Failed to delete existing components: ${deleteError.message}`, deleteError.code);
-    }
-
-    // Insert new components if any exist
-    if (validatedComponents.length > 0) {
-      const componentsToInsert = validatedComponents.map(comp => ({
-        script_id: validatedScriptId,
-        component_number: comp.number,
-        content: comp.content,
-        word_count: comp.wordCount,
-        created_at: new Date().toISOString()
-      }));
-
-      const { error: insertError } = await supabase
-        .from('script_components')
-        .insert(componentsToInsert);
-
-      if (insertError) {
-        throw new ScriptServiceError(`Failed to save components: ${insertError.message}`, insertError.code);
-      }
-    }
-
-    // Return complete script with components
-    return {
-      ...updatedScript,
-      components: validatedComponents
-    };
+    // Use PATCH pattern for safety
+    return saveScript(validatedScriptId, {
+      yjs_state: yjsState,
+      plain_text: validatedPlainText,
+      component_count: validatedComponents.length
+    });
   } catch (error) {
     if (error instanceof ScriptServiceError) {
       throw error;

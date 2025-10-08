@@ -1,144 +1,188 @@
-# EAV Orchestrator MVP
+# EAV Orchestrator - Production Video Workflow System
 
-Production-ready foundation with proven paragraph=component architecture for video production workflow.
+**Status:** Phase 2 Complete | Production-Ready Foundation | Phase 3 Architecture Approved  
+**Live:** https://eav-orchestrator-mvp.vercel.app/
 
-## 🎯 Mission
+A production-grade web application for managing video production workflows from initial script creation through final editing.  Built for EAV (a video production company) to streamline their component-based workflow where each paragraph of script becomes a trackable production component (C1, C2, C3...) flowing through Script → Review → Scenes → Voice → Edit phases.
 
-This MVP has successfully validated the core architecture for EAV Orchestrator. The **paragraph=component model** with TipTap editor integration is proven and operational, ready for production hardening.
+## 🎯 What is EAV Orchestrator?
 
-## ✅ Architecture VALIDATED
+EAV Orchestrator transforms video production workflow management by treating **every paragraph as a production component** with stable identity throughout the entire lifecycle. The system enables:
+
+- **Script Creation:** Google Docs-like editor with automatic component extraction
+- **Client Collaboration:** Real-time commenting system for client review and feedback
+- **Data Entry Hub:** Comprehensive project specification entry (180+ fields) - Phase 3
+- **Workflow Management:** Unified interface tracking components through production phases
+- **Team Coordination:** Real-time collaboration with permission-based access control
+
+### Core Innovation: Paragraph = Component Model
+
+Every paragraph typed becomes a numbered component (C1, C2, C3...) that maintains stable identity as it flows through:
 
 ```
-USER TYPES → Single TipTap Editor → Y.js Document Structure → Component Extraction
-                      ↓                    ↓                         ↓
-             Google Docs-like UX    Single Source of Truth    Stable Component IDs (C1, C2, C3...)
-                      ↓
-             Components Flow: Script → Scenes → Voice → Edit (1:1 mapping)
+Script Tab → Review (Comments) → Scenes Tab → Voice Tab → Edit Tab
+   C1              C1                 C1          C1         C1
+   C2              C2                 C2          C2         C2
+   C3              C3                 C3          C3         C3
 ```
+
+This 1:1 mapping ensures perfect traceability from initial script through final edited video.
+
+## ✅ What's Built (Production-Ready)
+
+### Phase 1: SmartSuite Integration ✅
+- Real-time webhook sync from SmartSuite → Supabase
+- 24 production projects syncing automatically  
+- Dynamic field mapping (no code changes for new SmartSuite fields)
+
+### Phase 2: Collaboration System ✅
+- **Google Docs-Style Commenting:** Threaded discussions with replies, resolve/unresolve
+- **Position Tracking:** Comments follow text as it's edited (ProseMirror transaction mapping)
+- **Real-time Sync:** Multi-user collaboration with instant comment updates
+- **Connection Resilience:** Automatic reconnection with exponential backoff
+- **Security:** 9/10 security score with RLS enforcement
+
+### Phase 2.9: Database Hardening ✅
+- RLS performance: 17 policies optimized (50-100ms improvement at scale)
+- Policy consolidation: 20+ policies merged (50% overhead reduction)  
+- Security: All SECURITY DEFINER functions protected
+- Supabase linter: 0 errors, 0 warnings
+
+### Current Quality Metrics
+
+**Test Suite:** 346/463 passing (75%)
+- 346 regression tests (behavior parity protection)
+- 117 skipped tests (TDD RED phase - pending features)
+- 0 failing tests
+
+**Code Quality:**
+- TypeScript: Zero errors (strict mode)
+- ESLint: Zero warnings
+- Bundle: 865KB optimized
+
+**Production Status:**
+- Live on Vercel with auto-deploy
+- Supabase PostgreSQL with RLS
+- Real-time collaboration validated
+- 9/10 security score
+
+## 🚀 What's Planned
+
+### Phase 2.95B: Architectural Refactor 🎯 NEXT (3-4 days)
+**Status:** Architecture approved by critical-engineer + test-methodology-guardian
+
+**Objective:** Consolidate state management before Phase 3 expansion
+
+**Technology:** TanStack Query + Zustand + Hardened Realtime Provider
+
+**Quality:** DUAL-SUITE validation (both old and new tests must pass)
+
+### Phase 3: Data Entry Hub (16-21 days)
+
+#### Phase 3A: Data Entry Infrastructure (5-6 days)
+- Relational schema for 180+ fields
+- Section-based navigation with progressive disclosure
+- Auto-save, progress tracking, completion indicators
+
+#### Phase 3B: AI Auto-Population (3-4 days)
+- PDF/Word document processing
+- LLM field extraction via Supabase Edge Functions
+- Client approval UI with confidence scoring
+
+#### Phase 3C: Module System + Script Generation (4-5 days)
+- Template library with variable substitution
+- Script generation from data entry
+- Generated scripts → TipTap editor with C1, C2, C3... components
+
+#### Phase 3D: Workflow Tabs (4-5 days)
+- Voice Tab: ElevenLabs integration
+- Scenes Tab: Component breakdown  
+- Edit Tab: Final review + export
+
+### Phase 4-6: Production Enhancement (8-11 days)
+- Voice generation polish
+- Field operations (offline PWA)
+- Production monitoring and optimization
+
+**Total Timeline:** 30-37 days to full production
+
+## 🏗️ Technical Stack
+
+**Frontend:** React 18, TypeScript, Vite, TipTap, Zustand (Phase 2.95B), TanStack Query (Phase 2.95B)
+
+**Backend:** Supabase (PostgreSQL, Auth, Realtime, Edge Functions)
+
+**Integration:** SmartSuite workspace s3qnmox1, ElevenLabs (Phase 3D)
+
+**Database:** 7 tables (projects, videos, scripts, script_components, comments, user_profiles, user_clients)
+
+**User Roles:**  
+- **Admin:** Internal team - full access
+- **Employee:** Internal team - assigned projects  
+- **Client:** External - read-only, can comment
 
 ## 🚀 Quick Start
 
 ```bash
-# Install dependencies
+# Install & configure
 npm install
-
-# Copy environment variables
 cp .env.example .env
-# Add your VITE_SUPABASE_PUBLISHABLE_KEY and VITE_SMARTSUITE_API_KEY
+# Add VITE_SUPABASE_PUBLISHABLE_KEY and VITE_SMARTSUITE_API_KEY
 
-# Start development server
-npm run dev
+# Start development  
+npm run dev         # Visit http://localhost:5173
 
-# Run quality gates
-npm run validate  # Runs lint, typecheck, and tests
+# Quality gates (must pass before commit)
+npm run validate    # Runs lint + typecheck + tests
 ```
-
-Visit `http://localhost:3000` to see the application.
-
-**User Feedback:** "Working really well. Better than I could have thought." - Architecture validation successful.
-
-## 📊 Current Status: Phase 2 Complete
-
-### ✅ Phase 1: Core Architecture (COMPLETE)
-- [x] TipTap editor with paragraph=component model
-- [x] Component extraction (C1, C2, C3...) working perfectly
-- [x] Visual component markers with left-margin labels
-- [x] Supabase integration with auth system
-- [x] SmartSuite integration framework operational
-
-### ✅ Phase 2: Professional UI Enhancement (COMPLETE)
-- [x] Authentication system with login/signup
-- [x] Navigation sidebar with project/video hierarchy
-- [x] Auto-save with 2-second debouncing
-- [x] Script persistence across video navigation
-- [x] Header with user display and logout
-- [x] ScriptStatus integration showing component counts
-- [x] Auto-refresh navigation (30-second intervals)
-- [x] Professional UI ready for stakeholder demos
-
-### 🔧 Production Readiness Gaps (Identified)
-**Security (CRITICAL):**
-- [ ] Input validation with Zod required
-- [ ] XSS protection via DOMPurify needed
-- [ ] Content Security Policy headers missing
-
-**Performance (HIGH):**
-- [ ] Race conditions in auto-refresh logic
-- [ ] Bundle size optimization (currently 839KB)
-- [ ] N+1 query patterns in video loading
-
-**Architecture (MEDIUM):**
-- [ ] Error boundaries for component isolation
-- [ ] React testing warnings need resolution
-
-## 🔗 Integration
-
-### Supabase Cloud
-- **Project:** zbxvjyrbkycbfhwmmnmy
-- **Auth:** Fully configured with RLS policies
-- **Database:** 5 normalized tables (projects, videos, scripts, script_components, user_profiles)
-
-### SmartSuite
-- **Workspace:** s3qnmox1
-- **Videos Table:** 68b2437a8f1755b055e0a124
-- **Projects Table:** 68a8ff5237fde0bf797c05b3
-- **Sync Pattern:** One-way (SmartSuite → Supabase)
 
 ## 📚 Documentation
 
-- **Development Guide:** [CLAUDE.md](./CLAUDE.md)
-- **Project Context:** [../coordination/PROJECT_CONTEXT.md](../coordination/PROJECT_CONTEXT.md)
-- **North Star:** [../coordination/000-EAV-ORCHESTRATOR-MVP-D1-NORTH-STAR.md](../coordination/000-EAV-ORCHESTRATOR-MVP-D1-NORTH-STAR.md)
-- **Quality Report:** [../coordination/reports/QUALITY-OBSERVER-REPORT-PHASE-2.md](../coordination/reports/QUALITY-OBSERVER-REPORT-PHASE-2.md)
+- **Development Guide:** [CLAUDE.md](./CLAUDE.md) - Comprehensive instructions
+- **Project Context:** [../coordination/PROJECT-CONTEXT.md](../coordination/PROJECT-CONTEXT.md) - Current state
+- **Roadmap:** [../coordination/PROJECT-ROADMAP.md](../coordination/PROJECT-ROADMAP.md) - Phase timeline
 
-## 🎯 Success Metrics Achieved
+## 🎯 Success Metrics
 
-1. **Paragraph=component model:** ✅ Working intuitively
-2. **Component identity:** ✅ Preserved throughout system (C1, C2, C3...)
-3. **TipTap editing:** ✅ Natural Google Docs-like experience
-4. **SmartSuite integration:** ✅ Framework operational
-5. **Production path:** ✅ Clear with identified gaps
+### Architecture Validation ✅
+- Paragraph=component model working intuitively
+- Component identity stable (C1 remains C1)
+- Google Docs-like editing experience
+- Real-time collaboration validated in production
 
-## 📊 Quality Gates Status
+### User Validation ✅
+- *"Working really well. Better than I could have thought."*
+- *"This is fixed. Works really well."*  
+- *"No console errors at all."*
+- *"Everything working fine."*
 
-```bash
-npm run lint       # ✅ 0 errors, 0 warnings
-npm run typecheck  # ✅ TypeScript compilation clean
-npm run test       # ✅ 35/35 tests passing
-npm run validate   # ✅ All quality gates pass
-```
+## 🏛️ Key Decisions
 
-## 🚧 Next Steps for Production
+### ✅ Validated Patterns
+1. Single TipTap editor (not component-by-component)
+2. Y.js document authority (single source of truth)
+3. Position-based comments with recovery
+4. Webhook architecture for SmartSuite sync
+5. Two-role security with RLS
+6. Four-layer implementation (Database → Types → UI → Tests)
 
-### Immediate (BLOCKING):
-1. Add input validation (Zod)
-2. Implement XSS protection (DOMPurify)
-3. Fix race conditions in auto-refresh
-4. Add error boundaries
+### ❌ Anti-Patterns (Never Use)
+1. Component-by-component editing UI
+2. Circuit breaker masking
+3. Service key bypasses in tests
+4. Multiple sources of truth
+5. Migration accumulation
 
-### Short-term:
-1. Optimize bundle size with code splitting
-2. Add CSP headers
-3. Fix React testing warnings
-4. Implement E2E tests
+## 🤝 Contributing
 
-### Production Features (Post-MVP):
-1. Real-time collaboration (Y.js full implementation)
-2. Workflow tabs (Script → Review → Scenes → Voice → Edit)
-3. Advanced error recovery
-4. Performance monitoring
+Development follows strict constitutional protocols:
+- **TDD Mandatory** - Tests before code
+- **Quality Gates** - All must pass  
+- **Atomic Commits** - Conventional format
+- **Constitutional Compliance** - TRACED protocol
 
-## 📊 Parent Project Learnings Applied
-
-This MVP successfully applies critical learnings:
-- ✅ Single TipTap editor (not component-by-component)
-- ✅ Server-side component extraction
-- ✅ Minimal database schema approach
-- ✅ Direct error visibility (no circuit breakers in dev)
-- ✅ Atomic saves preventing data loss
+See [CLAUDE.md](./CLAUDE.md) for detailed standards.
 
 ---
 
-**Status:** Architecture Validated - Production Hardening Required
-**Achievement:** Phase 2 Complete - Professional UI Delivered
-**Decision:** Ready for production development with identified security/performance fixes
+**Built with constitutional methodology | Validated in production | Ready for Phase 3**

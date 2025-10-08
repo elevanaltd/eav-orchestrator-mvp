@@ -63,10 +63,14 @@ describe('scriptService', () => {
         }
       ];
 
-      // Test updated to match new signature: scriptId, yjsState, plainText, components
+      // Test updated for Amendment #3 PATCH pattern: scriptId, updates
       const yjsState = null; // Will be actual Y.js state when integrated
       const plainText = 'Test content';
-      expect(() => saveScript('script-123', yjsState, plainText, components)).toBeDefined();
+      expect(() => saveScript('script-123', {
+        yjs_state: yjsState,
+        plain_text: plainText,
+        component_count: components.length
+      })).toBeDefined();
     });
   });
 
