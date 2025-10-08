@@ -96,8 +96,12 @@ export async function loadScriptForVideo(videoId: string, userRole?: string | nu
     }
 
     // Check if user has permission to create scripts
-    if (userRole !== 'admin') {
-      // Return a read-only placeholder for non-admin users
+    // Per North Star: "Script (Internal): Create/edit scripts and components"
+    // Internal team = admin + employee roles
+    const isInternal = userRole === 'admin' || userRole === 'employee';
+
+    if (!isInternal) {
+      // Return a read-only placeholder for client users (non-internal)
 
       return {
         id: `readonly-${validatedVideoId}`,
