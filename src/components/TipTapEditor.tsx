@@ -19,6 +19,7 @@ import { Node, DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
 import { CommentPositionTracker } from './extensions/CommentPositionTracker';
+import { HeaderPatternExtension } from './extensions/HeaderPatternExtension';
 import { CommentSidebar } from './comments/CommentSidebar';
 import { useCommentPositionSync } from '../hooks/useCommentPositionSync';
 import { supabase } from '../lib/supabase';
@@ -304,6 +305,7 @@ export const TipTapEditor: React.FC = () => {
         }
       }),
       ParagraphComponentTracker,
+      HeaderPatternExtension,
       CommentHighlightExtension.configure({
         onHighlightClick: (commentId: string, _commentNumber: number) => {
           // Scroll to comment in sidebar when highlight is clicked
