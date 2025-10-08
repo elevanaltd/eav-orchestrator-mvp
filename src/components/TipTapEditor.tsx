@@ -29,7 +29,7 @@ import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { loadScriptForVideo, saveScript, updateScriptStatus as updateScriptWorkflowStatus, ComponentData, Script, ScriptWorkflowStatus } from '../services/scriptService';
+import { loadScriptForVideo, saveScriptWithComponents, updateScriptStatus as updateScriptWorkflowStatus, ComponentData, Script, ScriptWorkflowStatus } from '../services/scriptService';
 import { Logger } from '../services/logger';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
@@ -626,12 +626,13 @@ export const TipTapEditor: React.FC = () => {
       // Dependencies: Y.js library, WebSocket infrastructure, conflict resolution
       const yjsState = null; // Placeholder until Y.js integration in Phase 4
 
-      // Amendment #3: PATCH pattern - only send changed fields
-      const updatedScript = await saveScript(currentScript.id, {
-        yjs_state: yjsState,
-        plain_text: plainText,
-        component_count: extractedComponents.length
-      });
+      // FIX #1: Restore component persistence - use RPC with actual components
+      const updatedScript = await saveScriptWithComponents(
+        currentScript.id,
+        yjsState,
+        plainText,
+        extractedComponents
+      );
 
       // Only update state if still mounted
       if (isMountedRef.current) {

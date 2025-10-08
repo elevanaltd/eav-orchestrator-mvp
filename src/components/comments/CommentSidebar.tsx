@@ -17,11 +17,9 @@ import type { CommentWithUser, CommentThread, CreateCommentData } from '../../ty
 import {
   getComments,
   createComment as createCommentInDB,
-  resolveComment,
-  unresolveComment,
-  deleteComment,
   updateComment
 } from '../../lib/comments';
+import { useCommentMutations } from '../../core/state/useCommentMutations';
 import { Logger } from '../../services/logger';
 import { useErrorHandling, getUserFriendlyErrorMessage } from '../../utils/errorHandling';
 
@@ -49,6 +47,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const { executeWithErrorHandling } = useErrorHandling('comment operations');
+
+  // FIX #3: Use optimistic UI mutations for resolve/unresolve/delete
+  const { resolveMutation, unresolveMutation, deleteMutation } = useCommentMutations();
   const [comments, setComments] = useState<CommentWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -582,39 +583,26 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setReplyText('');
   };
 
-  // Resolve functionality handlers with error handling
+  // FIX #3: Resolve functionality with optimistic UI mutations
   const handleResolveToggle = async (commentId: string, isCurrentlyResolved: boolean) => {
     if (!currentUser) return;
 
     setError(null);
 
-    const result = await executeWithErrorHandling(
-      async () => {
-        // Toggle based on current resolved state
-        const response = isCurrentlyResolved
-          ? await unresolveComment(supabase, commentId, currentUser.id)
-          : await resolveComment(supabase, commentId, currentUser.id);
-
-        if (!response.success) {
-          throw new Error(response.error?.message || `Failed to ${isCurrentlyResolved ? 'reopen' : 'resolve'} comment`);
-        }
-
-        return response.data;
-      },
-      (errorInfo) => {
-        // Set context-specific user-friendly error message
-        const operation = isCurrentlyResolved ? 'unresolve' : 'resolve';
-        const contextualMessage = getUserFriendlyErrorMessage(
-          new Error(errorInfo.message),
-          { operation, resource: 'comment' }
-        );
-        setError(contextualMessage);
-      },
-      { maxAttempts: 2, baseDelayMs: 500 }
-    );
-
-    if (result.success) {
-      // Realtime subscription will update the comment automatically - no need to reload
+    try {
+      // Use optimistic UI mutation hooks
+      if (isCurrentlyResolved) {
+        unresolveMutation.mutate({ commentId });
+      } else {
+        resolveMutation.mutate({ commentId });
+      }
+    } catch (error) {
+      const operation = isCurrentlyResolved ? 'unresolve' : 'resolve';
+      const contextualMessage = getUserFriendlyErrorMessage(
+        error as Error,
+        { operation, resource: 'comment' }
+      );
+      setError(contextualMessage);
     }
   };
 
@@ -623,40 +611,26 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setDeleteConfirming(commentId);
   };
 
+  // FIX #3: Delete functionality with optimistic UI mutation
   const handleDeleteConfirm = async (commentId: string) => {
     if (!currentUser) return;
 
     setDeleting(true);
     setError(null);
 
-    const result = await executeWithErrorHandling(
-      async () => {
-        const response = await deleteComment(supabase, commentId, currentUser.id);
-
-        if (!response.success) {
-          throw new Error(response.error?.message || 'Failed to delete comment');
-        }
-
-        return response.data;
-      },
-      (errorInfo) => {
-        // Set context-specific user-friendly error message
-        const contextualMessage = getUserFriendlyErrorMessage(
-          new Error(errorInfo.message),
-          { operation: 'delete', resource: 'comment' }
-        );
-        setError(contextualMessage);
-      },
-      { maxAttempts: 1, baseDelayMs: 500 } // Only retry once for delete operations
-    );
-
-    if (result.success) {
+    try {
+      // Use optimistic UI mutation hook
+      deleteMutation.mutate({ commentId });
       setDeleteConfirming(null);
-      // Force reload to ensure UI consistency (realtime may be delayed)
-      void loadCommentsWithCleanup();
+    } catch (error) {
+      const contextualMessage = getUserFriendlyErrorMessage(
+        error as Error,
+        { operation: 'delete', resource: 'comment' }
+      );
+      setError(contextualMessage);
+    } finally {
+      setDeleting(false);
     }
-
-    setDeleting(false);
   };
 
   const handleDeleteCancel = () => {
