@@ -79,6 +79,11 @@ export const HeaderPatternExtension = Mark.create<HeaderPatternOptions>({
   // Don't allow nesting of header patterns
   excludes: '_',
 
+  // CRITICAL: Prevent mark from sticking to subsequent typing
+  // This tells TipTap to NOT include this mark in the "stored marks"
+  // when the user types at the end of a marked range
+  inclusive: false,
+
   // Parse HTML when loading content
   parseHTML() {
     return [
