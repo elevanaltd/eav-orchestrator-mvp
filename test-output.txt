@@ -1,0 +1,1802 @@
+
+> eav-orchestrator-prototype@0.1.0 test
+> vitest run --reporter=basic
+
+
+ RUN  v3.2.4 /Volumes/HestAI-Projects/eav-orchestrator-mvp/eav-orchestrator-mvp
+
+ ❯ src/components/TipTapEditor.script-status.test.tsx (10 tests | 10 failed) 10112ms
+   × TipTapEditor - Script Status Selector (TDD REFACTOR Phase) > [RED] Status Dropdown - Rendering > should render status dropdown in editor header 1036ms
+     → Unable to find a label with the text of: /workflow status/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+   × TipTapEditor - Script Status Selector (TDD REFACTOR Phase) > [RED] Status Dropdown - Rendering > should display current script status in dropdown 1010ms
+     → Unable to find a label with the text of: /workflow status/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+   × TipTapEditor - Script Status Selector (TDD REFACTOR Phase) > [RED] Status Dropdown - Rendering > should show all four status options in dropdown 1009ms
+     → Unable to find a label with the text of: /workflow status/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+   × TipTapEditor - Script Status Selector (TDD REFACTOR Phase) > [RED] Status Change - User Interaction > should allow user to change status from draft to in_review 1008ms
+     → Unable to find a label with the text of: /workflow status/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+   × TipTapEditor - Script Status Selector (TDD REFACTOR Phase) > [RED] Status Change - User Interaction > should call updateScript with new status on change 1007ms
+     → Unable to find a label with the text of: /workflow status/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+   × TipTapEditor - Script Status Selector (TDD REFACTOR Phase) > [RED] Optimistic UI Updates > should update status immediately in UI (optimistic) 1008ms
+     → Unable to find a label with the text of: /workflow status/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+   × TipTapEditor - Script Status Selector (TDD REFACTOR Phase) > [RED] Optimistic UI Updates > should rollback status on API failure 1007ms
+     → Unable to find a label with the text of: /workflow status/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+   × TipTapEditor - Script Status Selector (TDD REFACTOR Phase) > [RED] Database Persistence > should persist status changes to database 1007ms
+     → Unable to find a label with the text of: /workflow status/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+   × TipTapEditor - Script Status Selector (TDD REFACTOR Phase) > [RED] Database Persistence > should debounce multiple rapid status changes 1009ms
+     → Unable to find a label with the text of: /workflow status/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+   × TipTapEditor - Script Status Selector (TDD REFACTOR Phase) > [RED] Access Control > should allow all authenticated users to change status 1008ms
+     → Unable to find a label with the text of: /workflow status/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"editor-layout"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"main-editor"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<h1[39m
+                [33mclass[39m=[32m"editor-title"[39m
+              [36m>[39m
+                [0mScript Editor[0m
+              [36m</h1>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"editor-subtitle"[39m
+              [36m>[39m
+                [0mSelect a video from the navigation to start editing its script[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"editor-content"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"no-video-placeholder"[39m
+          [36m>[39m
+            [36m<h3>[39m
+              [0mSelect a Video to Edit[0m
+            [36m</h3>[39m
+            [36m<p>[39m
+              [0mChoose a video from the navigation panel to start editing its script.[0m
+            [36m</p>[39m
+            [36m<p>[39m
+              [0mEach paragraph you write becomes a component that flows through the production pipeline.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+ ❯ src/components/ErrorBoundary.test.tsx (19 tests | 1 failed) 139ms
+   ✓ ErrorBoundary > Error Isolation > should render children when no error occurs 10ms
+   ✓ ErrorBoundary > Error Isolation > should catch component errors and show fallback UI 27ms
+   ✓ ErrorBoundary > Error Isolation > should isolate errors to specific components without affecting siblings 7ms
+   ✓ ErrorBoundary > Error Isolation > should show retry button when error occurs 29ms
+   ✓ ErrorBoundary > Error Isolation > should allow component to recover after retry 19ms
+   ✓ ErrorBoundary > Error Information > should display error message to user 3ms
+   ✓ ErrorBoundary > Error Information > should show generic error message for security sensitive errors 3ms
+   ✓ ErrorBoundary > Error Information > should provide error reporting mechanism 3ms
+   ✓ ErrorBoundary > Development vs Production > should show detailed error info in development mode 4ms
+   ✓ ErrorBoundary > Development vs Production > should hide sensitive details in production mode 3ms
+   ✓ ErrorBoundary > Custom Fallback > should accept custom fallback component 1ms
+   ✓ ErrorBoundary > Custom Fallback > should provide error info to custom fallback 9ms
+   ✓ ErrorBoundary > Performance Impact > should not impact performance when no errors occur 1ms
+   ✓ ErrorBoundary > Edge Cases > should handle errors in error boundary itself gracefully 3ms
+   ✓ ErrorBoundary > Edge Cases > should handle null/undefined children 1ms
+   × ErrorBoundary > Async Error Handling > should NOT display the fallback UI for async errors originating from useEffect 4ms
+     → [2mexpect([22m[31melement[39m[2m).not.toBeInTheDocument()[22m
+
+[31mexpected document not to contain element, found <h2
+  style="margin: 0px; font-size: 18px; color: rgb(211, 47, 47);"
+>
+  Something went wrong
+</h2> instead[39m
+   ✓ ErrorBoundary > Clipboard Operations > should display failure message when clipboard API rejects 7ms
+   ✓ ErrorBoundary > Clipboard Operations > should handle browsers without clipboard API gracefully 3ms
+   ✓ ErrorBoundary > Clipboard Operations > should show success message only when clipboard write succeeds 3ms
+ ❯ src/components/TipTapEditor.paste-handler.test.tsx (16 tests | 5 failed) 67ms
+   ✓ TipTap Paste Handler - <br> Tag Preservation > sanitizes Google Docs HTML but preserves safe <br> tags 9ms
+   ✓ TipTap Paste Handler - <br> Tag Preservation > sanitization modifies HTML but result is still valid 2ms
+   ✓ TipTap Paste Handler - <br> Tag Preservation > sanitization changes do NOT mean content is dangerous 2ms
+   ✓ TipTap Paste Handler - <br> Tag Preservation > empty or whitespace-only sanitized result should fallback to plain text 1ms
+   ✓ TipTap Paste Handler - <br> Tag Preservation > large paste content should be limited to prevent UI freeze 0ms
+   ✓ TipTap Paste Handler - Multi-Paragraph Component Extraction (TDD RED) > [RED] should split multi-paragraph Google Docs paste into separate paragraph nodes immediately 17ms
+   ✓ TipTap Paste Handler - Multi-Paragraph Component Extraction (TDD RED) > [RED] should create separate components (C1, C2, C3) from multi-paragraph paste 4ms
+   × TipTap Paste Handler - Multi-Paragraph Component Extraction (TDD RED) > [RED] should preserve component structure after editing middle component 8ms
+     → expected 'Compone EDITEDnt two' to contain 'Component two'
+   × TipTap Paste Handler - Multi-Paragraph Component Extraction (TDD RED) > [RED] should handle Google Docs paste with double newlines \n\n between paragraphs 3ms
+     → expected 1 to be 3 // Object.is equality
+   × TipTap Paste Handler - Multi-Paragraph Component Extraction (TDD RED) > [RED] should preserve component identity through multiple edits 3ms
+     → expected 'C1 c EDIT1ontent' to contain 'C1 content'
+   × TipTap Paste Handler - Multi-Paragraph Component Extraction (TDD RED) > [RED] should not merge adjacent components when editing between them 3ms
+     → expected 'First componen more textt' to contain 'First component'
+   × TipTap Paste Handler - Spacing Behavior (No Extra Empty Lines) > should NOT create empty paragraphs between content paragraphs 3ms
+     → expected 2 to be +0 // Object.is equality
+   ✓ TipTap Paste Handler - Spacing Behavior (No Extra Empty Lines) > should extract only content components (no empty components) 4ms
+   ✓ TipTap Paste Handler - Spacing Behavior (No Extra Empty Lines) > should match main branch spacing behavior (no extra lines) 3ms
+   ✓ TipTap Paste Handler - Spacing Behavior (No Extra Empty Lines) > should preserve content paragraph structure without whitespace artifacts 2ms
+   ✓ TipTap Paste Handler - Spacing Behavior (No Extra Empty Lines) > should filter Google Docs &nbsp; paragraphs (ACTUAL ISSUE) 3ms
+ ❯ src/components/TipTapEditor.comments.test.tsx (10 tests | 4 failed) 60ms
+   × TipTapEditor Comments - Phase 2.2 TDD > Text Selection Detection > should detect when text is selected in the editor 33ms
+     → Unable to find an element by: [data-testid="editor-content"]
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"editor-layout"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"main-editor"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"editor-header"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mstyle[39m=[32m"display: flex; justify-content: space-between; align-items: flex-start;"[39m
+            [36m>[39m
+              [36m<div>[39m
+                [36m<h1[39m
+                  [33mclass[39m=[32m"editor-title"[39m
+                [36m>[39m
+                  [0mScript: Test Video[0m
+                [36m</h1>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"editor-subtitle"[39m
+                [36m>[39m
+                  [0mEach paragraph becomes a component (C1, C2, C3...) that flows through the production pipeline[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<button[39m
+                [33mstyle[39m=[32m"background: rgb(59, 130, 246); color: white; border-radius: 6px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 4px; transition: background-color 0.2s;"[39m
+              [36m>[39m
+                [0mConvert Soft Enters[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"editor-content"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"loading-placeholder"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"loading-spinner"[39m
+              [36m/>[39m
+              [36m<p>[39m
+                [0mLoading script...[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m...
+   × TipTapEditor Comments - Phase 2.2 TDD > Text Selection Detection > should show comment popup when text is selected 6ms
+     → [2mexpect([22m[31mreceived[39m[2m).toBeInTheDocument()[22m
+
+[31mreceived[39m value must be an HTMLElement or an SVGElement.
+Received has type:  Null
+Received has value: [31mnull[39m
+   ✓ TipTapEditor Comments - Phase 2.2 TDD > Text Selection Detection > should hide comment popup when selection is cleared 3ms
+   ✓ TipTapEditor Comments - Phase 2.2 TDD > Comment Highlight Extension > should register CommentHighlightExtension with TipTap 3ms
+   × TipTapEditor Comments - Phase 2.2 TDD > Comment Highlight Extension > should apply comment highlight marks to selected text 3ms
+     → [2mexpect([22m[31mreceived[39m[2m).toBeInTheDocument()[22m
+
+[31mreceived[39m value must be an HTMLElement or an SVGElement.
+Received has type:  Null
+Received has value: [31mnull[39m
+   × TipTapEditor Comments - Phase 2.2 TDD > Comment Position Tracking > should track character positions for comment anchoring 2ms
+     → expected undefined to be defined
+   ✓ TipTapEditor Comments - Phase 2.2 TDD > Comment Position Tracking > should calculate correct character positions for selections 3ms
+   ✓ TipTapEditor Comments - Phase 2.2 TDD > Comment Data Integration > should prepare comment data for Supabase insertion 2ms
+   ✓ TipTapEditor Comments - Phase 2.2 TDD > UI Integration Requirements > should not show comment UI on mobile devices 3ms
+   ✓ TipTapEditor Comments - Phase 2.2 TDD > UI Integration Requirements > should integrate with existing script auto-save functionality 2ms
+ ❯ src/components/TipTapEditor.test.tsx (2 tests | 2 failed) 25ms
+   × TipTapEditor with Navigation > should render with navigation integration 20ms
+     → editor.setEditable is not a function
+   × TipTapEditor with Navigation > should show "Select a video to edit" when no video selected 4ms
+     → editor.setEditable is not a function
+ ✓ src/utils/errorHandling.test.ts (30 tests) 6879ms
+   ✓ Error Handling Utilities > withRetry > should give up after max attempts  635ms
+   ✓ Error Handling Utilities > AsyncErrorBoundary > should return error result for failed operations  1814ms
+   ✓ Error Handling Utilities > AsyncErrorBoundary > should call error handler when provided  2170ms
+   ✓ Error Handling Utilities > useErrorHandling > should create AsyncErrorBoundary with correct operation name  2238ms
+ ✓ src/test/bundle-optimization.test.ts (3 tests) 3243ms
+   ✓ Bundle Optimization Characterization > should create optimized vendor chunks for major dependencies  3241ms
+ ✓ src/test/security-updates.test.ts (5 tests) 1501ms
+   ✓ Security Updates Characterization > should have no critical or high security vulnerabilities  607ms
+   ✓ Security Updates Characterization > should maintain security posture across dependency changes  464ms
+   ✓ Security Updates Characterization > should have proper npm audit configuration  428ms
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Component Structure > should render the sidebar with correct layout
+[INFO] 2025-10-07T04:13:57.415Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Component Structure > should render the sidebar with correct layout
+[INFO] 2025-10-07T04:13:57.456Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Component Structure > should have a header with title
+[INFO] 2025-10-07T04:13:57.457Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Component Structure > should have a header with title
+[INFO] 2025-10-07T04:13:57.486Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Component Structure > should display filter controls
+[INFO] 2025-10-07T04:13:57.487Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Component Structure > should display filter controls
+[INFO] 2025-10-07T04:13:57.518Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Empty State > should show empty state when no comments
+[INFO] 2025-10-07T04:13:57.519Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Empty State > should show empty state when no comments
+[INFO] 2025-10-07T04:13:57.524Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Display > should display comments in document order
+[INFO] 2025-10-07T04:13:57.525Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Display > should display comments in document order
+[INFO] 2025-10-07T04:13:57.548Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Display > should display comment metadata correctly
+[INFO] 2025-10-07T04:13:57.548Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Display > should display comment metadata correctly
+[INFO] 2025-10-07T04:13:57.557Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Display > should show threading hierarchy
+[INFO] 2025-10-07T04:13:57.558Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Display > should show threading hierarchy
+[INFO] 2025-10-07T04:13:57.562Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Display > should distinguish resolved vs open comments
+[INFO] 2025-10-07T04:13:57.563Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Display > should distinguish resolved vs open comments
+[INFO] 2025-10-07T04:13:57.568Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Filter Functionality > should filter to show only open comments
+[INFO] 2025-10-07T04:13:57.568Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Filter Functionality > should filter to show only open comments
+[INFO] 2025-10-07T04:13:57.620Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Filter Functionality > should filter to show only resolved comments
+[INFO] 2025-10-07T04:13:57.621Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Filter Functionality > should filter to show only resolved comments
+[INFO] 2025-10-07T04:13:57.668Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Filter Functionality > should show all comments by default
+[INFO] 2025-10-07T04:13:57.669Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Filter Functionality > should show all comments by default
+[INFO] 2025-10-07T04:13:57.675Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Creation > should show creation form when createComment prop is provided
+[INFO] 2025-10-07T04:13:57.676Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Creation > should show creation form when createComment prop is provided
+[INFO] 2025-10-07T04:13:57.702Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Creation > should not show creation form when createComment is null
+[INFO] 2025-10-07T04:13:57.703Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Creation > should not show creation form when createComment is null
+[INFO] 2025-10-07T04:13:57.706Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Creation > should call onCommentCreated when form is submitted
+[INFO] 2025-10-07T04:13:57.706Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Comment Creation > should call onCommentCreated when form is submitted
+[INFO] 2025-10-07T04:13:57.733Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Threading Actions > should show reply button on comment cards
+[INFO] 2025-10-07T04:13:57.734Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Threading Actions > should show reply button on comment cards
+[INFO] 2025-10-07T04:13:57.776Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Threading Actions > should show resolve button for unresolved comments
+[INFO] 2025-10-07T04:13:57.777Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Threading Actions > should show resolve button for unresolved comments
+[INFO] 2025-10-07T04:13:57.818Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Threading Actions > should show reopen button for resolved comments
+[INFO] 2025-10-07T04:13:57.819Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Threading Actions > should show reopen button for resolved comments
+[INFO] 2025-10-07T04:13:57.860Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Loading States > should show loading state while fetching comments
+[INFO] 2025-10-07T04:13:57.861Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Loading States > should show loading state while fetching comments
+[INFO] 2025-10-07T04:13:57.865Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Error Handling > should show error state when comments fail to load
+[INFO] 2025-10-07T04:13:57.866Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Error Handling > should show error state when comments fail to load
+[DEBUG] 2025-10-07T04:13:57.866Z Waiting 907ms before retry attempt 2
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Error Handling > should show error state when comments fail to load
+[INFO] 2025-10-07T04:13:58.791Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Navigation Script Changes - Stale Data Prevention > should clear comments immediately when scriptId changes
+[INFO] 2025-10-07T04:13:58.792Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Navigation Script Changes - Stale Data Prevention > should clear comments immediately when scriptId changes
+[INFO] 2025-10-07T04:13:58.796Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+[INFO] 2025-10-07T04:13:58.796Z User profile cache cleared { scriptId: [32m'script-2'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Navigation Script Changes - Stale Data Prevention > should clear comments immediately when scriptId changes
+[INFO] 2025-10-07T04:13:58.801Z Unsubscribing from realtime channel { scriptId: [32m'script-2'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Navigation Script Changes - Stale Data Prevention > should show loading state during script transition
+[INFO] 2025-10-07T04:13:58.801Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Navigation Script Changes - Stale Data Prevention > should show loading state during script transition
+[INFO] 2025-10-07T04:13:58.805Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+[INFO] 2025-10-07T04:13:58.805Z User profile cache cleared { scriptId: [32m'script-2'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Navigation Script Changes - Stale Data Prevention > should show loading state during script transition
+[INFO] 2025-10-07T04:13:58.812Z Unsubscribing from realtime channel { scriptId: [32m'script-2'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Navigation Script Changes - Stale Data Prevention > should handle rapid script switching without stale data
+[INFO] 2025-10-07T04:13:58.813Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Navigation Script Changes - Stale Data Prevention > should handle rapid script switching without stale data
+[INFO] 2025-10-07T04:13:58.816Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+[INFO] 2025-10-07T04:13:58.816Z User profile cache cleared { scriptId: [32m'script-2'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Navigation Script Changes - Stale Data Prevention > should handle rapid script switching without stale data
+[INFO] 2025-10-07T04:13:58.816Z Unsubscribing from realtime channel { scriptId: [32m'script-2'[39m }
+[INFO] 2025-10-07T04:13:58.816Z User profile cache cleared { scriptId: [32m'script-3'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Navigation Script Changes - Stale Data Prevention > should handle rapid script switching without stale data
+[INFO] 2025-10-07T04:13:58.821Z Unsubscribing from realtime channel { scriptId: [32m'script-3'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Cleanup and Memory Safety > should handle unmount during async loading without errors
+[INFO] 2025-10-07T04:13:58.821Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+[INFO] 2025-10-07T04:13:58.826Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.test.tsx > CommentSidebar > Cleanup and Memory Safety > should not leak memory when rapidly mounting/unmounting
+[INFO] 2025-10-07T04:13:58.838Z User profile cache cleared { scriptId: [32m'script-0'[39m }
+[INFO] 2025-10-07T04:13:58.838Z Unsubscribing from realtime channel { scriptId: [32m'script-0'[39m }
+[INFO] 2025-10-07T04:13:58.839Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+[INFO] 2025-10-07T04:13:58.839Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+[INFO] 2025-10-07T04:13:58.839Z User profile cache cleared { scriptId: [32m'script-2'[39m }
+[INFO] 2025-10-07T04:13:58.839Z Unsubscribing from realtime channel { scriptId: [32m'script-2'[39m }
+[INFO] 2025-10-07T04:13:58.840Z User profile cache cleared { scriptId: [32m'script-3'[39m }
+[INFO] 2025-10-07T04:13:58.840Z Unsubscribing from realtime channel { scriptId: [32m'script-3'[39m }
+[INFO] 2025-10-07T04:13:58.840Z User profile cache cleared { scriptId: [32m'script-4'[39m }
+[INFO] 2025-10-07T04:13:58.840Z Unsubscribing from realtime channel { scriptId: [32m'script-4'[39m }
+[INFO] 2025-10-07T04:13:58.840Z User profile cache cleared { scriptId: [32m'script-5'[39m }
+[INFO] 2025-10-07T04:13:58.840Z Unsubscribing from realtime channel { scriptId: [32m'script-5'[39m }
+[INFO] 2025-10-07T04:13:58.841Z User profile cache cleared { scriptId: [32m'script-6'[39m }
+[INFO] 2025-10-07T04:13:58.841Z Unsubscribing from realtime channel { scriptId: [32m'script-6'[39m }
+[INFO] 2025-10-07T04:13:58.841Z User profile cache cleared { scriptId: [32m'script-7'[39m }
+[INFO] 2025-10-07T04:13:58.841Z Unsubscribing from realtime channel { scriptId: [32m'script-7'[39m }
+[INFO] 2025-10-07T04:13:58.841Z User profile cache cleared { scriptId: [32m'script-8'[39m }
+[INFO] 2025-10-07T04:13:58.841Z Unsubscribing from realtime channel { scriptId: [32m'script-8'[39m }
+[INFO] 2025-10-07T04:13:58.842Z User profile cache cleared { scriptId: [32m'script-9'[39m }
+[INFO] 2025-10-07T04:13:58.842Z Unsubscribing from realtime channel { scriptId: [32m'script-9'[39m }
+
+ ✓ src/components/comments/CommentSidebar.test.tsx (38 tests | 14 skipped) 1433ms
+   ✓ CommentSidebar > Error Handling > should show error state when comments fail to load  926ms
+ ✓ src/lib/rls-security.test.ts (18 tests | 16 skipped) 314ms
+ ✓ src/components/TipTapEditor.lifecycle.test.tsx (6 tests) 187ms
+ ✓ src/components/navigation/NavigationSidebar.test.tsx (4 tests) 132ms
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should create a Realtime channel scoped to script_id on mount
+[INFO] 2025-10-07T04:14:00.778Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should create a Realtime channel scoped to script_id on mount
+[INFO] 2025-10-07T04:14:00.787Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should subscribe to postgres_changes event for comments table
+[INFO] 2025-10-07T04:14:00.788Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should subscribe to postgres_changes event for comments table
+[INFO] 2025-10-07T04:14:00.793Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should call subscribe() to activate the channel
+[INFO] 2025-10-07T04:14:00.793Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should call subscribe() to activate the channel
+[INFO] 2025-10-07T04:14:00.795Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should unsubscribe from channel on unmount
+[INFO] 2025-10-07T04:14:00.796Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should unsubscribe from channel on unmount
+[INFO] 2025-10-07T04:14:00.798Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should create new subscription when scriptId changes
+[INFO] 2025-10-07T04:14:00.800Z User profile cache cleared { scriptId: [32m'script-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should create new subscription when scriptId changes
+[INFO] 2025-10-07T04:14:00.803Z Unsubscribing from realtime channel { scriptId: [32m'script-1'[39m }
+[INFO] 2025-10-07T04:14:00.803Z User profile cache cleared { scriptId: [32m'script-2'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Subscription Setup > should create new subscription when scriptId changes
+[INFO] 2025-10-07T04:14:00.805Z Unsubscribing from realtime channel { scriptId: [32m'script-2'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > INSERT Event Handling > should add new comment to state when INSERT event received
+[INFO] 2025-10-07T04:14:00.806Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > INSERT Event Handling > should add new comment to state when INSERT event received
+[INFO] 2025-10-07T04:14:00.807Z Realtime comment added { commentId: [32m'new-comment-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > INSERT Event Handling > should add new comment to state when INSERT event received
+[INFO] 2025-10-07T04:14:00.814Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > INSERT Event Handling > should not add duplicate comments if INSERT event for existing comment
+[INFO] 2025-10-07T04:14:00.814Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > INSERT Event Handling > should not add duplicate comments if INSERT event for existing comment
+[INFO] 2025-10-07T04:14:00.820Z Realtime comment added { commentId: [32m'existing-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > INSERT Event Handling > should not add duplicate comments if INSERT event for existing comment
+[INFO] 2025-10-07T04:14:00.860Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > UPDATE Event Handling > should update existing comment when UPDATE event received
+[INFO] 2025-10-07T04:14:00.860Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > UPDATE Event Handling > should update existing comment when UPDATE event received
+[INFO] 2025-10-07T04:14:00.866Z Realtime comment updated { commentId: [32m'comment-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > UPDATE Event Handling > should update existing comment when UPDATE event received
+[INFO] 2025-10-07T04:14:00.870Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > UPDATE Event Handling > should update resolved status when comment is resolved via Realtime
+[INFO] 2025-10-07T04:14:00.871Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > UPDATE Event Handling > should update resolved status when comment is resolved via Realtime
+[INFO] 2025-10-07T04:14:00.875Z Realtime comment updated { commentId: [32m'comment-1'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > UPDATE Event Handling > should update resolved status when comment is resolved via Realtime
+[INFO] 2025-10-07T04:14:00.878Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > DELETE Event Handling > should remove comment from state when DELETE event received
+[INFO] 2025-10-07T04:14:00.879Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > DELETE Event Handling > should remove comment from state when DELETE event received
+[INFO] 2025-10-07T04:14:00.882Z Realtime comment deleted { commentId: [32m'comment-to-delete'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > DELETE Event Handling > should remove comment from state when DELETE event received
+[INFO] 2025-10-07T04:14:00.885Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > DELETE Event Handling > should not error if DELETE event for non-existent comment
+[INFO] 2025-10-07T04:14:00.885Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > DELETE Event Handling > should not error if DELETE event for non-existent comment
+[INFO] 2025-10-07T04:14:00.886Z Realtime comment deleted { commentId: [32m'non-existent-comment'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > DELETE Event Handling > should not error if DELETE event for non-existent comment
+[INFO] 2025-10-07T04:14:00.888Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > RLS Filtering (Automated) > should receive only comments for current script_id via RLS
+[INFO] 2025-10-07T04:14:00.889Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > RLS Filtering (Automated) > should receive only comments for current script_id via RLS
+[INFO] 2025-10-07T04:14:00.890Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Memory Safety and Cleanup > should not update state if component unmounts during subscription setup
+[INFO] 2025-10-07T04:14:00.890Z User profile cache cleared { scriptId: [32m'script-123'[39m }
+
+stdout | src/components/comments/CommentSidebar.realtime.test.tsx > CommentSidebar - Realtime Subscriptions (TDD RED Phase) > Memory Safety and Cleanup > should not update state if component unmounts during subscription setup
+[INFO] 2025-10-07T04:14:00.891Z Unsubscribing from realtime channel { scriptId: [32m'script-123'[39m }
+
+ ✓ src/components/comments/CommentSidebar.realtime.test.tsx (13 tests) 121ms
+ ✓ src/components/auth/Login.test.tsx (3 tests) 105ms
+ ✓ src/components/Header.test.tsx (8 tests) 88ms
+ ✓ src/components/extensions/CommentHighlightExtension.test.ts (20 tests) 71ms
+ ✓ src/components/extensions/CommentPositionTracker.test.ts (17 tests) 56ms
+ ✓ src/components/TipTapEditor.security.test.tsx (12 tests) 56ms
+ ❯ src/lib/comments-rls-performance.test.ts (13 tests | 6 failed | 3 skipped) 30875ms
+   ✓ RLS Performance Optimization - TDD Phase > New Security Model - user_accessible_scripts View > should have user_accessible_scripts view (WILL FAIL - not implemented)  2827ms
+   ✓ RLS Performance Optimization - TDD Phase > New Security Model - user_accessible_scripts View > admin should see all scripts in user_accessible_scripts view  2964ms
+   ✓ RLS Performance Optimization - TDD Phase > New Security Model - user_accessible_scripts View > client should see only assigned scripts in view  3014ms
+   ✓ RLS Performance Optimization - TDD Phase > New Security Model - user_accessible_scripts View > unauthorized user should see no scripts in view  3016ms
+   ↓ RLS Performance Optimization - TDD Phase > Optimized RLS Policies - Single JOIN > should use single JOIN to user_accessible_scripts (WILL FAIL - not implemented - SKIPPED future optimization)
+   × RLS Performance Optimization - TDD Phase > Optimized RLS Policies - Single JOIN > should maintain security boundaries with optimized policies 2771ms
+     → Request rate limit reached
+   ↓ RLS Performance Optimization - TDD Phase > Performance Benchmark - Before vs After > should achieve 30%+ performance improvement with optimized RLS
+   ↓ RLS Performance Optimization - TDD Phase > Performance Benchmark - Before vs After > should maintain performance improvement under load (50 comments)
+   × RLS Performance Optimization - TDD Phase > INSERT/UPDATE/DELETE Performance > should optimize INSERT operations with simplified policy 3278ms
+     → Request rate limit reached
+   × RLS Performance Optimization - TDD Phase > INSERT/UPDATE/DELETE Performance > should optimize UPDATE operations with simplified policy 2732ms
+     → Request rate limit reached
+   × RLS Performance Optimization - TDD Phase > INSERT/UPDATE/DELETE Performance > should optimize DELETE operations with simplified policy 3299ms
+     → Request rate limit reached
+   × RLS Performance Optimization - TDD Phase > Backward Compatibility > should maintain exact same security behavior as current system 2728ms
+     → Request rate limit reached
+   × RLS Performance Optimization - TDD Phase > Backward Compatibility > should not break existing application code 3248ms
+     → Request rate limit reached
+ ✓ src/test/console-cleanup.test.tsx (4 tests) 38ms
+ ✓ src/contexts/ScriptStatusContext.test.tsx (5 tests) 31ms
+ ✓ src/components/ScriptStatusIndicator.test.tsx (2 tests) 30ms
+ ✓ src/contexts/AuthContext.test.tsx (2 tests) 24ms
+ ✓ src/App.test.tsx (1 test) 21ms
+ ✓ src/lib/supabase.test.ts (2 tests) 17ms
+ ✓ src/components/auth/PrivateRoute.test.tsx (3 tests) 17ms
+ ✓ src/hooks/usePermissions.test.ts (17 tests) 18ms
+ ✓ src/lib/validation.test.ts (16 tests) 14ms
+ ✓ src/hooks/useCommentPositionSync.test.ts (6 tests) 13ms
+ ✓ src/lib/comments-position-recovery.test.ts (23 tests) 13ms
+ ✓ src/test/App.test.tsx (2 tests) 12ms
+ ✓ src/utils/errorHandling.stability.test.ts (4 tests) 10ms
+ ✓ src/services/logger.test.ts (7 tests) 4ms
+ ✓ src/lib/smartsuite-data.test.ts (7 tests) 4ms
+ ✓ .archive/mobile-experiment-backup/mobileDetection.test.ts (12 tests) 2ms
+ ✓ src/utils/mobileDetection.test.ts (12 tests) 2ms
+ ✓ src/components/comments/CommentSidebar.cache.test.tsx (2 tests | 1 skipped) 1ms
+ ✓ src/lib/comments-position-fix.test.ts (5 tests) 2ms
+ ✓ src/services/scriptService.test.ts (4 tests) 1ms
+ ✓ src/types/comments.test.ts (2 tests) 1ms
+ ✓ src/components/comments/CommentSidebar.reconnection.test.tsx (1 test) 1ms
+ ↓ src/components/navigation/NavigationSidebar.race-condition.test.tsx (8 tests | 8 skipped)
+ ❯ src/components/comments/CommentSidebar.connection-state.test.tsx (11 tests | 8 failed) 40093ms
+   ✓ CommentSidebar - Connection State Machine > Connection State Transitions > should transition from connected → reconnecting on TIMED_OUT 41ms
+   ✓ CommentSidebar - Connection State Machine > Connection State Transitions > should transition from connected → reconnecting on CHANNEL_ERROR 11ms
+   ✓ CommentSidebar - Connection State Machine > Connection State Transitions > should transition from reconnecting → connected on successful reconnect 13ms
+   × CommentSidebar - Connection State Machine > Connection State Transitions > should transition to degraded after 4 failed reconnection attempts 5007ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × CommentSidebar - Connection State Machine > UI Preservation During Reconnection > should preserve comments UI during reconnecting state 5004ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × CommentSidebar - Connection State Machine > UI Preservation During Reconnection > should NOT show destructive error state during reconnection 5003ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × CommentSidebar - Connection State Machine > Action Button State Management > should disable action buttons when connectionStatus !== "connected" 5002ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × CommentSidebar - Connection State Machine > Action Button State Management > should re-enable action buttons when returning to connected state 5002ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × CommentSidebar - Connection State Machine > Status Banner Visibility > should show "Reconnecting..." banner when connectionStatus is "reconnecting" 5001ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × CommentSidebar - Connection State Machine > Status Banner Visibility > should show "Connection degraded" banner when connectionStatus is "degraded" 5004ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   × CommentSidebar - Connection State Machine > Status Banner Visibility > should hide banner when connectionStatus is "connected" 5002ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ↓ src/components/comments/CommentSidebar.error-handling.test.tsx (19 tests | 19 skipped)
+stdout | src/lib/comments.test.ts > Comments Infrastructure - Integration Tests > getComments Performance - N+1 Query Fix > should complete getComments for 50 comments in <200ms
+getComments execution time: 86ms for 50 comments
+
+ ❯ src/lib/comments.test.ts (31 tests | 5 failed) 120742ms
+   ✓ Comments Infrastructure - Integration Tests > Comments Table Schema > admin should create comment with required fields  4105ms
+   ✓ Comments Infrastructure - Integration Tests > Comments Table Schema > admin should create threaded comment reply  4521ms
+   ✓ Comments Infrastructure - Integration Tests > Comments Table Schema > admin should resolve comment with resolved_at and resolved_by  4539ms
+   × Comments Infrastructure - Integration Tests > Comments RLS Security - CONTRACT-DRIVEN-CORRECTION > admin should have full access to all comments 4176ms
+     → Request rate limit reached
+   × Comments Infrastructure - Integration Tests > Comments RLS Security - CONTRACT-DRIVEN-CORRECTION > client user should read comments from their assigned project 6017ms
+     → Request rate limit reached
+   ✓ Comments Infrastructure - Integration Tests > Comments RLS Security - CONTRACT-DRIVEN-CORRECTION > client user can create comments (TODO: should be read-only)  4516ms
+   × Comments Infrastructure - Integration Tests > Comments RLS Security - CONTRACT-DRIVEN-CORRECTION > unauthorized user should NOT see any comments 4789ms
+     → Request rate limit reached
+   ✓ Comments Infrastructure - Integration Tests > Comments RLS Security - CONTRACT-DRIVEN-CORRECTION > unauthorized user should NOT create comments  4528ms
+   × Comments Infrastructure - Integration Tests > Comments Position Validation > should validate position bounds (negative positions) 4532ms
+     → Request rate limit reached
+   ✓ Comments Infrastructure - Integration Tests > Comments Position Validation > should validate start_position < end_position  4195ms
+   ✓ Comments Infrastructure - Integration Tests > Comments Threading Behavior > admin should handle parent comment deletion gracefully (SET NULL)  4772ms
+   ✓ Comments Infrastructure - Integration Tests > Comments Performance Indexes > admin should efficiently query comments by script_id  4697ms
+   ✓ Comments Infrastructure - Integration Tests > Comments Performance Indexes > admin should efficiently filter by resolved status  4210ms
+   ✓ Comments Infrastructure - Integration Tests > getComments Performance - N+1 Query Fix > should fetch all user profiles in single query, not N+1 queries  4902ms
+   ✓ Comments Infrastructure - Integration Tests > getComments Performance - N+1 Query Fix > should complete getComments for 50 comments in <200ms  4776ms
+   ✓ Comments Infrastructure - Integration Tests > getComments Performance - N+1 Query Fix > should handle mixed users efficiently with single profile query  4278ms
+   ✓ Comments CRUD Functions - TDD Phase > createComment Function - TDD (WILL FAIL) > should create comment and return CommentWithUser type  3289ms
+   ✓ Comments CRUD Functions - TDD Phase > createComment Function - TDD (WILL FAIL) > should validate required fields and return error  2719ms
+   ✓ Comments CRUD Functions - TDD Phase > getComments Function - TDD (WILL FAIL) > should fetch comments with user info and threading  3253ms
+   ✓ Comments CRUD Functions - TDD Phase > getComments Function - TDD (WILL FAIL) > should filter comments by resolved status  2764ms
+   ✓ Comments CRUD Functions - TDD Phase > updateComment Function - TDD (WILL FAIL) > should update comment content and return updated comment  3288ms
+   × Comments CRUD Functions - TDD Phase > updateComment Function - TDD (WILL FAIL) > should resolve comment with timestamp and user 2726ms
+     → expected undefined to be defined
+   ✓ Comments CRUD Functions - TDD Phase > deleteComment Function - TDD (WILL FAIL) > should soft delete comment (mark as deleted)  3216ms
+   ✓ Comments CRUD Functions - TDD Phase > POSITION DRIFT PERSISTENCE - TDD (RED PHASE) > should persist highlightedText when creating comment  2783ms
+   ✓ Comments CRUD Functions - TDD Phase > POSITION DRIFT PERSISTENCE - TDD (RED PHASE) > should persist recovered positions after position recovery  3319ms
+   ✓ Comments CRUD Functions - TDD Phase > CASCADE SOFT DELETE - TDD (WILL FAIL) > should cascade delete parent with one child  2948ms
+   ✓ Comments CRUD Functions - TDD Phase > CASCADE SOFT DELETE - TDD (WILL FAIL) > should cascade delete parent with multiple children  3666ms
+   ✓ Comments CRUD Functions - TDD Phase > CASCADE SOFT DELETE - TDD (WILL FAIL) > should cascade delete nested descendants (3+ levels)  3399ms
+   ✓ Comments CRUD Functions - TDD Phase > CASCADE SOFT DELETE - TDD (WILL FAIL) > should only delete target comment when no children exist  2847ms
+   ✓ Comments CRUD Functions - TDD Phase > CASCADE SOFT DELETE - TDD (WILL FAIL) > should handle deep nesting (5+ levels) efficiently  3976ms
+   ✓ Comments CRUD Functions - TDD Phase > CASCADE SOFT DELETE - TDD (WILL FAIL) > should maintain transaction atomicity - all or nothing  2994ms
+ ❯ src/components/DesktopRequired.test.tsx (8 tests | 1 failed) 41ms
+   ✓ DesktopRequired > Professional Mobile Fallback > should render desktop required message 9ms
+   ✓ DesktopRequired > Professional Mobile Fallback > should explain why desktop is required 2ms
+   ✓ DesktopRequired > Professional Mobile Fallback > should show access options 2ms
+   × DesktopRequired > Professional Mobile Fallback > should have professional styling and layout 17ms
+     → Unable to find an element with the role "img"
+
+Here are the available roles:
+
+  heading:
+
+  Name "Desktop Required":
+  [36m<h1[39m
+    [33mclass[39m=[32m"desktop-required-title"[39m
+  [36m/>[39m
+
+  Name "Why Desktop?":
+  [36m<h2 />[39m
+
+  Name "Access Options":
+  [36m<h2 />[39m
+
+  Name "🖥️ Desktop Computer":
+  [36m<h3 />[39m
+
+  Name "💻 Laptop":
+  [36m<h3 />[39m
+
+  Name "📱 Mobile (Limited)":
+  [36m<h3 />[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "":
+  [36m<ul />[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li />[39m
+
+  Name "":
+  [36m<li />[39m
+
+  Name "":
+  [36m<li />[39m
+
+  Name "":
+  [36m<li />[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"desktop-required"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"desktop-required-container"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"desktop-required-icon"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"64"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"64"[39m
+          [36m>[39m
+            [36m<rect[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mrx[39m=[32m"2"[39m
+              [33mry[39m=[32m"2"[39m
+              [33mwidth[39m=[32m"20"[39m
+              [33mx[39m=[32m"2"[39m
+              [33my[39m=[32m"3"[39m
+            [36m/>[39m
+            [36m<line[39m
+              [33mx1[39m=[32m"8"[39m
+              [33mx2[39m=[32m"16"[39m
+              [33my1[39m=[32m"21"[39m
+              [33my2[39m=[32m"21"[39m
+            [36m/>[39m
+            [36m<line[39m
+              [33mx1[39m=[32m"12"[39m
+              [33mx2[39m=[32m"12"[39m
+              [33my1[39m=[32m"17"[39m
+              [33my2[39m=[32m"21"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"desktop-required-content"[39m
+        [36m>[39m
+          [36m<h1[39m
+            [33mclass[39m=[32m"desktop-required-title"[39m
+          [36m>[39m
+            [0mDesktop Required[0m
+          [36m</h1>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"desktop-required-description"[39m
+          [36m>[39m
+            [0mEAV Orchestrator is designed for video production workflows that require precision editing, multiple tabs, and collaborative features best experienced on desktop and laptop computers.[0m
+          [36m</p>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"desktop-required-features"[39m
+          [36m>[39m
+            [36m<h2>[39m
+              [0mWhy Desktop?[0m
+            [36m</h2>[39m
+            [36m<ul>[39m
+              [36m<li>[39m
+                [36m<strong>[39m
+                  [0mRich Text Editing:[0m
+                [36m</strong>[39m
+                [0m Advanced paragraph-component editing with TipTap[0m
+              [36m</li>[39m
+              [36m<li>[39m
+                [36m<strong>[39m
+                  [0mMulti-Tab Workflow:[0m
+                [36m</strong>[39m
+                [0m Script → Review → Scenes → Voice → Edit phases[0m
+              [36m</li>[39m
+              [36m<li>[39m
+                [36m<strong>[39m
+                  [0mCollaborative Comments:[0m
+                [36m</strong>[39m
+                [0m Google Docs-like review system[0m
+              [36m</li>[39m
+              [36m<li>[39m
+                [36m<strong>[39m
+                  [0mProfessional Tools:[0m
+                [36m</strong>[39m
+                [0m Optimized for video production teams[0m
+              [36m</li>[39m
+            [36m</ul>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"desktop-required-instructions"[39m
+          [36m>[39m
+            [36m<h2>[39m
+              [0mAccess Options[0m
+            [36m</h2>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"access-options"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"access-option"[39m
+              [36m>[39m
+                [36m<h3>[39m
+                  [0m🖥️ Desktop Computer[0m
+                [36m</h3>[39m
+                [36m<p>[39m
+                  [0mFull feature access with optimal performance[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"access-option"[39m
+              [36m>[39m
+                [36m<h3>[39m
+                  [0m💻 Laptop[0m
+                [36m</h3>[39m
+                [36m<p>[39m
+                  [0mComplete workflow support with portable convenience[0m
+                [36m</p>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"access-option"[39m
+              [36m>[39m
+                [36m<h3>[39m
+                  [0m📱 Mobile (Limited)[0m
+                [36m</h3>[39m
+                [36m<p>[39m
+                  [0mView-only access for reviewing scripts and comments[0m
+                [36m</p>[39m
+                [36m<small>[39m
+                  [0mFeature in development[0m
+                [36m</small>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"desktop-required-footer"[39m
+          [36m>[39m
+            [36m<p>[39m
+              [0mThank you for choosing EAV Orchestrator for your video production workflow.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   ✓ DesktopRequired > Professional Mobile Fallback > should mention future mobile features 3ms
+   ✓ DesktopRequired > Professional Mobile Fallback > should have professional footer message 1ms
+   ✓ DesktopRequired > Accessibility > should have proper heading hierarchy 4ms
+   ✓ DesktopRequired > Accessibility > should have descriptive content for screen readers 2ms
+
+
+ Test Files  10 failed | 35 passed | 2 skipped (47)
+      Tests  42 failed | 360 passed | 61 skipped (463)
+   Start at  05:13:31
+   Duration  121.58s (transform 475ms, setup 3.25s, collect 1.31s, tests 216.62s, environment 7.65s, prepare 1.17s)
+

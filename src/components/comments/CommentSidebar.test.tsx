@@ -15,6 +15,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { CommentWithUser } from '../../types/comments';
 
 // Mock comments library
@@ -47,6 +48,35 @@ vi.mock('../../contexts/AuthContext', () => ({
 // Import component and mocks after all mocks are set up
 import { CommentSidebar } from './CommentSidebar';
 import * as commentsLib from '../../lib/comments';
+
+// Create a test wrapper with QueryClientProvider
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
+
+const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
+  const result = render(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>
+  );
+
+  // Wrap the rerender function to maintain QueryClientProvider
+  const originalRerender = result.rerender;
+  result.rerender = (rerenderUi: React.ReactNode) => {
+    return originalRerender(
+      <QueryClientProvider client={queryClient}>
+        {rerenderUi}
+      </QueryClientProvider>
+    );
+  };
+
+  return result;
+};
 
 // Sample test data
 const sampleComments: CommentWithUser[] = [
@@ -124,7 +154,7 @@ describe('CommentSidebar', () => {
 
   describe('Component Structure', () => {
     it('should render the sidebar with correct layout', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       // Wait for async loading to complete to avoid act() warnings
       await waitFor(() => {
@@ -135,7 +165,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should have a header with title', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const header = screen.getByRole('banner', { name: /comments header/i });
@@ -146,7 +176,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should display filter controls', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         // Should have filter buttons
@@ -160,7 +190,7 @@ describe('CommentSidebar', () => {
   describe('Empty State', () => {
     it('should show empty state when no comments', async () => {
       // Already set up in beforeEach - empty comments list
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         expect(screen.getByText(/no comments yet/i)).toBeInTheDocument();
@@ -179,7 +209,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should display comments in document order', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         expect(screen.getByText('This needs revision.')).toBeInTheDocument();
@@ -190,17 +220,24 @@ describe('CommentSidebar', () => {
     });
 
     it('should display comment metadata correctly', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
+
+      // Wait for async loading to complete
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
 
       await waitFor(() => {
         // Should show user info, timestamp, content
         expect(screen.getByText('This needs revision.')).toBeInTheDocument();
-        expect(screen.getByText(/user-1/)).toBeInTheDocument();
+        // Multiple comments from Test User 1, so use getAllByText
+        const userElements = screen.getAllByText(/Test User 1/);
+        expect(userElements.length).toBeGreaterThan(0);
       });
     });
 
     it('should show threading hierarchy', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const replyComment = screen.getByText('I agree with this change.');
@@ -213,7 +250,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should distinguish resolved vs open comments', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const resolvedComment = screen.getByText('Fixed in new version.');
@@ -233,10 +270,19 @@ describe('CommentSidebar', () => {
     });
 
     it('should filter to show only open comments', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
+      // Wait for async loading to complete
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
+
+      // NOW buttons exist in DOM
       const openFilter = screen.getByRole('button', { name: /open comments/i });
-      fireEvent.click(openFilter);
+
+      await act(async () => {
+        fireEvent.click(openFilter);
+      });
 
       await waitFor(() => {
         // Should show only unresolved comments
@@ -247,10 +293,19 @@ describe('CommentSidebar', () => {
     });
 
     it('should filter to show only resolved comments', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
+      // Wait for async loading to complete
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
+
+      // NOW buttons exist in DOM
       const resolvedFilter = screen.getByRole('button', { name: /resolved comments/i });
-      fireEvent.click(resolvedFilter);
+
+      await act(async () => {
+        fireEvent.click(resolvedFilter);
+      });
 
       await waitFor(() => {
         // Should show only resolved comments
@@ -261,7 +316,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should show all comments by default', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         // All comments should be visible initially
@@ -273,14 +328,19 @@ describe('CommentSidebar', () => {
   });
 
   describe('Comment Creation', () => {
-    it('should show creation form when createComment prop is provided', () => {
+    it('should show creation form when createComment prop is provided', async () => {
       const createCommentData = {
         startPosition: 10,
         endPosition: 25,
         selectedText: 'selected text',
       };
 
-      render(<CommentSidebar scriptId="script-1" createComment={createCommentData} />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" createComment={createCommentData} />);
+
+      // Wait for async loading to complete
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
 
       expect(screen.getByRole('form', { name: /new comment/i })).toBeInTheDocument();
       expect(screen.getByRole('textbox', { name: /comment text/i })).toBeInTheDocument();
@@ -289,12 +349,20 @@ describe('CommentSidebar', () => {
     });
 
     it('should not show creation form when createComment is null', () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       expect(screen.queryByRole('form', { name: /new comment/i })).not.toBeInTheDocument();
     });
 
     it('should call onCommentCreated when form is submitted', async () => {
+      // Mock createComment to return success
+      const mockCreateComment = vi.mocked(commentsLib.createComment);
+      mockCreateComment.mockResolvedValue({
+        success: true,
+        data: undefined,
+        error: undefined,
+      });
+
       const onCommentCreated = vi.fn();
       const createCommentData = {
         startPosition: 10,
@@ -302,7 +370,7 @@ describe('CommentSidebar', () => {
         selectedText: 'selected text',
       };
 
-      render(
+      renderWithProviders(
         <CommentSidebar
           scriptId="script-1"
           createComment={createCommentData}
@@ -310,11 +378,18 @@ describe('CommentSidebar', () => {
         />
       );
 
+      // Wait for async loading to complete
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
+
       const textarea = screen.getByRole('textbox', { name: /comment text/i });
       const submitButton = screen.getByRole('button', { name: /submit/i });
 
-      fireEvent.change(textarea, { target: { value: 'New comment text' } });
-      fireEvent.click(submitButton);
+      await act(async () => {
+        fireEvent.change(textarea, { target: { value: 'New comment text' } });
+        fireEvent.click(submitButton);
+      });
 
       await waitFor(() => {
         expect(onCommentCreated).toHaveBeenCalledWith({
@@ -323,6 +398,7 @@ describe('CommentSidebar', () => {
           startPosition: 10,
           endPosition: 25,
           parentCommentId: null,
+          highlightedText: 'selected text',
         });
       });
     });
@@ -338,7 +414,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should show reply button on comment cards', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const replyButtons = screen.getAllByRole('button', { name: /reply/i });
@@ -347,7 +423,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should show resolve button for unresolved comments', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         // Should have resolve buttons for unresolved comments
@@ -357,7 +433,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should show reopen button for resolved comments', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         // Should have reopen button for resolved comment
@@ -371,7 +447,7 @@ describe('CommentSidebar', () => {
       // Mock that never resolves to show loading state
       mockGetComments.mockReturnValue(new Promise(() => {}));
 
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       expect(screen.getByRole('status', { name: /loading comments/i })).toBeInTheDocument();
     });
@@ -385,11 +461,16 @@ describe('CommentSidebar', () => {
         error: { code: 'DATABASE_ERROR', message: 'Database error' },
       });
 
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
+
+      // Wait for loading to complete and error state to render
+      await waitFor(() => {
+        expect(screen.queryByLabelText(/loading comments/i)).not.toBeInTheDocument();
+      });
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText(/error loading comments/i)).toBeInTheDocument();
+        expect(screen.getByText(/server error occurred/i)).toBeInTheDocument();
       });
     });
   });
@@ -406,7 +487,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should show reply form when reply button is clicked', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const replyButtons = screen.getAllByRole('button', { name: /reply/i });
@@ -441,7 +522,7 @@ describe('CommentSidebar', () => {
         }),
       }));
 
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const replyButtons = screen.getAllByRole('button', { name: /reply/i });
@@ -473,7 +554,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should display nested replies under parent comment', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         // Reply should be nested under parent
@@ -490,7 +571,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should cancel reply form when cancel button is clicked', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const replyButtons = screen.getAllByRole('button', { name: /reply/i });
@@ -531,7 +612,7 @@ describe('CommentSidebar', () => {
         }),
       }));
 
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const resolveButtons = screen.getAllByRole('button', { name: /resolve/i });
@@ -554,7 +635,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should show reopen button for resolved comments', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         // Should have reopen button for resolved comment (comment-3)
@@ -579,7 +660,7 @@ describe('CommentSidebar', () => {
         }),
       }));
 
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const reopenButton = screen.getByRole('button', { name: /reopen/i });
@@ -602,7 +683,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should update UI to show resolved state visually', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const resolvedComment = screen.getByText('Fixed in new version.');
@@ -622,7 +703,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should show delete button for comment author', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         // Should have delete buttons for comments authored by current user
@@ -632,7 +713,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should show confirmation dialog when delete button is clicked', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
@@ -663,7 +744,7 @@ describe('CommentSidebar', () => {
         }),
       }));
 
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
@@ -691,7 +772,7 @@ describe('CommentSidebar', () => {
         useAuth: () => ({ currentUser: { id: 'user-3', email: 'other@example.com' } }),
       }));
 
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         // Should not have delete buttons for comments not authored by current user
@@ -701,7 +782,7 @@ describe('CommentSidebar', () => {
     });
 
     it('should cancel deletion when cancel button is clicked', async () => {
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
@@ -718,7 +799,7 @@ describe('CommentSidebar', () => {
 
     it('should preserve thread integrity when parent is deleted', async () => {
       // This test ensures replies remain visible when parent is deleted
-      render(<CommentSidebar scriptId="script-1" />);
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         // Both parent and reply should be visible initially
@@ -785,7 +866,7 @@ describe('CommentSidebar', () => {
         error: null,
       });
 
-      const { rerender } = render(<CommentSidebar scriptId="script-1" />);
+      const { rerender } = renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       // Wait for script-1 comments to load
       await waitFor(() => {
@@ -839,7 +920,7 @@ describe('CommentSidebar', () => {
         error: null,
       });
 
-      const { rerender } = render(<CommentSidebar scriptId="script-1" />);
+      const { rerender } = renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         expect(screen.getByText('Comment for script 1')).toBeInTheDocument();
@@ -933,7 +1014,7 @@ describe('CommentSidebar', () => {
         error: null,
       });
 
-      const { rerender } = render(<CommentSidebar scriptId="script-1" />);
+      const { rerender } = renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       // Wait for script-1 to load
       await waitFor(() => {
@@ -990,7 +1071,7 @@ describe('CommentSidebar', () => {
 
       mockGetComments.mockReturnValue(pendingPromise);
 
-      const { unmount } = render(<CommentSidebar scriptId="script-1" />);
+      const { unmount } = renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       // Verify loading state started
       expect(screen.getByRole('status', { name: /loading comments/i })).toBeInTheDocument();
@@ -1044,7 +1125,7 @@ describe('CommentSidebar', () => {
           error: null,
         });
 
-        const { unmount } = render(<CommentSidebar scriptId={`script-${i}`} />);
+        const { unmount } = renderWithProviders(<CommentSidebar scriptId={`script-${i}`} />);
         unmount();
       }
 

@@ -35,12 +35,13 @@ describe('DesktopRequired', () => {
     })
 
     it('should have professional styling and layout', () => {
-      render(<DesktopRequired />)
+      const { container } = render(<DesktopRequired />)
 
-      const container = screen.getByText('Desktop Required').closest('.desktop-required-container')
-      expect(container).toBeInTheDocument()
+      const requiredContainer = screen.getByText('Desktop Required').closest('.desktop-required-container')
+      expect(requiredContainer).toBeInTheDocument()
 
-      const icon = screen.getByRole('img', { hidden: true }) // SVG icon
+      // SVG doesn't have role="img" by default - query directly
+      const icon = container.querySelector('svg')
       expect(icon).toBeInTheDocument()
     })
 

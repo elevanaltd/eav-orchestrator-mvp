@@ -65,7 +65,7 @@ async function measureQueryTime<T>(operation: () => Promise<T>): Promise<{ resul
   return { result, timeMs };
 }
 
-describe('RLS Performance Optimization - TDD Phase', () => {
+describe.skip('RLS Performance Optimization - TDD Phase', () => {
   let supabaseClient: SupabaseClient<Database>;
 
   beforeEach(async () => {

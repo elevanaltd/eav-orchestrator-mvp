@@ -281,28 +281,27 @@ describe('ErrorBoundary', () => {
     });
   });
 
-  // CORRECTED ASYNC ERROR TEST - Test Methodology Guardian directive
+  // CORRECTED ASYNC ERROR TEST - React 18 behavior
   describe('Async Error Handling', () => {
-    // This test documents a known React limitation: Error Boundaries do not catch async errors.
-    it('should NOT display the fallback UI for async errors originating from useEffect', () => {
-      // ARRANGE: Suppress the expected console error from the uncaught async throw
+    // React 18 DOES catch errors thrown in useEffect during initial mount
+    // Only truly async errors (setTimeout, fetch) are not caught
+    it('should catch errors thrown in useEffect during initial mount', () => {
+      // ARRANGE: Suppress the expected console error
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      // ACT: Render the boundary with a child that throws an async error.
-      // The assertion is that this render does NOT crash.
+      // ACT: Render the boundary with a child that throws in useEffect
       render(
         <ErrorBoundary>
           <ThrowAsyncError shouldThrow={true} />
         </ErrorBoundary>
       );
 
-      // ASSERT: The ErrorBoundary's fallback UI should NOT be visible.
-      // This confirms the boundary was not triggered by the async error.
+      // ASSERT: ErrorBoundary SHOULD catch this and show fallback
       const fallbackUI = screen.queryByText(/something went wrong/i);
-      expect(fallbackUI).not.toBeInTheDocument();
+      expect(fallbackUI).toBeInTheDocument();
 
-      // ASSERT: The child component should still be rendered normally
-      expect(screen.getByText('Async component working')).toBeInTheDocument();
+      // ASSERT: The child component should NOT be visible
+      expect(screen.queryByText('Async component working')).not.toBeInTheDocument();
 
       // CLEANUP
       consoleErrorSpy.mockRestore();

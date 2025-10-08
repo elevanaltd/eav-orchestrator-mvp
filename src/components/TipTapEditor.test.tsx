@@ -60,6 +60,7 @@ vi.mock('@tiptap/react', () => ({
       }
     },
     getHTML: vi.fn().mockReturnValue('<p>Mock content</p>'),
+    setEditable: vi.fn(), // Add setEditable method
     on: vi.fn(),
     off: vi.fn()
   }),

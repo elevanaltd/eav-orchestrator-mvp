@@ -29,7 +29,7 @@ import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { loadScriptForVideo, saveScript, updateScriptStatus as updateScriptWorkflowStatus, ComponentData, Script, ScriptWorkflowStatus } from '../services/scriptService';
+import { loadScriptForVideo, saveScriptWithComponents, updateScriptStatus as updateScriptWorkflowStatus, ComponentData, Script, ScriptWorkflowStatus } from '../services/scriptService';
 import { Logger } from '../services/logger';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
@@ -625,7 +625,14 @@ export const TipTapEditor: React.FC = () => {
       // Requirements: Implement Y.js serialization for collaborative state sync
       // Dependencies: Y.js library, WebSocket infrastructure, conflict resolution
       const yjsState = null; // Placeholder until Y.js integration in Phase 4
-      const updatedScript = await saveScript(currentScript.id, yjsState, plainText, extractedComponents);
+
+      // FIX #1: Restore component persistence - use RPC with actual components
+      const updatedScript = await saveScriptWithComponents(
+        currentScript.id,
+        yjsState,
+        plainText,
+        extractedComponents
+      );
 
       // Only update state if still mounted
       if (isMountedRef.current) {
@@ -1397,6 +1404,19 @@ export const TipTapEditor: React.FC = () => {
             createComment={createCommentData}
             onCommentCreated={handleCommentCreated}
             onCommentCancelled={handleCommentCancelled}
+            onCommentDeleted={(commentId) => {
+              // Remove highlight from local state
+              setCommentHighlights(prev =>
+                prev.filter(h => h.commentId !== commentId)
+              );
+
+              // Remove highlight from editor using existing command
+              if (editor) {
+                editor.commands.removeCommentHighlight(commentId);
+              }
+
+              Logger.info('Comment highlight removed', { commentId });
+            }}
           />
         </ErrorBoundary>
       )}
