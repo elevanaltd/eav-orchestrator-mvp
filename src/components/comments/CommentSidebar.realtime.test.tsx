@@ -16,6 +16,7 @@
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { CommentWithUser } from '../../types/comments';
 
 // Mock channel for Realtime subscriptions
@@ -71,6 +72,35 @@ vi.mock('../../contexts/AuthContext', () => ({
 import { CommentSidebar } from './CommentSidebar';
 import { supabase as mockSupabase } from '../../lib/supabase';
 
+// Create a test wrapper with QueryClientProvider
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+    mutations: { retry: false },
+  },
+});
+
+const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
+  const result = render(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>
+  );
+
+  // Wrap the rerender function to maintain QueryClientProvider
+  const originalRerender = result.rerender;
+  result.rerender = (rerenderUi: React.ReactNode) => {
+    return originalRerender(
+      <QueryClientProvider client={queryClient}>
+        {rerenderUi}
+      </QueryClientProvider>
+    );
+  };
+
+  return result;
+};
+
 describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -97,7 +127,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
 
   describe('Subscription Setup', () => {
     it('should create a Realtime channel scoped to script_id on mount', async () => {
-      render(<CommentSidebar scriptId="script-123" />);
+      renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         // Should create channel with script-specific name
@@ -106,7 +136,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
     });
 
     it('should subscribe to postgres_changes event for comments table', async () => {
-      render(<CommentSidebar scriptId="script-123" />);
+      renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(mockChannel.on).toHaveBeenCalledWith(
@@ -123,7 +153,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
     });
 
     it('should call subscribe() to activate the channel', async () => {
-      render(<CommentSidebar scriptId="script-123" />);
+      renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(mockChannel.subscribe).toHaveBeenCalled();
@@ -131,7 +161,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
     });
 
     it('should unsubscribe from channel on unmount', async () => {
-      const { unmount } = render(<CommentSidebar scriptId="script-123" />);
+      const { unmount } = renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(mockChannel.subscribe).toHaveBeenCalled();
@@ -145,7 +175,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
     });
 
     it('should create new subscription when scriptId changes', async () => {
-      const { rerender } = render(<CommentSidebar scriptId="script-1" />);
+      const { rerender } = renderWithProviders(<CommentSidebar scriptId="script-1" />);
 
       await waitFor(() => {
         expect(mockSupabase.channel).toHaveBeenCalledWith('comments:script-1');
@@ -178,7 +208,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         return mockChannel;
       });
 
-      render(<CommentSidebar scriptId="script-123" />);
+      renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       // Wait for subscription setup
       await waitFor(() => {
@@ -256,7 +286,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         error: undefined,
       });
 
-      render(<CommentSidebar scriptId="script-123" />);
+      renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(screen.getByText('Existing comment')).toBeInTheDocument();
@@ -336,7 +366,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         error: undefined,
       });
 
-      render(<CommentSidebar scriptId="script-123" />);
+      renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(screen.getByText('Original content')).toBeInTheDocument();
@@ -413,7 +443,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         error: undefined,
       });
 
-      render(<CommentSidebar scriptId="script-123" />);
+      renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         const commentCard = screen.getByText('Needs review').closest('[role="article"]');
@@ -493,7 +523,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         error: undefined,
       });
 
-      render(<CommentSidebar scriptId="script-123" />);
+      renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(screen.getByText('Will be deleted')).toBeInTheDocument();
@@ -527,7 +557,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
         return mockChannel;
       });
 
-      render(<CommentSidebar scriptId="script-123" />);
+      renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(mockChannel.subscribe).toHaveBeenCalled();
@@ -555,7 +585,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
       // This test validates that Supabase RLS filters broadcasts automatically
       // Server-side filter removed to prevent CHANNEL_ERROR with complex RLS
       // Client-side filtering applied in event handler instead
-      render(<CommentSidebar scriptId="script-123" />);
+      renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(mockChannel.on).toHaveBeenCalledWith(
@@ -578,7 +608,7 @@ describe('CommentSidebar - Realtime Subscriptions (TDD RED Phase)', () => {
 
   describe('Memory Safety and Cleanup', () => {
     it('should not update state if component unmounts during subscription setup', async () => {
-      const { unmount } = render(<CommentSidebar scriptId="script-123" />);
+      const { unmount } = renderWithProviders(<CommentSidebar scriptId="script-123" />);
 
       await waitFor(() => {
         expect(mockChannel.subscribe).toHaveBeenCalled();
