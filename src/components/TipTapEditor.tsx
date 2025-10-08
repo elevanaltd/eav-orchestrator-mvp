@@ -237,8 +237,19 @@ export const TipTapEditor: React.FC = () => {
     const components: ComponentData[] = [];
     let componentNum = 0;
 
+    // Pattern to detect [[HEADER]] paragraphs (these are NOT components)
+    const headerPattern = /^\[\[([A-Z0-9\s\-_]+)\]\]$/;
+
     editor.state.doc.forEach((node: Node) => {
       if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
+        const trimmedText = node.textContent.trim();
+
+        // Skip paragraphs that are ONLY [[HEADER]] patterns
+        // These are visual subheaders for ElevenLabs, not production components
+        if (headerPattern.test(trimmedText)) {
+          return; // Skip this paragraph - it's a header, not a component
+        }
+
         componentNum++;
         components.push({
           number: componentNum,

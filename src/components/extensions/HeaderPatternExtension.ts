@@ -40,6 +40,7 @@
 
 import { Mark, mergeAttributes } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
+import { markInputRule } from '@tiptap/core';
 
 /**
  * Pattern to match [[HEADER]] syntax
@@ -115,6 +116,16 @@ export const HeaderPatternExtension = Mark.create<HeaderPatternOptions>({
   // Add commands (currently none needed, but structure for future)
   addCommands() {
     return {};
+  },
+
+  // Add input rules to catch [[HEADER]] as user types the closing ]]
+  addInputRules() {
+    return [
+      markInputRule({
+        find: /\[\[([A-Z0-9\s\-_]+)\]\]$/,
+        type: this.type,
+      }),
+    ];
   },
 
   // Add ProseMirror Plugin to auto-detect and wrap [[HEADER]] patterns
