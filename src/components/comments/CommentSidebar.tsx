@@ -32,6 +32,7 @@ export interface CommentSidebarProps {
   } | null;
   onCommentCreated?: (commentData: CreateCommentData) => void;
   onCommentCancelled?: () => void;
+  onCommentDeleted?: (commentId: string) => void;
   // FIX (ADR-005 ADDENDUM 2): Removed documentContent prop - no longer needed
 }
 
@@ -42,7 +43,8 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   scriptId,
   createComment,
   onCommentCreated,
-  onCommentCancelled
+  onCommentCancelled,
+  onCommentDeleted
   // FIX (ADR-005 ADDENDUM 2): Removed documentContent destructuring
 }) => {
   const { currentUser } = useAuth();
@@ -620,15 +622,38 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
     try {
       // Use optimistic UI mutation hook with scriptId
-      deleteMutation.mutate({ commentId, scriptId });
-      setDeleteConfirming(null);
+      deleteMutation.mutate(
+        { commentId, scriptId },
+        {
+          onSuccess: () => {
+            // FIX ISSUE #3B: Update local state manually (Gap G6 - legacy component with manual state)
+            // Mutation updates React Query cache, but this component uses useState, not useQuery
+            // Remove deleted comment from local state to match cache update
+            setComments(prev => prev.filter(c => c.id !== commentId))
+
+            // Trigger parent to remove highlight
+            if (onCommentDeleted) {
+              onCommentDeleted(commentId);
+            }
+            setDeleteConfirming(null);
+            setDeleting(false);
+          },
+          onError: (error) => {
+            const contextualMessage = getUserFriendlyErrorMessage(
+              error as Error,
+              { operation: 'delete', resource: 'comment' }
+            );
+            setError(contextualMessage);
+            setDeleting(false);
+          }
+        }
+      );
     } catch (error) {
       const contextualMessage = getUserFriendlyErrorMessage(
         error as Error,
         { operation: 'delete', resource: 'comment' }
       );
       setError(contextualMessage);
-    } finally {
       setDeleting(false);
     }
   };
