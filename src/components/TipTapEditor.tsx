@@ -1404,6 +1404,19 @@ export const TipTapEditor: React.FC = () => {
             createComment={createCommentData}
             onCommentCreated={handleCommentCreated}
             onCommentCancelled={handleCommentCancelled}
+            onCommentDeleted={(commentId) => {
+              // Remove highlight from local state
+              setCommentHighlights(prev =>
+                prev.filter(h => h.commentId !== commentId)
+              );
+
+              // Remove highlight from editor using existing command
+              if (editor) {
+                editor.commands.removeCommentHighlight(commentId);
+              }
+
+              Logger.info('Comment highlight removed', { commentId });
+            }}
           />
         </ErrorBoundary>
       )}
