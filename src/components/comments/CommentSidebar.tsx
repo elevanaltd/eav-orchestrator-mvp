@@ -591,20 +591,22 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 
     setError(null);
 
-    try {
-      // Use optimistic UI mutation hooks with scriptId
-      if (isCurrentlyResolved) {
-        unresolveMutation.mutate({ commentId, scriptId });
-      } else {
-        resolveMutation.mutate({ commentId, scriptId });
+    // FIX: TanStack Query mutate() uses callbacks, not try/catch (Vercel Bot analysis)
+    const operation = isCurrentlyResolved ? 'unresolve' : 'resolve';
+    const mutationOptions = {
+      onError: (error: Error) => {
+        const contextualMessage = getUserFriendlyErrorMessage(
+          error,
+          { operation, resource: 'comment' }
+        );
+        setError(contextualMessage);
       }
-    } catch (error) {
-      const operation = isCurrentlyResolved ? 'unresolve' : 'resolve';
-      const contextualMessage = getUserFriendlyErrorMessage(
-        error as Error,
-        { operation, resource: 'comment' }
-      );
-      setError(contextualMessage);
+    };
+
+    if (isCurrentlyResolved) {
+      unresolveMutation.mutate({ commentId, scriptId }, mutationOptions);
+    } else {
+      resolveMutation.mutate({ commentId, scriptId }, mutationOptions);
     }
   };
 
@@ -620,42 +622,34 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setDeleting(true);
     setError(null);
 
-    try {
-      // Use optimistic UI mutation hook with scriptId
-      deleteMutation.mutate(
-        { commentId, scriptId },
-        {
-          onSuccess: () => {
-            // FIX ISSUE #3B: Update local state manually (Gap G6 - legacy component with manual state)
-            // Mutation updates React Query cache, but this component uses useState, not useQuery
-            // Remove deleted comment from local state to match cache update
-            setComments(prev => prev.filter(c => c.id !== commentId))
+    // FIX: TanStack Query mutate() uses callbacks, not try/catch (Vercel Bot analysis)
+    // Remove dead try/catch block - error handling via onError callback
+    deleteMutation.mutate(
+      { commentId, scriptId },
+      {
+        onSuccess: () => {
+          // FIX ISSUE #3B: Update local state manually (Gap G6 - legacy component with manual state)
+          // Mutation updates React Query cache, but this component uses useState, not useQuery
+          // Remove deleted comment from local state to match cache update
+          setComments(prev => prev.filter(c => c.id !== commentId))
 
-            // Trigger parent to remove highlight
-            if (onCommentDeleted) {
-              onCommentDeleted(commentId);
-            }
-            setDeleteConfirming(null);
-            setDeleting(false);
-          },
-          onError: (error) => {
-            const contextualMessage = getUserFriendlyErrorMessage(
-              error as Error,
-              { operation: 'delete', resource: 'comment' }
-            );
-            setError(contextualMessage);
-            setDeleting(false);
+          // Trigger parent to remove highlight
+          if (onCommentDeleted) {
+            onCommentDeleted(commentId);
           }
+          setDeleteConfirming(null);
+          setDeleting(false);
+        },
+        onError: (error) => {
+          const contextualMessage = getUserFriendlyErrorMessage(
+            error as Error,
+            { operation: 'delete', resource: 'comment' }
+          );
+          setError(contextualMessage);
+          setDeleting(false);
         }
-      );
-    } catch (error) {
-      const contextualMessage = getUserFriendlyErrorMessage(
-        error as Error,
-        { operation: 'delete', resource: 'comment' }
-      );
-      setError(contextualMessage);
-      setDeleting(false);
-    }
+      }
+    );
   };
 
   const handleDeleteCancel = () => {
