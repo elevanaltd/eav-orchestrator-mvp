@@ -40,6 +40,7 @@
 
 import { Mark, mergeAttributes } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
+import { markInputRule } from '@tiptap/core';
 
 /**
  * Pattern to match [[HEADER]] syntax
@@ -117,9 +118,15 @@ export const HeaderPatternExtension = Mark.create<HeaderPatternOptions>({
     return {};
   },
 
-  // Note: NOT using addInputRules() because markInputRule would REPLACE
-  // the text (removing brackets). The appendTransaction Plugin below handles
-  // detection while preserving the full [[HEADER]] text with brackets.
+  // Add input rules to catch [[HEADER]] as user types the closing ]]
+  addInputRules() {
+    return [
+      markInputRule({
+        find: /\[\[([A-Z0-9\s\-_]+)\]\]$/,
+        type: this.type,
+      }),
+    ];
+  },
 
   // Add ProseMirror Plugin to auto-detect and wrap [[HEADER]] patterns
   addProseMirrorPlugins() {
