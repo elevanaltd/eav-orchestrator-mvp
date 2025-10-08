@@ -3,7 +3,7 @@ import { createComment, updateComment, resolveComment, unresolveComment, deleteC
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCommentStore } from '../stores/commentStore'
-import type { CreateCommentData } from '../../types/comments'
+import type { CreateCommentData, CommentWithRecovery } from '../../types/comments'
 
 // Critical-Engineer: consulted for mutation architecture with Supabase integration
 // Architecture: TanStack Query mutations for comment CRUD operations
@@ -29,7 +29,7 @@ interface ResolveCommentParams {
  */
 export const useCommentMutations = () => {
   const queryClient = useQueryClient()
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile } = useAuth()
 
   // Testguard consulted: Gap #2 & #5 - optimistic comment UX with store coordination
   const createMutation = useMutation({
@@ -131,10 +131,51 @@ export const useCommentMutations = () => {
 
       return result.data
     },
+    onMutate: async ({ commentId }) => {
+      // Gap G2: Optimistic UI update for comment resolution
+      // Cancel outgoing refetches to prevent overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['comments'] })
+
+      // Snapshot ALL comment queries for rollback (preserves all query keys)
+      const previousComments = queryClient.getQueriesData({ queryKey: ['comments'] })
+
+      // Optimistically update each comment cache individually
+      const now = new Date().toISOString()
+      previousComments.forEach(([queryKey]) => {
+        queryClient.setQueryData<CommentWithRecovery[]>(queryKey, (old) => {
+          if (!Array.isArray(old)) return old
+
+          return old.map((comment) =>
+            comment.id === commentId
+              ? {
+                  ...comment,
+                  resolvedAt: now,
+                  resolvedBy: currentUser?.id || null,
+                  resolvedByUser: currentUser ? {
+                    id: currentUser.id,
+                    email: currentUser.email || '',
+                    displayName: userProfile?.display_name || null,
+                  } : null,
+                }
+              : comment
+          )
+        })
+      })
+
+      return { previousComments }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['comments']
       })
+    },
+    onError: (_err, _variables, context) => {
+      // Rollback ALL comment queries to previous state
+      if (context?.previousComments) {
+        context.previousComments.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data)
+        })
+      }
     },
   })
 
@@ -153,10 +194,46 @@ export const useCommentMutations = () => {
 
       return result.data
     },
+    onMutate: async ({ commentId }) => {
+      // Gap G2: Optimistic UI update for comment unresolve
+      // Cancel outgoing refetches to prevent overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['comments'] })
+
+      // Snapshot ALL comment queries for rollback (preserves all query keys)
+      const previousComments = queryClient.getQueriesData({ queryKey: ['comments'] })
+
+      // Optimistically update each comment cache individually
+      previousComments.forEach(([queryKey]) => {
+        queryClient.setQueryData<CommentWithRecovery[]>(queryKey, (old) => {
+          if (!Array.isArray(old)) return old
+
+          return old.map((comment) =>
+            comment.id === commentId
+              ? {
+                  ...comment,
+                  resolvedAt: null,
+                  resolvedBy: null,
+                  resolvedByUser: null,
+                }
+              : comment
+          )
+        })
+      })
+
+      return { previousComments }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['comments']
       })
+    },
+    onError: (_err, _variables, context) => {
+      // Rollback ALL comment queries to previous state
+      if (context?.previousComments) {
+        context.previousComments.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data)
+        })
+      }
     },
   })
 
@@ -175,10 +252,37 @@ export const useCommentMutations = () => {
 
       return result.success
     },
+    onMutate: async ({ commentId }) => {
+      // Gap G2: Optimistic UI update for comment deletion
+      // Cancel outgoing refetches to prevent overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['comments'] })
+
+      // Snapshot ALL comment queries for rollback (preserves all query keys)
+      const previousComments = queryClient.getQueriesData({ queryKey: ['comments'] })
+
+      // Optimistically remove comment from each comment cache individually
+      previousComments.forEach(([queryKey]) => {
+        queryClient.setQueryData<CommentWithRecovery[]>(queryKey, (old) => {
+          if (!Array.isArray(old)) return old
+
+          return old.filter((comment) => comment.id !== commentId)
+        })
+      })
+
+      return { previousComments }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['comments']
       })
+    },
+    onError: (_err, _variables, context) => {
+      // Rollback ALL comment queries to previous state
+      if (context?.previousComments) {
+        context.previousComments.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data)
+        })
+      }
     },
   })
 
