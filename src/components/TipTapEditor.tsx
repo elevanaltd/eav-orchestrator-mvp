@@ -30,6 +30,7 @@ import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCurrentScript } from '../core/state/useCurrentScript';
+import { useScriptComments } from '../core/state/useScriptComments';
 import { loadScriptForVideo, ComponentData, ScriptWorkflowStatus, generateContentHash } from '../services/scriptService';
 import { Logger } from '../services/logger';
 import { extractComponents as extractComponentsFromDoc, isComponentParagraph } from '../lib/componentExtraction';
@@ -215,30 +216,6 @@ export const TipTapEditor: React.FC = () => {
 
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
-
-  // Comment selection state (Phase 2.2)
-  const [selectedText, setSelectedText] = useState<{
-    text: string;
-    from: number;
-    to: number;
-  } | null>(null);
-  const [showCommentPopup, setShowCommentPopup] = useState(false);
-  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
-
-  // Comment creation state (Phase 2.3)
-  const [createCommentData, setCreateCommentData] = useState<{
-    startPosition: number;
-    endPosition: number;
-    selectedText: string;
-  } | null>(null);
-
-  // Comment numbering and highlighting state
-  const [, setCommentHighlights] = useState<Array<{
-    commentId: string;
-    commentNumber: number;
-    startPosition: number;
-    endPosition: number;
-  }>>([]);
 
   // Track component mount state to prevent updates after unmount
   const isMountedRef = useRef(true);
@@ -447,164 +424,24 @@ export const TipTapEditor: React.FC = () => {
     }
   });
 
-  // Load comment highlights from database
-  // IMPORTANT: This must be defined before useEffects that reference it
-  // FIX (ADR-005 ADDENDUM 2): Removed documentContent parameter to prevent unnecessary recovery
-  const loadCommentHighlights = useCallback(async (scriptId: string) => {
-    if (!editor) return;
+  // Step 2.1.4: Extract ALL comment system logic to useScriptComments hook
+  const {
+    setCommentHighlights,
+    selectedText,
+    setSelectedText,
+    showCommentPopup,
+    setShowCommentPopup,
+    popupPosition,
+    setPopupPosition,
+    createCommentData,
+    setCreateCommentData,
+    loadCommentHighlights,
+  } = useScriptComments(editor);
 
-    // Don't load comments for readonly placeholder scripts (no script created yet)
-    if (scriptId.startsWith('readonly-')) {
-      return;
-    }
-
-    try {
-      // Import the comments module and load highlights
-      const { getComments } = await import('../lib/comments');
-      const { supabase } = await import('../lib/supabase');
-
-      // Load comments WITHOUT documentContent - positions are already correct PM positions
-      // Recovery is NOT needed for stored positions (only for fresh text-based positions)
-      const result = await getComments(supabase, scriptId);
-
-      if (result.success && result.data) {
-        const highlights = result.data
-          .filter(comment => !comment.parentCommentId) // Only parent comments have highlights
-          .map((comment, index) => ({
-            commentId: comment.id,
-            commentNumber: index + 1,
-            startPosition: comment.startPosition, // Already recovered if needed
-            endPosition: comment.endPosition, // Already recovered if needed
-            resolved: !!comment.resolvedAt, // Priority 3: Pass resolved status for visual distinction
-          }));
-
-        setCommentHighlights(highlights);
-
-        // Load highlights into editor
-        if (highlights.length > 0) {
-          editor.commands.loadExistingHighlights(highlights);
-        }
-
-        // Log position recovery results if any comments were recovered
-        const recoveredComments = result.data.filter(c => c.recovery && c.recovery.status === 'relocated');
-        if (recoveredComments.length > 0) {
-          Logger.info(`Position recovery: ${recoveredComments.length} comment(s) relocated`, {
-            recovered: recoveredComments.map(c => ({
-              id: c.id,
-              status: c.recovery?.status,
-              matchQuality: c.recovery?.matchQuality,
-              message: c.recovery?.message
-            }))
-          });
-        }
-      }
-    } catch (error) {
-      Logger.error('Failed to load comment highlights', { error: (error as Error).message });
-    }
-  }, [editor]);
-
-  // Text selection handler for comments (Phase 2.2)
-  useEffect(() => {
-    if (!editor) return;
-
-    const handleSelectionUpdate = () => {
-      if (!isMountedRef.current) return;
-
-      const { from, to, empty } = editor.state.selection;
-
-      if (empty) {
-        // No text selected, hide popup
-        setSelectedText(null);
-        setShowCommentPopup(false);
-        setPopupPosition(null);
-      } else {
-        // Text is selected
-        const selectedContent = editor.state.doc.textBetween(from, to);
-        if (selectedContent.trim()) {
-          // Calculate popup position based on selection coordinates
-          try {
-            const coords = editor.view.coordsAtPos(from);
-            const editorRect = editor.view.dom.getBoundingClientRect();
-
-            // Position popup above selection, or below if not enough space above
-            const popupHeight = 80; // Estimated popup height
-            const spaceAbove = coords.top - editorRect.top;
-            const spaceBelow = editorRect.bottom - coords.bottom;
-
-            let top = coords.top - popupHeight - 10; // 10px gap above selection
-            if (spaceAbove < popupHeight + 20 && spaceBelow > popupHeight + 20) {
-              // Not enough space above, position below
-              top = coords.bottom + 10;
-            }
-
-            const left = Math.max(20, Math.min(coords.left - 100, window.innerWidth - 220)); // Center popup, but keep on screen
-
-            setSelectedText({
-              text: selectedContent,
-              from,
-              to
-            });
-            setPopupPosition({ top, left });
-            setShowCommentPopup(true);
-          } catch (error) {
-            // Fallback to center positioning if coordinate calculation fails
-            Logger.warn('Failed to calculate popup position, using fallback', { error: (error as Error).message });
-            setSelectedText({
-              text: selectedContent,
-              from,
-              to
-            });
-            setPopupPosition(null); // Will use CSS fallback positioning
-            setShowCommentPopup(true);
-          }
-        }
-      }
-    };
-
-    // Listen for selection updates using TipTap's event system
-    editor.on('selectionUpdate', handleSelectionUpdate);
-
-    return () => {
-      // Clean up the subscription
-      editor.off('selectionUpdate', handleSelectionUpdate);
-    };
-  }, [editor]);
-
-  // Blur handler for comment position recovery (Phase 2 - Option B)
-  useEffect(() => {
-    if (!editor || !currentScript) return;
-
-    let blurTimeoutId: NodeJS.Timeout | null = null;
-
-    const handleBlur = () => {
-      // Debounce: Wait 500ms after blur to update positions
-      // This prevents rapid-fire updates if user quickly clicks in/out
-      if (blurTimeoutId) {
-        clearTimeout(blurTimeoutId);
-      }
-
-      blurTimeoutId = setTimeout(() => {
-        if (!isMountedRef.current || !currentScript) return;
-
-        Logger.info('Editor blur: Recovering comment positions', {
-          scriptId: currentScript.id,
-          trigger: 'blur'
-        });
-
-        // Reload comment highlights with position recovery
-        loadCommentHighlights(currentScript.id);
-      }, 500); // 500ms debounce
-    };
-
-    editor.on('blur', handleBlur);
-
-    return () => {
-      editor.off('blur', handleBlur);
-      if (blurTimeoutId) {
-        clearTimeout(blurTimeoutId);
-      }
-    };
-  }, [editor, currentScript, loadCommentHighlights]);
+  // REMOVED: loadCommentHighlights function (now in useScriptComments hook)
+  // REMOVED: selectionUpdate useEffect (now in useScriptComments hook)
+  // REMOVED: blur handler useEffect (now in useScriptComments hook)
+  // REMOVED: Comment UI state (now in useScriptComments hook)
 
   // Now define callbacks that depend on editor
 
@@ -671,7 +508,7 @@ export const TipTapEditor: React.FC = () => {
       Logger.error('Failed to reload comment highlights', { error: (error as Error).message });
       showError('Failed to update comment highlights');
     }
-  }, [currentScript, loadCommentHighlights, showSuccess, showError]);
+  }, [currentScript, loadCommentHighlights, setCreateCommentData, setSelectedText, setPopupPosition, showSuccess, showError]);
 
   // Handle comment form cancellation
   const handleCommentCancelled = useCallback(() => {
@@ -680,7 +517,7 @@ export const TipTapEditor: React.FC = () => {
     // Clear selection state
     setSelectedText(null);
     setPopupPosition(null);
-  }, []);
+  }, [setCreateCommentData, setSelectedText, setPopupPosition]);
 
   // Handle script status changes (GREEN phase implementation)
   const handleStatusChange = useCallback(async (newStatus: ScriptWorkflowStatus) => {

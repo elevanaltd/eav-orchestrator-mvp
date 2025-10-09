@@ -91,7 +91,7 @@ describe('useScriptComments', () => {
 
   describe('Query State', () => {
     it('returns empty threads when no script selected', () => {
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -109,7 +109,7 @@ describe('useScriptComments', () => {
 
   describe('Mutation Access', () => {
     it('exposes mutations object for low-level access', () => {
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -121,7 +121,7 @@ describe('useScriptComments', () => {
     })
 
     it('provides convenience wrappers for common operations', () => {
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -132,7 +132,7 @@ describe('useScriptComments', () => {
     })
 
     it('exposes mutation status flags', () => {
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -158,7 +158,7 @@ describe('useScriptComments', () => {
       ])
       useCommentStore.setState({ optimisticComments: mockOptimisticMap })
 
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -169,7 +169,7 @@ describe('useScriptComments', () => {
       const mockSubmittingMap = new Map([['temp-1', true]])
       useCommentStore.setState({ submittingStatus: mockSubmittingMap })
 
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -179,7 +179,7 @@ describe('useScriptComments', () => {
 
   describe('Gap G6: Context-Aware Error Handling', () => {
     it('provides createContextualError helper', () => {
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -187,7 +187,7 @@ describe('useScriptComments', () => {
     })
 
     it('creates context-specific error messages for create operation', () => {
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -201,7 +201,7 @@ describe('useScriptComments', () => {
     })
 
     it('creates context-specific error messages for delete operation', () => {
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -215,7 +215,7 @@ describe('useScriptComments', () => {
     })
 
     it('creates context-specific error messages for resolve operation', () => {
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -243,7 +243,7 @@ describe('useScriptComments', () => {
 
   describe('Usage Pattern: Gap G6 Preservation Examples', () => {
     it('allows components to use convenience wrapper with try/catch', () => {
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
@@ -271,7 +271,7 @@ describe('useScriptComments', () => {
     })
 
     it('allows components to use mutations directly with onError callback', () => {
-      const { result } = renderHook(() => useScriptComments(), {
+      const { result } = renderHook(() => useScriptComments(null), {
         wrapper: createWrapper(),
       })
 
