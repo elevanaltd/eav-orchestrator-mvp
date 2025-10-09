@@ -112,6 +112,14 @@ describe('useCurrentScript', () => {
       expect(result.current.saveStatus).toBe('saving')
     })
 
+    it('exposes setSaveStatus from store', () => {
+      const { result } = renderHook(() => useCurrentScript(), {
+        wrapper: createWrapper(),
+      })
+
+      expect(typeof result.current.setSaveStatus).toBe('function')
+    })
+
     it('exposes lastSaved from Zustand store', () => {
       const now = new Date()
       useScriptStore.setState({ lastSaved: now })
