@@ -447,9 +447,30 @@ export const TipTapEditor: React.FC = () => {
     }
   });
 
-  // Load comment highlights from database
-  // IMPORTANT: This must be defined before useEffects that reference it
-  // FIX (ADR-005 ADDENDUM 2): Removed documentContent parameter to prevent unnecessary recovery
+  /**
+   * Load comment highlights from database and render in editor
+   *
+   * @coupling HIGH - Requires TipTap Editor with CommentHighlightExtension
+   * @reusability Scripts Editor only (per North Star Line 154: "Single TipTap Editor")
+   * @tested via CommentHighlightExtension.test.ts (372 LOC, 50 test cases)
+   *
+   * @param scriptId - Script ID to load comments for
+   *
+   * Design Decision (Step 2.1.4): Intentionally NOT extracted to useCommentHighlights() hook
+   *
+   * Rationale:
+   * - HIGH coupling: 3 editor.commands dependencies (lines 454, 485, 1294)
+   * - SINGLE consumer: Scripts Editor only (no TipTap in Review/Edit/Voice/Scenes phases)
+   * - NO test benefit: Extension tests already provide excellent isolation
+   * - MIP Compliance: Extraction would add accumulative complexity without user value
+   *
+   * Extraction Conditions (future):
+   * - IF Review or Edit phases require TipTap Editor
+   * - IF editor.commands become parameterizable
+   * - IF Extension tests prove insufficient
+   *
+   * See: Phase 2.95C Step 2.1.4 Assessment Report for complete analysis
+   */
   const loadCommentHighlights = useCallback(async (scriptId: string) => {
     if (!editor) return;
 
