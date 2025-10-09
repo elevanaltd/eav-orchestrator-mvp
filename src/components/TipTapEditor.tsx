@@ -15,7 +15,7 @@ import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, EditorView } from '@tiptap/pm/view';
-import { Node, DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
+import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import DOMPurify from 'dompurify';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
 import { CommentPositionTracker } from './extensions/CommentPositionTracker';
@@ -30,7 +30,7 @@ import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCurrentScript } from '../core/state/useCurrentScript';
-import { loadScriptForVideo, ComponentData, ScriptWorkflowStatus } from '../services/scriptService';
+import { loadScriptForVideo, ComponentData, ScriptWorkflowStatus, generateContentHash } from '../services/scriptService';
 import { Logger } from '../services/logger';
 import { extractComponents as extractComponentsFromDoc, isComponentParagraph } from '../lib/componentExtraction';
 
@@ -243,11 +243,6 @@ export const TipTapEditor: React.FC = () => {
   // Track component mount state to prevent updates after unmount
   const isMountedRef = useRef(true);
 
-  // Helper function to generate hash
-  const generateHash = (text: string): string => {
-    return text.length.toString(36) + text.charCodeAt(0).toString(36);
-  };
-
   // Declare callback functions that don't depend on editor
   const extractComponents = useCallback((editor: Editor) => {
     // Only update state if component is still mounted
@@ -255,7 +250,7 @@ export const TipTapEditor: React.FC = () => {
 
     const components = extractComponentsFromDoc(
       editor.state.doc,
-      generateHash
+      generateContentHash
     );
 
     setExtractedComponents(components);
@@ -1256,106 +1251,6 @@ export const TipTapEditor: React.FC = () => {
                 </div>
               )}
             </div>
-            {/* Convert Soft Enters Button - Admin/Employee Only */}
-            {selectedVideo && editor && permissions.canConvertSoftEnters && (
-              <button
-                onClick={() => {
-                  if (!editor) return;
-
-                  // Convert soft enters (br tags) to hard enters (paragraph breaks)
-                  const conversionSuccessful = editor.chain().focus().command(({ tr, state }) => {
-                    const { doc } = state;
-                    const replacements: { from: number; to: number; content: Node[][] }[] = [];
-
-                    // Traverse document to find paragraphs with br tags
-                    doc.descendants((node, pos) => {
-                      if (node.type.name === 'paragraph') {
-                        // Check if this paragraph has any br tags by examining its structure
-                        let hasBr = false;
-                        node.forEach((child) => {
-                          if (child.type.name === 'hardBreak') {
-                            hasBr = true;
-                          }
-                        });
-
-                        if (hasBr) {
-                          // Split the paragraph at br tags - preserve nodes with formatting
-                          const parts: Node[][] = []; // Array of node arrays
-                          let currentPart: Node[] = [];
-
-                          node.forEach((child) => {
-                            if (child.type.name === 'hardBreak') {
-                              if (currentPart.length > 0) {
-                                parts.push(currentPart);
-                                currentPart = [];
-                              }
-                            } else {
-                              // Preserve the child node with all its marks (bold, italic, etc.)
-                              currentPart.push(child);
-                            }
-                          });
-
-                          // Add final part
-                          if (currentPart.length > 0) {
-                            parts.push(currentPart);
-                          }
-
-                          if (parts.length > 1) {
-                            replacements.push({
-                              from: pos,
-                              to: pos + node.nodeSize,
-                              content: parts
-                            });
-                          }
-                        }
-                      }
-                    });
-
-                    // Apply replacements in reverse order to maintain positions
-                    replacements.reverse().forEach(({ from, to, content }) => {
-                      // Build paragraph nodes preserving formatting from node arrays
-                      const paragraphs = content.map(nodePart =>
-                        state.schema.nodes.paragraph.create(
-                          null,
-                          nodePart // Pass node array directly - preserves marks
-                        )
-                      );
-
-                      tr.replaceWith(from, to, paragraphs);
-                    });
-
-                    // Return true only if we made changes
-                    return replacements.length > 0;
-                  }).run();
-
-                  // If conversion happened, trigger component extraction and save
-                  if (conversionSuccessful) {
-                    extractComponents(editor);
-                    handleSave();
-                  }
-                }}
-                style={{
-                  background: '#3B82F6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  marginTop: '4px',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#2563EB';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#3B82F6';
-                }}
-              >
-                Convert Soft Enters
-              </button>
-            )}
           </div>
         </div>
 

@@ -356,8 +356,9 @@ export async function getScriptById(scriptId: string): Promise<Script> {
 
 /**
  * Utility function to generate content hash for component tracking
+ * Exported for client-side consistency with server-side hash generation
  */
-function generateContentHash(content: string): string {
+export function generateContentHash(content: string): string {
   // Simple hash function for content tracking
   let hash = 0;
   for (let i = 0; i < content.length; i++) {

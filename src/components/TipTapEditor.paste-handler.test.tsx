@@ -7,7 +7,7 @@ import StarterKit from '@tiptap/starter-kit';
  * TEST: Paste Handler Behavior - Verifies Google Docs paste preserves <br> tags
  *
  * Critical requirement: When users paste multi-line content from Google Docs,
- * the <br> tags must be preserved so "Convert Soft Enters" button works.
+ * the <br> tags must be preserved in allowed tags for proper formatting.
  *
  * Current bug: Paste handler compares sanitized HTML !== original HTML
  * and falls back to plain text, stripping ALL structure including <br> tags.

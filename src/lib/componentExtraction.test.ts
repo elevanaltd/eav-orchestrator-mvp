@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { extractComponents, isComponentParagraph } from './componentExtraction';
+import { generateContentHash } from '../services/scriptService';
 import { schema } from '@tiptap/pm/schema-basic';
 
 describe('extractComponents', () => {
-  const generateHash = (text: string) => text.length.toString(); // Simple hash for testing
 
   it('extracts numbered components from paragraphs', () => {
     // Create mock ProseMirror document with 3 paragraphs
@@ -13,14 +13,14 @@ describe('extractComponents', () => {
       schema.node('paragraph', null, [schema.text('Third component')]),
     ]);
 
-    const components = extractComponents(doc, generateHash);
+    const components = extractComponents(doc, generateContentHash);
 
     expect(components).toHaveLength(3);
     expect(components[0]).toEqual({
       number: 1,
       content: 'First component',
       wordCount: 2,
-      hash: '15' // length of 'First component'
+      hash: generateContentHash('First component')
     });
     expect(components[2].number).toBe(3);
   });
@@ -32,7 +32,7 @@ describe('extractComponents', () => {
       schema.node('paragraph', null, [schema.text('Component 2')]),
     ]);
 
-    const components = extractComponents(doc, generateHash);
+    const components = extractComponents(doc, generateContentHash);
 
     expect(components).toHaveLength(2);
     expect(components[0].number).toBe(1);
@@ -47,7 +47,7 @@ describe('extractComponents', () => {
       schema.node('paragraph', null, [schema.text('Component 2')]),
     ]);
 
-    const components = extractComponents(doc, generateHash);
+    const components = extractComponents(doc, generateContentHash);
 
     expect(components).toHaveLength(2);
   });
@@ -57,7 +57,7 @@ describe('extractComponents', () => {
       schema.node('paragraph', null, [schema.text('One two three four five')]),
     ]);
 
-    const components = extractComponents(doc, generateHash);
+    const components = extractComponents(doc, generateContentHash);
 
     expect(components[0].wordCount).toBe(5);
   });
@@ -68,7 +68,7 @@ describe('extractComponents', () => {
       schema.node('paragraph', null, [schema.text('Component 1')]),
     ]);
 
-    const components = extractComponents(doc, generateHash);
+    const components = extractComponents(doc, generateContentHash);
 
     expect(components).toHaveLength(1);
     expect(components[0].number).toBe(1);
