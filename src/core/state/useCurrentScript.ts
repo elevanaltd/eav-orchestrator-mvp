@@ -38,7 +38,7 @@ export const useCurrentScript = () => {
   const { userProfile } = useAuth()
   const { data: currentScript, isLoading, error: queryError } = useCurrentScriptData()
   const { saveMutation, updateStatus: updateStatusMutation } = useScriptMutations()
-  const { saveStatus, lastSaved, componentCount, error: storeError } = useScriptStore()
+  const { saveStatus, setSaveStatus, lastSaved, componentCount, error: storeError } = useScriptStore()
 
   /**
    * Save script content with component persistence
@@ -94,6 +94,7 @@ export const useCurrentScript = () => {
 
     // Save status (from Zustand store)
     saveStatus,
+    setSaveStatus,
     lastSaved,
     componentCount,
 

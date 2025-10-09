@@ -30,7 +30,7 @@ import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCurrentScript } from '../core/state/useCurrentScript';
-import { loadScriptForVideo, ComponentData, Script, ScriptWorkflowStatus } from '../services/scriptService';
+import { loadScriptForVideo, ComponentData, ScriptWorkflowStatus } from '../services/scriptService';
 import { Logger } from '../services/logger';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
@@ -192,15 +192,16 @@ const ParagraphComponentTracker = Extension.create({
 // ============================================
 
 export const TipTapEditor: React.FC = () => {
-  // Hook-based state management (Step 2.1.1 migration)
+  // Hook-based state management via useCurrentScript
   const {
-    currentScript: hookCurrentScript,
+    currentScript,
     selectedVideo,
     save,
     updateStatus,
-    saveStatus: hookSaveStatus,
-    lastSaved: hookLastSaved,
-    isLoading: hookIsLoading
+    saveStatus,
+    setSaveStatus,
+    lastSaved: hookLastSaved, // Keep for useMemo conversion to Date
+    isLoading
   } = useCurrentScript();
 
   const { updateScriptStatus, clearScriptStatus } = useScriptStatus();
@@ -208,34 +209,11 @@ export const TipTapEditor: React.FC = () => {
   const permissions = usePermissions();
   const { toasts, showSuccess, showError } = useToast();
 
-  // MIGRATION ALIASES: Use hook values as primary source
-  // These local states will be removed in Step 2.1.2
-  const currentScript = hookCurrentScript;
-  const isLoading = hookIsLoading;
-  // useMemo to prevent lastSaved from changing on every render
+  // Convert lastSaved from string (hook) to Date (component usage)
   const lastSaved = useMemo(
     () => (hookLastSaved ? new Date(hookLastSaved) : null),
     [hookLastSaved]
   );
-  const saveStatus = hookSaveStatus;
-
-  // Placeholder setters (will be removed - hook manages state internally)
-  const setCurrentScript = (_value: Script | null | ((prev: Script | null) => Script | null)) => {
-    // Hook manages currentScript internally via TanStack Query
-    // This setter is deprecated and will be removed
-  };
-  const setSaveStatus = (_value: 'saved' | 'saving' | 'unsaved' | 'error') => {
-    // Hook manages saveStatus internally via Zustand
-    // This setter is deprecated and will be removed
-  };
-  const setLastSaved = (_value: Date | null) => {
-    // Hook manages lastSaved internally
-    // This setter is deprecated and will be removed
-  };
-  const setIsLoading = (_value: boolean) => {
-    // Hook manages isLoading internally via TanStack Query
-    // This setter is deprecated and will be removed
-  };
 
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
@@ -392,8 +370,8 @@ export const TipTapEditor: React.FC = () => {
 
       extractComponents(editor);
 
-      // Only set unsaved status if user can actually edit/save scripts
-      // Clients cannot edit scripts (editor is read-only) so no need to show "unsaved"
+      // Set save status to 'unsaved' when content changes
+      // Only called when user can actually edit/save scripts
       if (permissions.canEditScript) {
         setSaveStatus('unsaved');
       }
@@ -673,7 +651,6 @@ export const TipTapEditor: React.FC = () => {
       return;
     }
 
-    setSaveStatus('saving');
     try {
       const plainText = editor.getText();
       // ISSUE: Y.js Collaborative Editing Integration
@@ -682,20 +659,12 @@ export const TipTapEditor: React.FC = () => {
       // Dependencies: Y.js library, WebSocket infrastructure, conflict resolution
       const yjsState = null; // Placeholder until Y.js integration in Phase 4
 
-      // Step 2.1.1: Use hook's save method instead of direct service call
+      // Hook's save method manages saveStatus ('saving' → 'saved'/'error') via TanStack Query mutation
       await save(yjsState, plainText, extractedComponents);
 
-      // Hook manages currentScript/lastSaved/saveStatus internally via TanStack Query/Zustand
-      // Only update state if still mounted (for comment highlight reload)
+      // After save completes, recover comment positions
+      // This ensures highlights are updated after document changes are persisted
       if (isMountedRef.current) {
-        // Note: setCurrentScript/setLastSaved/setSaveStatus are now no-ops
-        // The hook automatically updates these values via Query cache
-        setCurrentScript(null); // No-op: Hook manages internally
-        setLastSaved(null); // No-op: Hook manages internally
-        setSaveStatus('saved'); // No-op: Hook manages internally
-
-        // After save completes, recover comment positions
-        // This ensures highlights are updated after document changes are persisted
         Logger.info('Auto-save complete: Recovering comment positions', {
           scriptId: currentScript.id,
           trigger: 'save'
@@ -705,7 +674,7 @@ export const TipTapEditor: React.FC = () => {
     } catch (error) {
       if (isMountedRef.current) {
         Logger.error('Failed to save script', { error: (error as Error).message });
-        setSaveStatus('error');
+        // Hook automatically sets saveStatus('error') via TanStack Query onError
       }
     }
   }, [currentScript, editor, extractedComponents, loadCommentHighlights, permissions.canEditScript, save]);
@@ -746,7 +715,6 @@ export const TipTapEditor: React.FC = () => {
     if (!currentScript) return;
 
     try {
-      // Step 2.1.1: Use hook's updateStatus method instead of direct service call
       // Hook handles optimistic UI updates and rollback internally via TanStack Query
       await updateStatus(newStatus);
 
@@ -765,16 +733,15 @@ export const TipTapEditor: React.FC = () => {
     const loadScript = async () => {
       if (!selectedVideo || !editor) return;
 
-      setIsLoading(true);
+      // Note: isLoading managed by useCurrentScript hook via TanStack Query
       try {
         // Loading script for video
-
         const script = await loadScriptForVideo(selectedVideo.id, userProfile?.role);
 
         // Only update state if component is still mounted
         if (!mounted) return;
 
-        setCurrentScript(script);
+        // Note: currentScript managed by useCurrentScript hook via TanStack Query
 
         // Initialize editor content from Y.js state or plain text
         // Note: Editor editability is controlled by usePermissions hook at initialization
@@ -793,8 +760,7 @@ export const TipTapEditor: React.FC = () => {
         }
 
         extractComponents(editor);
-        setSaveStatus('saved');
-        setLastSaved(new Date(script.updated_at));
+        // Note: saveStatus and lastSaved managed by useCurrentScript hook
 
         // Load comment highlights for this script
         await loadCommentHighlights(script.id);
@@ -833,11 +799,7 @@ export const TipTapEditor: React.FC = () => {
           console.error('3. User authentication status');
         }
 
-        setSaveStatus('error');
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        // Note: saveStatus('error') managed by useCurrentScript hook
       }
     };
 
@@ -846,8 +808,7 @@ export const TipTapEditor: React.FC = () => {
     } else if (!selectedVideo && editor) {
       // Clear editor when no video selected
       editor.commands.setContent('');
-      setCurrentScript(null);
-      setSaveStatus('saved');
+      // Note: currentScript and saveStatus managed by useCurrentScript hook
     }
 
     // Cleanup function to prevent state updates after unmount
