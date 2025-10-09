@@ -32,6 +32,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useCurrentScript } from '../core/state/useCurrentScript';
 import { loadScriptForVideo, ComponentData, ScriptWorkflowStatus } from '../services/scriptService';
 import { Logger } from '../services/logger';
+import { extractComponents as extractComponentsFromDoc, isComponentParagraph } from '../lib/componentExtraction';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
@@ -135,9 +136,6 @@ const ParagraphComponentTracker = Extension.create({
             const decorations: Decoration[] = [];
             let componentNumber = 0;
 
-            // Pattern to detect [[HEADER]] paragraphs (same as extractComponents)
-            const headerPattern = /^\[\[([A-Z0-9\s\-_]+)\]\]$/;
-
             // Iterate through the document
             state.doc.forEach((node, offset) => {
               // Each paragraph becomes a component (except [[HEADER]] paragraphs)
@@ -145,7 +143,7 @@ const ParagraphComponentTracker = Extension.create({
                 const trimmedText = node.textContent.trim();
 
                 // Skip [[HEADER]] paragraphs - they are NOT components
-                if (headerPattern.test(trimmedText)) {
+                if (!isComponentParagraph(trimmedText)) {
                   return; // Don't show Cx label for header paragraphs
                 }
 
@@ -255,31 +253,10 @@ export const TipTapEditor: React.FC = () => {
     // Only update state if component is still mounted
     if (!isMountedRef.current) return;
 
-    const components: ComponentData[] = [];
-    let componentNum = 0;
-
-    // Pattern to detect [[HEADER]] paragraphs (these are NOT components)
-    const headerPattern = /^\[\[([A-Z0-9\s\-_]+)\]\]$/;
-
-    editor.state.doc.forEach((node: Node) => {
-      if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
-        const trimmedText = node.textContent.trim();
-
-        // Skip paragraphs that are ONLY [[HEADER]] patterns
-        // These are visual subheaders for ElevenLabs, not production components
-        if (headerPattern.test(trimmedText)) {
-          return; // Skip this paragraph - it's a header, not a component
-        }
-
-        componentNum++;
-        components.push({
-          number: componentNum,
-          content: node.textContent,
-          wordCount: node.textContent.split(/\s+/).filter(Boolean).length,
-          hash: generateHash(node.textContent)
-        });
-      }
-    });
+    const components = extractComponentsFromDoc(
+      editor.state.doc,
+      generateHash
+    );
 
     setExtractedComponents(components);
   }, []);
