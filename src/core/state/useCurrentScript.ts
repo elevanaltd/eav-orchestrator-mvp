@@ -3,12 +3,13 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useCurrentScriptData } from './useCurrentScriptData'
 import { useScriptMutations } from './useScriptMutations'
 import { useScriptStore } from '../stores/scriptStore'
-import type { ScriptWorkflowStatus } from '../../services/scriptService'
+import type { ScriptWorkflowStatus, ComponentData } from '../../services/scriptService'
 
 // Constitutional Authority: holistic-orchestrator - Phase 1 unified interface hooks
 // MIP Enforcement (Line 32-36): Essential complexity that enables 78% reduction in TipTapEditor
 // Implementation-lead consulted: Validated 150 LOC savings in component simplification
 // Architecture: Unified interface wrapping useCurrentScriptData + useScriptMutations + useScriptStore
+// GAP-002 Resolution: Extended save() to accept ComponentData[] for persistence (Phase 2.95C)
 
 /**
  * Unified interface for current script operations
@@ -18,16 +19,19 @@ import type { ScriptWorkflowStatus } from '../../services/scriptService'
  * - Save operations with optimistic UI
  * - Status updates with rollback
  * - Save status indicators
+ * - Component persistence (GAP-002)
  *
  * Benefits:
  * - Reduces TipTapEditor from ~150 LOC of hook orchestration to single hook call
  * - Centralizes script lifecycle management
  * - Maintains constitutional architecture (React Query + Zustand coordination)
+ * - Enables component persistence via atomic RPC (GAP-002)
  *
  * Constitutional Compliance:
  * - Amendment #1: Explicit state coordination preserved
  * - Amendment #3: PATCH pattern for concurrency safety preserved
  * - Gap G1-G4: All resolution patterns maintained through underlying hooks
+ * - GAP-002: Component persistence via ComponentData[] parameter
  */
 export const useCurrentScript = () => {
   const { selectedVideo } = useNavigation()
@@ -37,14 +41,21 @@ export const useCurrentScript = () => {
   const { saveStatus, lastSaved, componentCount, error: storeError } = useScriptStore()
 
   /**
-   * Save script content and component count
+   * Save script content with component persistence
    * Wraps saveMutation with simplified interface
    *
-   * @param yjsState - Y.js document state (Uint8Array)
+   * GAP-002 Resolution: Now accepts ComponentData[] for atomic persistence
+   * Routes to saveScriptWithComponents RPC when components provided
+   *
+   * @param yjsState - Y.js document state (Uint8Array | null, null until Phase 4)
    * @param plainText - Extracted plain text for search/display
-   * @param componentCountValue - Number of components (paragraphs)
+   * @param components - Component array for atomic persistence (GAP-002)
    */
-  const save = async (yjsState: Uint8Array, plainText: string, componentCountValue: number) => {
+  const save = async (
+    yjsState: Uint8Array | null,
+    plainText: string,
+    components: ComponentData[]
+  ) => {
     if (!currentScript?.id) {
       throw new Error('No script loaded')
     }
@@ -54,7 +65,8 @@ export const useCurrentScript = () => {
       updates: {
         yjs_state: yjsState,
         plain_text: plainText,
-        component_count: componentCountValue,
+        component_count: components.length, // Derived from components array
+        components, // GAP-002: Component persistence
       },
     })
   }

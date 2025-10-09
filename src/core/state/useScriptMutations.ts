@@ -1,18 +1,21 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { saveScript, updateScriptStatus } from '../../services/scriptService'
+import { saveScript, updateScriptStatus, saveScriptWithComponents } from '../../services/scriptService'
 import { useScriptStore } from '../stores/scriptStore'
-import type { Script, ScriptWorkflowStatus } from '../../services/scriptService'
+import type { Script, ScriptWorkflowStatus, ComponentData } from '../../services/scriptService'
 
 // Critical-Engineer: consulted for mutation architecture with Amendment #1 state coordination
 // Amendment #3: PATCH pattern for concurrency safety (prevents data corruption)
 // Architecture: Lines 434-437 - TanStack Query mutations with cache invalidation
 // Amendment #1: Explicit Zustand state coordination for save status
 // Gap #1 & #4 Resolution: Added updateStatus mutation with correct cache key (Phase 2.95B)
+// GAP-002 Resolution: Extended SaveScriptParams to support component persistence (Phase 2.95C)
 // Testguard consulted: Tests exist at useScriptMutations.test.tsx (co-located, lines 351-497)
 
 interface SaveScriptParams {
   scriptId: string
-  updates: Partial<Omit<Script, 'id' | 'video_id' | 'created_at' | 'updated_at' | 'components'>>
+  updates: Partial<Omit<Script, 'id' | 'video_id' | 'created_at' | 'updated_at' | 'components'>> & {
+    components?: ComponentData[] // GAP-002: Optional component array for atomic RPC saves
+  }
 }
 
 interface UpdateStatusParams {
@@ -25,12 +28,14 @@ interface UpdateStatusParams {
  * Hook for script mutations (save, update)
  * Implements Amendment #1: Explicit state coordination between React Query and Zustand
  * Implements Amendment #3: PATCH pattern for concurrency safety
+ * Implements GAP-002: Component persistence via atomic RPC when components provided
  *
  * Architecture compliance:
  * - Named mutation key for React Query DevTools (Line 434-435)
  * - Cache invalidation on success (Line 436-437)
  * - Zustand state updates for save status (Amendment #1)
  * - PATCH pattern prevents concurrent save data corruption (Amendment #3)
+ * - Atomic RPC for component persistence (GAP-002)
  */
 export const useScriptMutations = () => {
   const queryClient = useQueryClient()
@@ -39,8 +44,22 @@ export const useScriptMutations = () => {
   const saveMutation = useMutation({
     mutationKey: ['saveScript'], // Architecture Line 434-435
     mutationFn: async (params: SaveScriptParams) => {
+      // GAP-002: Route to atomic RPC if components provided, otherwise use PATCH
+      if (params.updates.components && params.updates.components.length > 0) {
+        // Use atomic RPC function for component persistence
+        const { yjs_state, plain_text, components } = params.updates
+        return saveScriptWithComponents(
+          params.scriptId,
+          yjs_state || null,
+          plain_text || '',
+          components
+        )
+      }
+
       // Amendment #3: PATCH pattern - only send fields that changed
-      return saveScript(params.scriptId, params.updates)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { components: _, ...patchUpdates } = params.updates
+      return saveScript(params.scriptId, patchUpdates)
     },
     onMutate: () => {
       // Amendment #1: Set saving state explicitly

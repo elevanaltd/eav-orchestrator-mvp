@@ -9,7 +9,7 @@
  * Verdict: Extract permission logic into usePermissions hook, apply UX fixes to clean architecture
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
@@ -26,11 +26,11 @@ import { supabase } from '../lib/supabase';
 import { ToastContainer } from './ui/Toast';
 import { useToast } from './ui/useToast';
 import { ErrorBoundary } from './ErrorBoundary';
-import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { loadScriptForVideo, saveScriptWithComponents, updateScriptStatus as updateScriptWorkflowStatus, ComponentData, Script, ScriptWorkflowStatus } from '../services/scriptService';
+import { useCurrentScript } from '../core/state/useCurrentScript';
+import { loadScriptForVideo, ComponentData, Script, ScriptWorkflowStatus } from '../services/scriptService';
 import { Logger } from '../services/logger';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
@@ -192,17 +192,50 @@ const ParagraphComponentTracker = Extension.create({
 // ============================================
 
 export const TipTapEditor: React.FC = () => {
-  const { selectedVideo } = useNavigation();
+  // Hook-based state management (Step 2.1.1 migration)
+  const {
+    currentScript: hookCurrentScript,
+    selectedVideo,
+    save,
+    updateStatus,
+    saveStatus: hookSaveStatus,
+    lastSaved: hookLastSaved,
+    isLoading: hookIsLoading
+  } = useCurrentScript();
+
   const { updateScriptStatus, clearScriptStatus } = useScriptStatus();
   const { userProfile } = useAuth();
   const permissions = usePermissions();
   const { toasts, showSuccess, showError } = useToast();
 
-  // Script management state
-  const [currentScript, setCurrentScript] = useState<Script | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
+  // MIGRATION ALIASES: Use hook values as primary source
+  // These local states will be removed in Step 2.1.2
+  const currentScript = hookCurrentScript;
+  const isLoading = hookIsLoading;
+  // useMemo to prevent lastSaved from changing on every render
+  const lastSaved = useMemo(
+    () => (hookLastSaved ? new Date(hookLastSaved) : null),
+    [hookLastSaved]
+  );
+  const saveStatus = hookSaveStatus;
+
+  // Placeholder setters (will be removed - hook manages state internally)
+  const setCurrentScript = (_value: Script | null | ((prev: Script | null) => Script | null)) => {
+    // Hook manages currentScript internally via TanStack Query
+    // This setter is deprecated and will be removed
+  };
+  const setSaveStatus = (_value: 'saved' | 'saving' | 'unsaved' | 'error') => {
+    // Hook manages saveStatus internally via Zustand
+    // This setter is deprecated and will be removed
+  };
+  const setLastSaved = (_value: Date | null) => {
+    // Hook manages lastSaved internally
+    // This setter is deprecated and will be removed
+  };
+  const setIsLoading = (_value: boolean) => {
+    // Hook manages isLoading internally via TanStack Query
+    // This setter is deprecated and will be removed
+  };
 
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
@@ -649,19 +682,17 @@ export const TipTapEditor: React.FC = () => {
       // Dependencies: Y.js library, WebSocket infrastructure, conflict resolution
       const yjsState = null; // Placeholder until Y.js integration in Phase 4
 
-      // FIX #1: Restore component persistence - use RPC with actual components
-      const updatedScript = await saveScriptWithComponents(
-        currentScript.id,
-        yjsState,
-        plainText,
-        extractedComponents
-      );
+      // Step 2.1.1: Use hook's save method instead of direct service call
+      await save(yjsState, plainText, extractedComponents);
 
-      // Only update state if still mounted
+      // Hook manages currentScript/lastSaved/saveStatus internally via TanStack Query/Zustand
+      // Only update state if still mounted (for comment highlight reload)
       if (isMountedRef.current) {
-        setCurrentScript(updatedScript);
-        setLastSaved(new Date());
-        setSaveStatus('saved');
+        // Note: setCurrentScript/setLastSaved/setSaveStatus are now no-ops
+        // The hook automatically updates these values via Query cache
+        setCurrentScript(null); // No-op: Hook manages internally
+        setLastSaved(null); // No-op: Hook manages internally
+        setSaveStatus('saved'); // No-op: Hook manages internally
 
         // After save completes, recover comment positions
         // This ensures highlights are updated after document changes are persisted
@@ -677,7 +708,7 @@ export const TipTapEditor: React.FC = () => {
         setSaveStatus('error');
       }
     }
-  }, [currentScript, editor, extractedComponents, loadCommentHighlights, permissions.canEditScript]);
+  }, [currentScript, editor, extractedComponents, loadCommentHighlights, permissions.canEditScript, save]);
 
   // Handle comment creation from sidebar
   const handleCommentCreated = useCallback(async () => {
@@ -714,26 +745,18 @@ export const TipTapEditor: React.FC = () => {
   const handleStatusChange = useCallback(async (newStatus: ScriptWorkflowStatus) => {
     if (!currentScript) return;
 
-    // Capture original status BEFORE optimistic update to prevent closure bug
-    const originalStatus = currentScript.status;
-
     try {
-      // Optimistic UI update
-      setCurrentScript(prev => prev ? { ...prev, status: newStatus } : null);
+      // Step 2.1.1: Use hook's updateStatus method instead of direct service call
+      // Hook handles optimistic UI updates and rollback internally via TanStack Query
+      await updateStatus(newStatus);
 
-      // Persist to database
-      const updatedScript = await updateScriptWorkflowStatus(currentScript.id, newStatus);
-
-      // Confirm update with server response
-      setCurrentScript(updatedScript);
       showSuccess(`Status updated to ${newStatus.replace('_', ' ')}`);
     } catch (error) {
-      // Rollback to original status (captured before optimistic update)
-      setCurrentScript(prev => prev ? { ...prev, status: originalStatus } : null);
+      // Hook automatically rolls back on error via TanStack Query
       Logger.error('Failed to update script status', { error: (error as Error).message });
       showError('Failed to update status');
     }
-  }, [currentScript, showSuccess, showError]);
+  }, [currentScript, updateStatus, showSuccess, showError]);
 
   // Load script when selected video changes
   useEffect(() => {

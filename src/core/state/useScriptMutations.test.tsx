@@ -11,6 +11,7 @@ import type { Script } from '../../services/scriptService'
 // Mock the script service
 vi.mock('../../services/scriptService', () => ({
   saveScript: vi.fn(),
+  saveScriptWithComponents: vi.fn(), // GAP-002: Mock atomic RPC function
   updateScriptStatus: vi.fn(),
 }))
 
@@ -98,6 +99,7 @@ describe('useScriptMutations - Integration Tests (Testguard-Approved)', () => {
           scriptId: 'script-123',
           updates: {
             plain_text: 'Updated content',
+            components: [], // GAP-002 Remediation: Test expects components parameter
             yjs_state: null,
             component_count: 0
           }
@@ -197,6 +199,60 @@ describe('useScriptMutations - Integration Tests (Testguard-Approved)', () => {
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: ['script']
       })
+    })
+
+    // GAP-002 Remediation: Test component persistence capability
+    it('RED STATE: should persist component data when provided in updates', async () => {
+      const testComponents = [
+        { number: 1, content: 'Component 1', wordCount: 2, hash: 'abc123' },
+        { number: 2, content: 'Component 2', wordCount: 2, hash: 'def456' },
+      ]
+
+      // GAP-002: Mock saveScriptWithComponents (atomic RPC for component persistence)
+      vi.mocked(scriptService.saveScriptWithComponents).mockImplementation(
+        () => new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({
+              id: 'script-123',
+              video_id: 'video-456',
+              plain_text: 'Updated content',
+              updated_at: new Date().toISOString(),
+              components: testComponents
+            } as unknown as Script)
+          }, 50)
+        })
+      )
+
+      const { result } = renderHook(() => useScriptMutations(), {
+        wrapper: createTestWrapper()
+      })
+
+      act(() => {
+        result.current.saveMutation.mutate({
+          scriptId: 'script-123',
+          updates: {
+            plain_text: 'Updated content',
+            components: testComponents, // GAP-002: Component persistence
+            yjs_state: null,
+            component_count: 2
+          }
+        })
+      })
+
+      await waitFor(() => {
+        expect(result.current.saveMutation.isSuccess).toBe(true)
+      })
+
+      // GAP-002: Verify saveScriptWithComponents was called (not saveScript)
+      expect(scriptService.saveScriptWithComponents).toHaveBeenCalledWith(
+        'script-123',
+        null, // yjs_state
+        'Updated content', // plain_text
+        testComponents // components array
+      )
+
+      // Verify PATCH saveScript was NOT called (components route to RPC)
+      expect(scriptService.saveScript).not.toHaveBeenCalled()
     })
   })
 

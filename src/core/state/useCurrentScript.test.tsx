@@ -141,8 +141,14 @@ describe('useCurrentScript', () => {
       })
 
       const yjsState = new Uint8Array([1, 2, 3])
+      const components = [
+        { number: 1, content: 'Component 1', wordCount: 2, hash: 'abc123' },
+        { number: 2, content: 'Component 2', wordCount: 2, hash: 'def456' },
+      ]
+
+      // GAP-002: save() now accepts ComponentData[] instead of count
       await expect(
-        result.current.save(yjsState, 'test content', 3)
+        result.current.save(yjsState, 'test content', components)
       ).rejects.toThrow('No script loaded')
     })
 

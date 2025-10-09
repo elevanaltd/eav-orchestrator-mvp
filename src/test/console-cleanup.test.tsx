@@ -13,6 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from '../App'
 import { TipTapEditor } from '../components/TipTapEditor'
 import { NavigationProvider } from '../contexts/NavigationContext'
@@ -125,11 +126,21 @@ describe('Console Cleanup Characterization', () => {
    * The editor is heavily used and should not pollute console
    */
   it('should render TipTap editor without console pollution', () => {
-    // TipTap editor needs NavigationProvider and ScriptStatusProvider
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+
+    // TipTap editor needs QueryClientProvider, NavigationProvider and ScriptStatusProvider
     render(
-      <NavigationProvider>
-        <TipTapEditor />
-      </NavigationProvider>
+      <QueryClientProvider client={queryClient}>
+        <NavigationProvider>
+          <TipTapEditor />
+        </NavigationProvider>
+      </QueryClientProvider>
     )
 
     // Filter out legitimate editor logs (like extension loading)
