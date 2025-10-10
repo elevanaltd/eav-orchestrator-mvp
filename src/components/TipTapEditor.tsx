@@ -626,6 +626,7 @@ export const TipTapEditor: React.FC = () => {
                     Workflow Status:
                   </label>
                   <select
+                    key={`status-${currentScript.status}`}
                     id="workflow-status"
                     value={currentScript.status || 'draft'}
                     onChange={(e) => handleStatusChange(e.target.value as ScriptWorkflowStatus)}
