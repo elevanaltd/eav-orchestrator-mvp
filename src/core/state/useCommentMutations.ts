@@ -134,7 +134,8 @@ export const useCommentMutations = () => {
     },
     onMutate: async ({ commentId, scriptId }) => {
       // Gap G2: Optimistic UI update for comment resolution
-      const queryKey = ['comments', scriptId] as const
+      // P1 Fix (2025-10-10): Include userId for per-user cache isolation
+      const queryKey = ['comments', scriptId, currentUser?.id] as const
 
       // Cancel outgoing refetches to prevent overwriting optimistic update
       await queryClient.cancelQueries({ queryKey })
@@ -195,7 +196,8 @@ export const useCommentMutations = () => {
     },
     onMutate: async ({ commentId, scriptId }) => {
       // Gap G2: Optimistic UI update for comment unresolve
-      const queryKey = ['comments', scriptId] as const
+      // P1 Fix (2025-10-10): Include userId for per-user cache isolation
+      const queryKey = ['comments', scriptId, currentUser?.id] as const
 
       // Cancel outgoing refetches to prevent overwriting optimistic update
       await queryClient.cancelQueries({ queryKey })
@@ -251,7 +253,8 @@ export const useCommentMutations = () => {
     },
     onMutate: async ({ commentId, scriptId }) => {
       // Gap G2: Optimistic UI update for comment deletion
-      const queryKey = ['comments', scriptId] as const
+      // P1 Fix (2025-10-10): Include userId for per-user cache isolation
+      const queryKey = ['comments', scriptId, currentUser?.id] as const
 
       // Cancel outgoing refetches to prevent overwriting optimistic update
       await queryClient.cancelQueries({ queryKey })

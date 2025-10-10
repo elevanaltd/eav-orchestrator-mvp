@@ -14,14 +14,18 @@ import { loadScriptForVideo } from '../../services/scriptService'
  * - 5-minute stale time for optimal UX (Line 430)
  * - Enabled only when video is selected
  * - Passes user role for RLS enforcement
- * - Query key: ['script', videoId] for cache management
+ * - Query key: ['script', videoId, userId] for per-user cache isolation
+ *
+ * Security:
+ * - P1 Fix (2025-10-10): Added userId to queryKey for per-user cache isolation
+ * - Prevents cross-user script data leakage on logout/login transitions
  */
 export const useCurrentScriptData = () => {
   const { selectedVideo } = useNavigation()
-  const { userProfile } = useAuth()
+  const { currentUser, userProfile } = useAuth()
 
   return useQuery({
-    queryKey: ['script', selectedVideo?.id],
+    queryKey: ['script', selectedVideo?.id, currentUser?.id],
     queryFn: () => {
       if (!selectedVideo) {
         throw new Error('No video selected')

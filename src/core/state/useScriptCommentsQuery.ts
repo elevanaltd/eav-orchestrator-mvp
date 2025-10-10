@@ -19,13 +19,15 @@ import type { CommentWithRecovery } from '../../types/comments'
  *
  * Security:
  * - Query only executes when authenticated (prevents RLS policy violations)
+ * - Cache isolated per user (prevents cross-user data leakage)
  * - Critical-engineer: consulted for security vulnerability mitigation
+ * - P1 Fix (2025-10-10): Added userId to queryKey for per-user cache isolation
  */
 export const useScriptCommentsQuery = (scriptId: string | null) => {
   const { currentUser } = useAuth()
 
   return useQuery<CommentWithRecovery[], Error>({
-    queryKey: ['comments', scriptId] as const,
+    queryKey: ['comments', scriptId, currentUser?.id] as const,
     queryFn: async () => {
       if (!scriptId) {
         throw new Error('No script ID provided')
