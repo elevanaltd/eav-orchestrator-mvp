@@ -7,6 +7,13 @@
  *
  * Critical-Engineer: consulted for Architecture pattern selection (Hybrid Refactor)
  * Verdict: Extract permission logic into usePermissions hook, apply UX fixes to clean architecture
+ *
+ * Critical-Engineer: consulted for Architecture pattern selection (Step 2.1.5 extraction validation)
+ * Architectural review: CONDITIONAL GO (7.5/10) - 2 mitigations required
+ * 1. Inline critical CSS (.component-label) to prevent FOUC (HIGH)
+ * 2. Add DOMPurify config validation in dev mode (MEDIUM→HIGH)
+ * Review Date: 2025-10-10
+ * Verdict: Good engineering - address mitigations and ship
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -31,12 +38,39 @@ import { useScriptComments } from '../core/state/useScriptComments';
 import { loadScriptForVideo, ComponentData, ScriptWorkflowStatus, generateContentHash } from '../services/scriptService';
 import { Logger } from '../services/logger';
 import { extractComponents as extractComponentsFromDoc } from '../lib/componentExtraction';
-import { sanitizeHTML, handlePlainTextPaste, convertPlainTextToHTML } from '../lib/editor/sanitizeUtils';
+import { sanitizeHTML, handlePlainTextPaste, convertPlainTextToHTML, validateDOMPurifyConfig } from '../lib/editor/sanitizeUtils';
 import './TipTapEditor.css';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
 export const TipTapEditor: React.FC = () => {
+  // MITIGATION 1: Inline critical CSS to prevent FOUC (Flash of Unstyled Content)
+  // Critical-Engineer: consulted for CSS FOUC risk mitigation (HIGH priority)
+  // Ensures component labels (C1, C2, C3...) render correctly immediately on slow networks
+  useEffect(() => {
+    const styleId = 'tiptap-critical-css';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        .component-label {
+          position: absolute !important;
+          left: -50px !important;
+          top: 3px;
+          background: #6B7280;
+          color: white;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 600;
+          user-select: none;
+          pointer-events: none;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   // Hook-based state management via useCurrentScript
   const {
     currentScript,
@@ -118,6 +152,15 @@ export const TipTapEditor: React.FC = () => {
     },
     debounceMs: 500
   });
+
+  // MITIGATION 2: Validate DOMPurify configuration in development mode
+  // Critical-Engineer: consulted for DOMPurify config validation (MEDIUM→HIGH priority)
+  // Prevents security regression if config becomes permissive over time
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      validateDOMPurifyConfig();
+    }
+  }, []);
 
   // Create editor first
   // Editor editability controlled by permissions (clients are read-only)

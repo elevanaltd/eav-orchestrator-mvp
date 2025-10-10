@@ -30,6 +30,7 @@ vi.mock('../contexts/AuthContext', () => ({
 vi.mock('../services/scriptService', () => ({
   loadScriptForVideo: vi.fn(),
   saveScript: vi.fn(),
+  generateContentHash: vi.fn(),
 }));
 
 // Mock Supabase

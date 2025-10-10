@@ -39,23 +39,11 @@ export const ParagraphComponentTracker = Extension.create({
 
                 // Add a widget decoration for the component label
                 const widget = Decoration.widget(offset, () => {
-                  const label = document.createElement('div');
-                  label.className = 'component-label';
-                  label.setAttribute('data-component', `C${componentNumber}`);
-                  label.textContent = `C${componentNumber}`;
-                  label.style.cssText = `
-                    position: absolute;
-                    left: -50px;
-                    background: #6B7280;
-                    color: white;
-                    padding: 2px 8px;
-                    border-radius: 12px;
-                    font-size: 11px;
-                    font-weight: 600;
-                    user-select: none;
-                    pointer-events: none;
-                  `;
-                  return label;
+                  const span = document.createElement('span');
+                  span.className = 'component-label';
+                  span.setAttribute('data-component', `C${componentNumber}`);
+                  span.textContent = `C${componentNumber}`;
+                  return span;
                 }, {
                   side: -1,
                   marks: []

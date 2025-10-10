@@ -96,8 +96,16 @@
 /* Component labels - positioned in margin */
 .component-label {
   position: absolute !important;
-  left: -70px !important; /* Adjusted for new padding */
+  left: -50px !important;
   top: 3px;
+  background: #6B7280;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  user-select: none;
+  pointer-events: none;
 }
 
 /* Placeholder states */

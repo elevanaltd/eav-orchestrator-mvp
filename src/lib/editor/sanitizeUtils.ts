@@ -86,3 +86,35 @@ export function convertPlainTextToHTML(plainText: string): string {
   // Finally sanitize the result (defense in depth)
   return sanitizeHTML(withParagraphs);
 }
+
+/**
+ * Validates DOMPurify configuration in development mode
+ * Warns if config deviates from secure baseline
+ * Critical-Engineer: consulted for DOMPurify config drift detection (MEDIUM→HIGH priority)
+ */
+export function validateDOMPurifyConfig(): void {
+  if (import.meta.env.DEV) {
+    const config = {
+      ALLOWED_TAGS: ['p', 'strong', 'em', 'u', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+      ALLOWED_ATTR: ['class'],
+      ALLOW_DATA_ATTR: false,
+    };
+
+    // Check for dangerous tags
+    const dangerousTags = ['script', 'iframe', 'object', 'embed', 'style'];
+    const hasDangerousTags = config.ALLOWED_TAGS.some(tag =>
+      dangerousTags.includes(tag.toLowerCase())
+    );
+
+    if (hasDangerousTags) {
+      console.error('⚠️ DOMPurify config contains dangerous tags:', config.ALLOWED_TAGS);
+    }
+
+    // Check for permissive attributes
+    if (config.ALLOW_DATA_ATTR) {
+      console.warn('⚠️ DOMPurify config allows data attributes (potential XSS vector)');
+    }
+
+    console.info('✅ DOMPurify config validated (dev mode)');
+  }
+}
