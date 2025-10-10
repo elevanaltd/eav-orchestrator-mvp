@@ -97,6 +97,10 @@ export const TipTapEditor: React.FC = () => {
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
 
+  // Local state for workflow status dropdown (Issue 3 - UI reactivity fix)
+  // Synchronized with currentScript.status for immediate visual feedback
+  const [displayStatus, setDisplayStatus] = useState<ScriptWorkflowStatus>('draft');
+
   // Track component mount state to prevent updates after unmount
   const isMountedRef = useRef(true);
 
@@ -541,6 +545,14 @@ export const TipTapEditor: React.FC = () => {
     // We only care about the length of extractedComponents, not the array reference
   }, [saveStatus, lastSaved, extractedComponents.length, currentScript, updateScriptStatus, clearScriptStatus]);
 
+  // Sync local displayStatus with currentScript.status (Issue 3 - UI reactivity fix)
+  // Ensures dropdown updates when optimistic mutation completes
+  useEffect(() => {
+    if (currentScript?.status) {
+      setDisplayStatus(currentScript.status);
+    }
+  }, [currentScript?.status]);
+
   // Update editor editability when permissions change
   // Per Vercel Bot PR#56 review: Editor editability only set at initialization
   // Fix: Reactively update when permissions.canEditScript changes during session
@@ -626,10 +638,13 @@ export const TipTapEditor: React.FC = () => {
                     Workflow Status:
                   </label>
                   <select
-                    key={`status-${currentScript.status}`}
                     id="workflow-status"
-                    value={currentScript.status || 'draft'}
-                    onChange={(e) => handleStatusChange(e.target.value as ScriptWorkflowStatus)}
+                    value={displayStatus}
+                    onChange={(e) => {
+                      const newStatus = e.target.value as ScriptWorkflowStatus;
+                      setDisplayStatus(newStatus); // Immediate UI update
+                      handleStatusChange(newStatus); // Server save + optimistic update
+                    }}
                     style={{
                       padding: '6px 12px',
                       fontSize: '14px',
