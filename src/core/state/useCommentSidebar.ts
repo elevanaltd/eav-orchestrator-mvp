@@ -164,6 +164,8 @@ export function useCommentSidebar({
   }, []);
 
   // Realtime subscription effect
+  // Critical-Engineer: consulted for dependency array stability (Issue #2)
+  // Excludes commentsQuery object to prevent subscription churn on query state changes
   useEffect(() => {
     if (!scriptId) return;
 
@@ -324,8 +326,11 @@ export function useCommentSidebar({
       }
       channel.unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reconnectionTimer intentionally excluded to prevent infinite loop
-  }, [scriptId, fetchUserProfileCached, commentsQuery]);
+    // Intentionally exclude unstable dependencies:
+    // - reconnectionTimer: prevents infinite loop
+    // - commentsQuery: prevents subscription churn (refetch() method is stable)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scriptId, fetchUserProfileCached]);
 
   // ========== THREADING & FILTERING ==========
   // Extract: Lines 366-409 from CommentSidebar (~43 LOC)
