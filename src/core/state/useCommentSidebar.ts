@@ -425,8 +425,11 @@ export function useCommentSidebar({
       }
     };
 
+    // Use per-user cache key (security fix 6921df2)
+    const cacheKey = ['comments', scriptId, currentUser.id];
+
     queryClient.setQueryData<CommentWithUser[]>(
-      ['comments', scriptId],
+      cacheKey,
       (oldComments = []) => [...oldComments, optimisticComment]
     );
 
@@ -439,7 +442,7 @@ export function useCommentSidebar({
         }
 
         queryClient.setQueryData<CommentWithUser[]>(
-          ['comments', scriptId],
+          cacheKey,
           (oldComments = []) =>
             oldComments.map(c => c.id === tempId ? response.data! : c)
         );
@@ -448,7 +451,7 @@ export function useCommentSidebar({
       },
       (errorInfo) => {
         queryClient.setQueryData<CommentWithUser[]>(
-          ['comments', scriptId],
+          cacheKey,
           (oldComments = []) => oldComments.filter(c => c.id !== tempId)
         );
 
