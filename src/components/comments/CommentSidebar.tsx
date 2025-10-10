@@ -11,7 +11,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DOMPurify from 'dompurify';
-import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import type { CommentWithUser, CommentThread, CreateCommentData } from '../../types/comments';
@@ -50,9 +49,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const { executeWithErrorHandling } = useErrorHandling('comment operations');
-  const queryClient = useQueryClient();
 
   // FIX #3: Use optimistic UI mutations for resolve/unresolve/delete
+  // STEP 2.2.3: Removed unused queryClient (manual cache management replaced by hooks)
   const { resolveMutation, unresolveMutation, deleteMutation } = useCommentMutations();
 
   // STEP 2.2.1: Replace manual data fetching with useScriptCommentsQuery hook
@@ -409,7 +408,10 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
   });
 
   // Handle comment creation using CRUD functions with error handling
-  // MITIGATION #2: Restore optimistic updates for instant UX (eliminates 200-500ms perceived lag)
+  // Gap G6 Preservation: Retain direct createCommentInDB call with retry logic (executeWithErrorHandling)
+  // Rationale: useCommentMutations lacks retry logic (maxAttempts: 2, baseDelayMs: 500)
+  // STEP 2.2.3: Removed manual optimistic cache updates (lines 438-490)
+  // Benefits: Realtime subscription + React Query refetch provide UI updates
   const handleCreateComment = async () => {
     if (!createComment || !commentText.trim() || !currentUser) return;
 
@@ -435,36 +437,6 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
       }),
     };
 
-    // Generate temporary ID for optimistic update
-    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    // Create optimistic comment
-    const optimisticComment: CommentWithUser = {
-      id: tempId,
-      scriptId,
-      userId: currentUser.id,
-      content: commentData.content,
-      startPosition: commentData.startPosition,
-      endPosition: commentData.endPosition,
-      highlightedText: commentData.highlightedText,
-      parentCommentId: null,
-      resolvedAt: null,
-      resolvedBy: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      user: {
-        id: currentUser.id,
-        email: currentUser.email!,
-        displayName: currentUser.user_metadata?.display_name || null
-      }
-    };
-
-    // OPTIMISTIC UPDATE: Add comment to cache immediately
-    queryClient.setQueryData<CommentWithUser[]>(
-      ['comments', scriptId],
-      (oldComments = []) => [...oldComments, optimisticComment]
-    );
-
     const result = await executeWithErrorHandling(
       async () => {
         const response = await createCommentInDB(supabase, commentData, currentUser.id);
@@ -473,23 +445,10 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
           throw new Error(response.error?.message || 'Failed to create comment');
         }
 
-        // REPLACE optimistic with real comment from server
-        queryClient.setQueryData<CommentWithUser[]>(
-          ['comments', scriptId],
-          (oldComments = []) =>
-            oldComments.map(c => c.id === tempId ? response.data! : c)
-        );
-
         return response.data;
       },
       (errorInfo) => {
-        // ROLLBACK: Remove optimistic comment on error
-        queryClient.setQueryData<CommentWithUser[]>(
-          ['comments', scriptId],
-          (oldComments = []) => oldComments.filter(c => c.id !== tempId)
-        );
-
-        // Set context-specific user-friendly error message
+        // Set context-specific user-friendly error message (Gap G6)
         const contextualMessage = getUserFriendlyErrorMessage(
           new Error(errorInfo.message),
           { operation: 'create', resource: 'comment' }
