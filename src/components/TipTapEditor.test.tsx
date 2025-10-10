@@ -9,6 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TipTapEditor } from './TipTapEditor';
 import { NavigationProvider } from '../contexts/NavigationContext';
 import { ScriptStatusProvider } from '../contexts/ScriptStatusContext';
@@ -74,17 +75,28 @@ vi.mock('@tiptap/starter-kit', () => ({
 }));
 
 describe('TipTapEditor with Navigation', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
   });
 
   it('should render with navigation integration', () => {
     render(
-      <NavigationProvider>
-        <ScriptStatusProvider>
-          <TipTapEditor />
-        </ScriptStatusProvider>
-      </NavigationProvider>
+      <QueryClientProvider client={queryClient}>
+        <NavigationProvider>
+          <ScriptStatusProvider>
+            <TipTapEditor />
+          </ScriptStatusProvider>
+        </NavigationProvider>
+      </QueryClientProvider>
     );
 
     expect(screen.getByText('Script Editor')).toBeInTheDocument();
@@ -93,11 +105,13 @@ describe('TipTapEditor with Navigation', () => {
 
   it('should show "Select a video to edit" when no video selected', () => {
     render(
-      <NavigationProvider>
-        <ScriptStatusProvider>
-          <TipTapEditor />
-        </ScriptStatusProvider>
-      </NavigationProvider>
+      <QueryClientProvider client={queryClient}>
+        <NavigationProvider>
+          <ScriptStatusProvider>
+            <TipTapEditor />
+          </ScriptStatusProvider>
+        </NavigationProvider>
+      </QueryClientProvider>
     );
 
     expect(screen.getByText('Select a Video to Edit')).toBeInTheDocument();

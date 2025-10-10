@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TipTapEditor } from './TipTapEditor';
 import { NavigationProvider } from '../contexts/NavigationContext';
 import { ScriptStatusProvider } from '../contexts/ScriptStatusContext';
@@ -29,6 +30,7 @@ vi.mock('../contexts/AuthContext', () => ({
 vi.mock('../services/scriptService', () => ({
   loadScriptForVideo: vi.fn(),
   saveScript: vi.fn(),
+  generateContentHash: vi.fn(),
 }));
 
 // Mock Supabase
@@ -44,13 +46,24 @@ vi.mock('../lib/supabase', () => ({
   }
 }));
 
-const TestWrapper = ({ children }: { children: React.ReactNode }) => (
-  <NavigationProvider>
-    <ScriptStatusProvider>
-      {children}
-    </ScriptStatusProvider>
-  </NavigationProvider>
-);
+const TestWrapper = ({ children }: { children: React.ReactNode }) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  return (
+    <QueryClientProvider client={queryClient}>
+      <NavigationProvider>
+        <ScriptStatusProvider>
+          {children}
+        </ScriptStatusProvider>
+      </NavigationProvider>
+    </QueryClientProvider>
+  );
+};
 
 describe('TipTap Editor XSS Protection', () => {
   beforeEach(() => {

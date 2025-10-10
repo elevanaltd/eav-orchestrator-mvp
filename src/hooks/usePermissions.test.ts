@@ -36,7 +36,6 @@ describe('usePermissions', () => {
         canEditScript: false,
         canComment: false,
         canChangeWorkflowStatus: false,
-        canConvertSoftEnters: false,
         canResolveComments: false,
         canEditComments: false,
         canDeleteComments: false,
@@ -71,11 +70,6 @@ describe('usePermissions', () => {
     it('should deny workflow status changes for clients', () => {
       const { result } = renderHook(() => usePermissions());
       expect(result.current.canChangeWorkflowStatus).toBe(false);
-    });
-
-    it('should deny convert soft enters feature for clients', () => {
-      const { result } = renderHook(() => usePermissions());
-      expect(result.current.canConvertSoftEnters).toBe(false);
     });
 
     it('should allow comment management for clients (own comments)', () => {
@@ -115,11 +109,6 @@ describe('usePermissions', () => {
       expect(result.current.canChangeWorkflowStatus).toBe(true);
     });
 
-    it('should allow convert soft enters feature for employees', () => {
-      const { result } = renderHook(() => usePermissions());
-      expect(result.current.canConvertSoftEnters).toBe(true);
-    });
-
     it('should allow comment management for employees', () => {
       const { result } = renderHook(() => usePermissions());
       expect(result.current.canResolveComments).toBe(true);
@@ -157,11 +146,6 @@ describe('usePermissions', () => {
       expect(result.current.canChangeWorkflowStatus).toBe(true);
     });
 
-    it('should allow convert soft enters feature for admins', () => {
-      const { result } = renderHook(() => usePermissions());
-      expect(result.current.canConvertSoftEnters).toBe(true);
-    });
-
     it('should allow comment management for admins', () => {
       const { result } = renderHook(() => usePermissions());
       expect(result.current.canResolveComments).toBe(true);
@@ -177,7 +161,6 @@ describe('usePermissions', () => {
         'canEditScript',
         'canComment',
         'canChangeWorkflowStatus',
-        'canConvertSoftEnters',
         'canResolveComments',
         'canEditComments',
         'canDeleteComments',

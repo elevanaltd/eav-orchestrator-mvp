@@ -133,6 +133,48 @@ export async function loadScriptForVideo(videoId: string, userRole?: string | nu
       .single();
 
     if (createError) {
+      // Handle race condition: If another request created the script simultaneously,
+      // the UNIQUE constraint on video_id will reject our INSERT with error code 23505
+      // In this case, retry the SELECT to fetch the script that was created
+      if (createError.code === '23505') {
+        // Retry SELECT to get the script created by the race condition winner
+        const { data: raceScript, error: retryError } = await supabase
+          .from('scripts')
+          .select('*')
+          .eq('video_id', validatedVideoId)
+          .maybeSingle();
+
+        if (retryError) {
+          throw new ScriptServiceError(`Failed to fetch script after conflict: ${retryError.message}`, retryError.code);
+        }
+
+        if (raceScript) {
+          // Load components for the existing script
+          const { data: components, error: componentsError } = await supabase
+            .from('script_components')
+            .select('*')
+            .eq('script_id', raceScript.id)
+            .order('component_number', { ascending: true });
+
+          if (componentsError) {
+            throw new ScriptServiceError(`Failed to load script components: ${componentsError.message}`, componentsError.code);
+          }
+
+          const transformedComponents: ComponentData[] = (components || []).map(comp => ({
+            number: comp.component_number,
+            content: comp.content,
+            wordCount: comp.word_count || 0,
+            hash: generateContentHash(comp.content)
+          }));
+
+          return {
+            ...raceScript,
+            components: transformedComponents
+          };
+        }
+      }
+
+      // If not a unique constraint violation, or retry failed, throw the original error
       throw new ScriptServiceError(`Failed to create script: ${createError.message}`, createError.code);
     }
 
@@ -356,8 +398,9 @@ export async function getScriptById(scriptId: string): Promise<Script> {
 
 /**
  * Utility function to generate content hash for component tracking
+ * Exported for client-side consistency with server-side hash generation
  */
-function generateContentHash(content: string): string {
+export function generateContentHash(content: string): string {
   // Simple hash function for content tracking
   let hash = 0;
   for (let i = 0; i < content.length; i++) {

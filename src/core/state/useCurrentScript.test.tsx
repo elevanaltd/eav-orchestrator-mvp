@@ -112,6 +112,14 @@ describe('useCurrentScript', () => {
       expect(result.current.saveStatus).toBe('saving')
     })
 
+    it('exposes setSaveStatus from store', () => {
+      const { result } = renderHook(() => useCurrentScript(), {
+        wrapper: createWrapper(),
+      })
+
+      expect(typeof result.current.setSaveStatus).toBe('function')
+    })
+
     it('exposes lastSaved from Zustand store', () => {
       const now = new Date()
       useScriptStore.setState({ lastSaved: now })
@@ -141,8 +149,14 @@ describe('useCurrentScript', () => {
       })
 
       const yjsState = new Uint8Array([1, 2, 3])
+      const components = [
+        { number: 1, content: 'Component 1', wordCount: 2, hash: 'abc123' },
+        { number: 2, content: 'Component 2', wordCount: 2, hash: 'def456' },
+      ]
+
+      // GAP-002: save() now accepts ComponentData[] instead of count
       await expect(
-        result.current.save(yjsState, 'test content', 3)
+        result.current.save(yjsState, 'test content', components)
       ).rejects.toThrow('No script loaded')
     })
 

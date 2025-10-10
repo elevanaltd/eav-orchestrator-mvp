@@ -24,9 +24,6 @@ export interface Permissions {
   /** Can change workflow status (draft, in_review, rework, approved) */
   canChangeWorkflowStatus: boolean;
 
-  /** Can use convert soft enters button (admin utility) */
-  canConvertSoftEnters: boolean;
-
   /** Can resolve/unresolve comments */
   canResolveComments: boolean;
 
@@ -54,7 +51,6 @@ export const usePermissions = (): Permissions => {
       canEditScript: false,
       canComment: false,
       canChangeWorkflowStatus: false,
-      canConvertSoftEnters: false,
       canResolveComments: false,
       canEditComments: false,
       canDeleteComments: false,
@@ -74,9 +70,6 @@ export const usePermissions = (): Permissions => {
 
     // Workflow status changes: Internal users only
     canChangeWorkflowStatus: isInternal,
-
-    // Convert soft enters: Internal users only (admin utility)
-    canConvertSoftEnters: isInternal,
 
     // Comment management: All authenticated users can manage their own comments
     canResolveComments: true,

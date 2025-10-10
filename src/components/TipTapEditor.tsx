@@ -7,268 +7,108 @@
  *
  * Critical-Engineer: consulted for Architecture pattern selection (Hybrid Refactor)
  * Verdict: Extract permission logic into usePermissions hook, apply UX fixes to clean architecture
+ *
+ * Critical-Engineer: consulted for Architecture pattern selection (Step 2.1.5 extraction validation)
+ * Architectural review: CONDITIONAL GO (7.5/10) - 2 mitigations required
+ * 1. Inline critical CSS (.component-label) to prevent FOUC (HIGH)
+ * 2. Add DOMPurify config validation in dev mode (MEDIUM→HIGH)
+ * Review Date: 2025-10-10
+ * Verdict: Good engineering - address mitigations and ship
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
-import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import { Plugin } from '@tiptap/pm/state';
-import { Decoration, DecorationSet, EditorView } from '@tiptap/pm/view';
-import { Node, DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
-import DOMPurify from 'dompurify';
+import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { CommentHighlightExtension } from './extensions/CommentHighlightExtension';
 import { CommentPositionTracker } from './extensions/CommentPositionTracker';
 import { HeaderPatternExtension } from './extensions/HeaderPatternExtension';
+import { ParagraphComponentTracker } from '../features/editor/extensions/ParagraphComponentTracker';
 import { CommentSidebar } from './comments/CommentSidebar';
 import { useCommentPositionSync } from '../hooks/useCommentPositionSync';
 import { supabase } from '../lib/supabase';
 import { ToastContainer } from './ui/Toast';
 import { useToast } from './ui/useToast';
 import { ErrorBoundary } from './ErrorBoundary';
-import { useNavigation } from '../contexts/NavigationContext';
 import { useScriptStatus } from '../contexts/ScriptStatusContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
-import { loadScriptForVideo, saveScriptWithComponents, updateScriptStatus as updateScriptWorkflowStatus, ComponentData, Script, ScriptWorkflowStatus } from '../services/scriptService';
+import { useCurrentScript } from '../core/state/useCurrentScript';
+import { useScriptComments } from '../core/state/useScriptComments';
+import { loadScriptForVideo, ComponentData, ScriptWorkflowStatus, generateContentHash } from '../services/scriptService';
 import { Logger } from '../services/logger';
+import { extractComponents as extractComponentsFromDoc } from '../lib/componentExtraction';
+import { sanitizeHTML, handlePlainTextPaste, convertPlainTextToHTML, validateDOMPurifyConfig } from '../lib/editor/sanitizeUtils';
+import './TipTapEditor.css';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
-// ============================================
-// SECURITY UTILITIES
-// ============================================
-
-/**
- * Sanitize HTML content to prevent XSS attacks
- * Uses DOMPurify with restrictive whitelist of allowed tags and attributes
- */
-const sanitizeHTML = (dirtyHTML: string): string => {
-  return DOMPurify.sanitize(dirtyHTML, {
-    ALLOWED_TAGS: ['p', 'strong', 'em', 'u', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-    ALLOWED_ATTR: ['class'],
-    KEEP_CONTENT: true,
-    ALLOW_DATA_ATTR: false,
-    ALLOW_UNKNOWN_PROTOCOLS: false
-  });
-};
-
-/**
- * Handle plain text paste with proper sanitization and size limits
- * Critical-Engineer: consulted for Paste handler architecture and sanitization
- *
- * Fixes applied:
- * 1. Size limit (HIGH): Prevents DoS from large pastes
- * 2. Robust newline handling (MEDIUM): Uses regex for edge cases
- * 3. Manual HTML escaping (MEDIUM): Defense-in-depth security
- * 4. Code deduplication (HIGH): Eliminates maintenance divergence
- */
-const handlePlainTextPaste = (
-  view: EditorView,
-  textData: string,
-  showError: (msg: string) => void
-): void => {
-  // 1. Size limit (HIGH priority fix) - Prevent DoS from large pastes
-  const PASTE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; // 1MB
-  if (textData.length > PASTE_SIZE_LIMIT_BYTES) {
-    showError('Pasted content is too large. Please paste in smaller chunks.');
-    view.dispatch(view.state.tr.insertText(textData.substring(0, 5000) + "..."));
-    return;
-  }
-
-  // 2. Robust newline handling (MEDIUM priority fix) - Handle edge cases like '\n \n'
-  const paragraphs = textData.split(/\s*\n\s*\n\s*/).filter(p => p.trim() !== '');
-
-  if (paragraphs.length > 1) {
-    // 3. Manual escaping (MEDIUM priority fix) - Defense-in-depth security
-    const paragraphHTML = paragraphs
-      .map(p => `<p>${p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
-      .join('');
-
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = paragraphHTML;
-    const { state } = view;
-    const parser = ProseMirrorDOMParser.fromSchema(state.schema);
-    const slice = parser.parseSlice(tempDiv, { preserveWhitespace: 'full' });
-    view.dispatch(state.tr.replaceSelection(slice));
-  } else {
-    view.dispatch(view.state.tr.insertText(textData));
-  }
-};
-
-/**
- * Safe conversion from plain text to HTML paragraphs
- * Prevents XSS injection through the line break replacement pattern
- */
-const convertPlainTextToHTML = (plainText: string): string => {
-  // First escape any HTML in the plain text
-  const escaped = plainText
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-  // Then convert newlines to paragraph breaks
-  const withParagraphs = `<p>${escaped.replace(/\n\n/g, '</p><p>')}</p>`;
-
-  // Finally sanitize the result (defense in depth)
-  return sanitizeHTML(withParagraphs);
-};
-
-// ============================================
-// PARAGRAPH COMPONENT TRACKER
-// ============================================
-
-/**
- * Extension that tracks paragraphs as components
- * and adds visual indicators without affecting content
- */
-const ParagraphComponentTracker = Extension.create({
-  name: 'paragraphComponentTracker',
-
-  addProseMirrorPlugins() {
-    return [
-      new Plugin({
-        props: {
-          decorations(state) {
-            const decorations: Decoration[] = [];
-            let componentNumber = 0;
-
-            // Pattern to detect [[HEADER]] paragraphs (same as extractComponents)
-            const headerPattern = /^\[\[([A-Z0-9\s\-_]+)\]\]$/;
-
-            // Iterate through the document
-            state.doc.forEach((node, offset) => {
-              // Each paragraph becomes a component (except [[HEADER]] paragraphs)
-              if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
-                const trimmedText = node.textContent.trim();
-
-                // Skip [[HEADER]] paragraphs - they are NOT components
-                if (headerPattern.test(trimmedText)) {
-                  return; // Don't show Cx label for header paragraphs
-                }
-
-                componentNumber++;
-
-                // Add a widget decoration for the component label
-                const widget = Decoration.widget(offset, () => {
-                  const label = document.createElement('div');
-                  label.className = 'component-label';
-                  label.setAttribute('data-component', `C${componentNumber}`);
-                  label.textContent = `C${componentNumber}`;
-                  label.style.cssText = `
-                    position: absolute;
-                    left: -50px;
-                    background: #6B7280;
-                    color: white;
-                    padding: 2px 8px;
-                    border-radius: 12px;
-                    font-size: 11px;
-                    font-weight: 600;
-                    user-select: none;
-                    pointer-events: none;
-                  `;
-                  return label;
-                }, {
-                  side: -1,
-                  marks: []
-                });
-
-                decorations.push(widget);
-              }
-            });
-
-            return DecorationSet.create(state.doc, decorations);
-          }
-        }
-      })
-    ];
-  }
-});
-
-// ============================================
-// REACT COMPONENT
-// ============================================
-
 export const TipTapEditor: React.FC = () => {
-  const { selectedVideo } = useNavigation();
+  // MITIGATION 1: Inline critical CSS to prevent FOUC (Flash of Unstyled Content)
+  // Critical-Engineer: consulted for CSS FOUC risk mitigation (HIGH priority)
+  // Ensures component labels (C1, C2, C3...) render correctly immediately on slow networks
+  useEffect(() => {
+    const styleId = 'tiptap-critical-css';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        .component-label {
+          position: absolute !important;
+          left: -50px !important;
+          top: 3px;
+          background: #6B7280;
+          color: white;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 600;
+          user-select: none;
+          pointer-events: none;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
+  // Hook-based state management via useCurrentScript
+  const {
+    currentScript,
+    selectedVideo,
+    save,
+    updateStatus,
+    saveStatus,
+    setSaveStatus,
+    lastSaved: hookLastSaved, // Keep for useMemo conversion to Date
+    isLoading
+  } = useCurrentScript();
+
   const { updateScriptStatus, clearScriptStatus } = useScriptStatus();
   const { userProfile } = useAuth();
   const permissions = usePermissions();
   const { toasts, showSuccess, showError } = useToast();
 
-  // Script management state
-  const [currentScript, setCurrentScript] = useState<Script | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
+  // Convert lastSaved from string (hook) to Date (component usage)
+  const lastSaved = useMemo(
+    () => (hookLastSaved ? new Date(hookLastSaved) : null),
+    [hookLastSaved]
+  );
 
   // Component extraction state
   const [extractedComponents, setExtractedComponents] = useState<ComponentData[]>([]);
 
-  // Comment selection state (Phase 2.2)
-  const [selectedText, setSelectedText] = useState<{
-    text: string;
-    from: number;
-    to: number;
-  } | null>(null);
-  const [showCommentPopup, setShowCommentPopup] = useState(false);
-  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
-
-  // Comment creation state (Phase 2.3)
-  const [createCommentData, setCreateCommentData] = useState<{
-    startPosition: number;
-    endPosition: number;
-    selectedText: string;
-  } | null>(null);
-
-  // Comment numbering and highlighting state
-  const [, setCommentHighlights] = useState<Array<{
-    commentId: string;
-    commentNumber: number;
-    startPosition: number;
-    endPosition: number;
-  }>>([]);
-
   // Track component mount state to prevent updates after unmount
   const isMountedRef = useRef(true);
-
-  // Helper function to generate hash
-  const generateHash = (text: string): string => {
-    return text.length.toString(36) + text.charCodeAt(0).toString(36);
-  };
 
   // Declare callback functions that don't depend on editor
   const extractComponents = useCallback((editor: Editor) => {
     // Only update state if component is still mounted
     if (!isMountedRef.current) return;
 
-    const components: ComponentData[] = [];
-    let componentNum = 0;
-
-    // Pattern to detect [[HEADER]] paragraphs (these are NOT components)
-    const headerPattern = /^\[\[([A-Z0-9\s\-_]+)\]\]$/;
-
-    editor.state.doc.forEach((node: Node) => {
-      if (node.type.name === 'paragraph' && node.content.size > 0 && node.textContent.trim().length > 0) {
-        const trimmedText = node.textContent.trim();
-
-        // Skip paragraphs that are ONLY [[HEADER]] patterns
-        // These are visual subheaders for ElevenLabs, not production components
-        if (headerPattern.test(trimmedText)) {
-          return; // Skip this paragraph - it's a header, not a component
-        }
-
-        componentNum++;
-        components.push({
-          number: componentNum,
-          content: node.textContent,
-          wordCount: node.textContent.split(/\s+/).filter(Boolean).length,
-          hash: generateHash(node.textContent)
-        });
-      }
-    });
+    const components = extractComponentsFromDoc(
+      editor.state.doc,
+      generateContentHash
+    );
 
     setExtractedComponents(components);
   }, []);
@@ -312,6 +152,15 @@ export const TipTapEditor: React.FC = () => {
     },
     debounceMs: 500
   });
+
+  // MITIGATION 2: Validate DOMPurify configuration in development mode
+  // Critical-Engineer: consulted for DOMPurify config validation (MEDIUM→HIGH priority)
+  // Prevents security regression if config becomes permissive over time
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      validateDOMPurifyConfig();
+    }
+  }, []);
 
   // Create editor first
   // Editor editability controlled by permissions (clients are read-only)
@@ -359,8 +208,8 @@ export const TipTapEditor: React.FC = () => {
 
       extractComponents(editor);
 
-      // Only set unsaved status if user can actually edit/save scripts
-      // Clients cannot edit scripts (editor is read-only) so no need to show "unsaved"
+      // Set save status to 'unsaved' when content changes
+      // Only called when user can actually edit/save scripts
       if (permissions.canEditScript) {
         setSaveStatus('unsaved');
       }
@@ -464,164 +313,24 @@ export const TipTapEditor: React.FC = () => {
     }
   });
 
-  // Load comment highlights from database
-  // IMPORTANT: This must be defined before useEffects that reference it
-  // FIX (ADR-005 ADDENDUM 2): Removed documentContent parameter to prevent unnecessary recovery
-  const loadCommentHighlights = useCallback(async (scriptId: string) => {
-    if (!editor) return;
+  // Step 2.1.4: Extract ALL comment system logic to useScriptComments hook
+  const {
+    setCommentHighlights,
+    selectedText,
+    setSelectedText,
+    showCommentPopup,
+    setShowCommentPopup,
+    popupPosition,
+    setPopupPosition,
+    createCommentData,
+    setCreateCommentData,
+    loadCommentHighlights,
+  } = useScriptComments(editor);
 
-    // Don't load comments for readonly placeholder scripts (no script created yet)
-    if (scriptId.startsWith('readonly-')) {
-      return;
-    }
-
-    try {
-      // Import the comments module and load highlights
-      const { getComments } = await import('../lib/comments');
-      const { supabase } = await import('../lib/supabase');
-
-      // Load comments WITHOUT documentContent - positions are already correct PM positions
-      // Recovery is NOT needed for stored positions (only for fresh text-based positions)
-      const result = await getComments(supabase, scriptId);
-
-      if (result.success && result.data) {
-        const highlights = result.data
-          .filter(comment => !comment.parentCommentId) // Only parent comments have highlights
-          .map((comment, index) => ({
-            commentId: comment.id,
-            commentNumber: index + 1,
-            startPosition: comment.startPosition, // Already recovered if needed
-            endPosition: comment.endPosition, // Already recovered if needed
-            resolved: !!comment.resolvedAt, // Priority 3: Pass resolved status for visual distinction
-          }));
-
-        setCommentHighlights(highlights);
-
-        // Load highlights into editor
-        if (highlights.length > 0) {
-          editor.commands.loadExistingHighlights(highlights);
-        }
-
-        // Log position recovery results if any comments were recovered
-        const recoveredComments = result.data.filter(c => c.recovery && c.recovery.status === 'relocated');
-        if (recoveredComments.length > 0) {
-          Logger.info(`Position recovery: ${recoveredComments.length} comment(s) relocated`, {
-            recovered: recoveredComments.map(c => ({
-              id: c.id,
-              status: c.recovery?.status,
-              matchQuality: c.recovery?.matchQuality,
-              message: c.recovery?.message
-            }))
-          });
-        }
-      }
-    } catch (error) {
-      Logger.error('Failed to load comment highlights', { error: (error as Error).message });
-    }
-  }, [editor]);
-
-  // Text selection handler for comments (Phase 2.2)
-  useEffect(() => {
-    if (!editor) return;
-
-    const handleSelectionUpdate = () => {
-      if (!isMountedRef.current) return;
-
-      const { from, to, empty } = editor.state.selection;
-
-      if (empty) {
-        // No text selected, hide popup
-        setSelectedText(null);
-        setShowCommentPopup(false);
-        setPopupPosition(null);
-      } else {
-        // Text is selected
-        const selectedContent = editor.state.doc.textBetween(from, to);
-        if (selectedContent.trim()) {
-          // Calculate popup position based on selection coordinates
-          try {
-            const coords = editor.view.coordsAtPos(from);
-            const editorRect = editor.view.dom.getBoundingClientRect();
-
-            // Position popup above selection, or below if not enough space above
-            const popupHeight = 80; // Estimated popup height
-            const spaceAbove = coords.top - editorRect.top;
-            const spaceBelow = editorRect.bottom - coords.bottom;
-
-            let top = coords.top - popupHeight - 10; // 10px gap above selection
-            if (spaceAbove < popupHeight + 20 && spaceBelow > popupHeight + 20) {
-              // Not enough space above, position below
-              top = coords.bottom + 10;
-            }
-
-            const left = Math.max(20, Math.min(coords.left - 100, window.innerWidth - 220)); // Center popup, but keep on screen
-
-            setSelectedText({
-              text: selectedContent,
-              from,
-              to
-            });
-            setPopupPosition({ top, left });
-            setShowCommentPopup(true);
-          } catch (error) {
-            // Fallback to center positioning if coordinate calculation fails
-            Logger.warn('Failed to calculate popup position, using fallback', { error: (error as Error).message });
-            setSelectedText({
-              text: selectedContent,
-              from,
-              to
-            });
-            setPopupPosition(null); // Will use CSS fallback positioning
-            setShowCommentPopup(true);
-          }
-        }
-      }
-    };
-
-    // Listen for selection updates using TipTap's event system
-    editor.on('selectionUpdate', handleSelectionUpdate);
-
-    return () => {
-      // Clean up the subscription
-      editor.off('selectionUpdate', handleSelectionUpdate);
-    };
-  }, [editor]);
-
-  // Blur handler for comment position recovery (Phase 2 - Option B)
-  useEffect(() => {
-    if (!editor || !currentScript) return;
-
-    let blurTimeoutId: NodeJS.Timeout | null = null;
-
-    const handleBlur = () => {
-      // Debounce: Wait 500ms after blur to update positions
-      // This prevents rapid-fire updates if user quickly clicks in/out
-      if (blurTimeoutId) {
-        clearTimeout(blurTimeoutId);
-      }
-
-      blurTimeoutId = setTimeout(() => {
-        if (!isMountedRef.current || !currentScript) return;
-
-        Logger.info('Editor blur: Recovering comment positions', {
-          scriptId: currentScript.id,
-          trigger: 'blur'
-        });
-
-        // Reload comment highlights with position recovery
-        loadCommentHighlights(currentScript.id);
-      }, 500); // 500ms debounce
-    };
-
-    editor.on('blur', handleBlur);
-
-    return () => {
-      editor.off('blur', handleBlur);
-      if (blurTimeoutId) {
-        clearTimeout(blurTimeoutId);
-      }
-    };
-  }, [editor, currentScript, loadCommentHighlights]);
+  // REMOVED: loadCommentHighlights function (now in useScriptComments hook)
+  // REMOVED: selectionUpdate useEffect (now in useScriptComments hook)
+  // REMOVED: blur handler useEffect (now in useScriptComments hook)
+  // REMOVED: Comment UI state (now in useScriptComments hook)
 
   // Now define callbacks that depend on editor
 
@@ -640,7 +349,6 @@ export const TipTapEditor: React.FC = () => {
       return;
     }
 
-    setSaveStatus('saving');
     try {
       const plainText = editor.getText();
       // ISSUE: Y.js Collaborative Editing Integration
@@ -649,22 +357,12 @@ export const TipTapEditor: React.FC = () => {
       // Dependencies: Y.js library, WebSocket infrastructure, conflict resolution
       const yjsState = null; // Placeholder until Y.js integration in Phase 4
 
-      // FIX #1: Restore component persistence - use RPC with actual components
-      const updatedScript = await saveScriptWithComponents(
-        currentScript.id,
-        yjsState,
-        plainText,
-        extractedComponents
-      );
+      // Hook's save method manages saveStatus ('saving' → 'saved'/'error') via TanStack Query mutation
+      await save(yjsState, plainText, extractedComponents);
 
-      // Only update state if still mounted
+      // After save completes, recover comment positions
+      // This ensures highlights are updated after document changes are persisted
       if (isMountedRef.current) {
-        setCurrentScript(updatedScript);
-        setLastSaved(new Date());
-        setSaveStatus('saved');
-
-        // After save completes, recover comment positions
-        // This ensures highlights are updated after document changes are persisted
         Logger.info('Auto-save complete: Recovering comment positions', {
           scriptId: currentScript.id,
           trigger: 'save'
@@ -674,10 +372,10 @@ export const TipTapEditor: React.FC = () => {
     } catch (error) {
       if (isMountedRef.current) {
         Logger.error('Failed to save script', { error: (error as Error).message });
-        setSaveStatus('error');
+        // Hook automatically sets saveStatus('error') via TanStack Query onError
       }
     }
-  }, [currentScript, editor, extractedComponents, loadCommentHighlights, permissions.canEditScript]);
+  }, [currentScript, editor, extractedComponents, loadCommentHighlights, permissions.canEditScript, save]);
 
   // Handle comment creation from sidebar
   const handleCommentCreated = useCallback(async () => {
@@ -699,7 +397,7 @@ export const TipTapEditor: React.FC = () => {
       Logger.error('Failed to reload comment highlights', { error: (error as Error).message });
       showError('Failed to update comment highlights');
     }
-  }, [currentScript, loadCommentHighlights, showSuccess, showError]);
+  }, [currentScript, loadCommentHighlights, setCreateCommentData, setSelectedText, setPopupPosition, showSuccess, showError]);
 
   // Handle comment form cancellation
   const handleCommentCancelled = useCallback(() => {
@@ -708,32 +406,23 @@ export const TipTapEditor: React.FC = () => {
     // Clear selection state
     setSelectedText(null);
     setPopupPosition(null);
-  }, []);
+  }, [setCreateCommentData, setSelectedText, setPopupPosition]);
 
   // Handle script status changes (GREEN phase implementation)
   const handleStatusChange = useCallback(async (newStatus: ScriptWorkflowStatus) => {
     if (!currentScript) return;
 
-    // Capture original status BEFORE optimistic update to prevent closure bug
-    const originalStatus = currentScript.status;
-
     try {
-      // Optimistic UI update
-      setCurrentScript(prev => prev ? { ...prev, status: newStatus } : null);
+      // Hook handles optimistic UI updates and rollback internally via TanStack Query
+      await updateStatus(newStatus);
 
-      // Persist to database
-      const updatedScript = await updateScriptWorkflowStatus(currentScript.id, newStatus);
-
-      // Confirm update with server response
-      setCurrentScript(updatedScript);
       showSuccess(`Status updated to ${newStatus.replace('_', ' ')}`);
     } catch (error) {
-      // Rollback to original status (captured before optimistic update)
-      setCurrentScript(prev => prev ? { ...prev, status: originalStatus } : null);
+      // Hook automatically rolls back on error via TanStack Query
       Logger.error('Failed to update script status', { error: (error as Error).message });
       showError('Failed to update status');
     }
-  }, [currentScript, showSuccess, showError]);
+  }, [currentScript, updateStatus, showSuccess, showError]);
 
   // Load script when selected video changes
   useEffect(() => {
@@ -742,16 +431,15 @@ export const TipTapEditor: React.FC = () => {
     const loadScript = async () => {
       if (!selectedVideo || !editor) return;
 
-      setIsLoading(true);
+      // Note: isLoading managed by useCurrentScript hook via TanStack Query
       try {
         // Loading script for video
-
         const script = await loadScriptForVideo(selectedVideo.id, userProfile?.role);
 
         // Only update state if component is still mounted
         if (!mounted) return;
 
-        setCurrentScript(script);
+        // Note: currentScript managed by useCurrentScript hook via TanStack Query
 
         // Initialize editor content from Y.js state or plain text
         // Note: Editor editability is controlled by usePermissions hook at initialization
@@ -770,8 +458,7 @@ export const TipTapEditor: React.FC = () => {
         }
 
         extractComponents(editor);
-        setSaveStatus('saved');
-        setLastSaved(new Date(script.updated_at));
+        // Note: saveStatus and lastSaved managed by useCurrentScript hook
 
         // Load comment highlights for this script
         await loadCommentHighlights(script.id);
@@ -810,11 +497,7 @@ export const TipTapEditor: React.FC = () => {
           console.error('3. User authentication status');
         }
 
-        setSaveStatus('error');
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        // Note: saveStatus('error') managed by useCurrentScript hook
       }
     };
 
@@ -823,8 +506,7 @@ export const TipTapEditor: React.FC = () => {
     } else if (!selectedVideo && editor) {
       // Clear editor when no video selected
       editor.commands.setContent('');
-      setCurrentScript(null);
-      setSaveStatus('saved');
+      // Note: currentScript and saveStatus managed by useCurrentScript hook
     }
 
     // Cleanup function to prevent state updates after unmount
@@ -914,337 +596,6 @@ export const TipTapEditor: React.FC = () => {
 
   return (
     <div className="editor-layout">
-      <style>{`
-        .editor-layout {
-          display: flex;
-          height: 100vh;
-          background: #f5f5f5;
-        }
-
-        /* Main Editor - Takes up most space */
-        .main-editor {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          background: white;
-          margin: 20px;
-          margin-right: 10px;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-
-        .editor-header {
-          padding: 20px 30px;
-          border-bottom: 2px solid #e5e5e5;
-          background: #fafafa;
-          /* Priority 4: Sticky header - stays visible while content scrolls */
-          position: sticky;
-          top: 0;
-          z-index: 10;
-        }
-
-        .editor-title {
-          font-size: 24px;
-          font-weight: 600;
-          color: #1a1a1a;
-          margin: 0;
-        }
-
-        .editor-subtitle {
-          font-size: 14px;
-          color: #666;
-          margin-top: 5px;
-        }
-
-        .save-status {
-          font-weight: 500;
-          color: #10B981;
-        }
-
-        .save-status:has-text('Saving') {
-          color: #F59E0B;
-        }
-
-        .save-status:has-text('error') {
-          color: #EF4444;
-        }
-
-        .save-status:has-text('Unsaved') {
-          color: #F59E0B;
-        }
-
-        /* Editor Content Area - Full Width */
-        .editor-content {
-          flex: 1;
-          overflow-y: auto;
-          padding: 40px 60px; /* Increased horizontal padding */
-          padding-left: 120px; /* Space for component labels */
-          max-width: none; /* Remove max-width constraint */
-          margin: 0;
-          width: 100%;
-        }
-
-        .ProseMirror {
-          min-height: calc(100vh - 200px);
-          outline: none;
-          font-size: 17px;
-          line-height: 1.8;
-          color: #333;
-        }
-
-        .ProseMirror h2 {
-          font-size: 26px;
-          margin-bottom: 15px;
-          color: #1a1a1a;
-          font-weight: 600;
-        }
-
-        .ProseMirror p {
-          margin-bottom: 18px;
-          position: relative;
-        }
-
-        /* Component labels - positioned in margin */
-        .component-label {
-          position: absolute !important;
-          left: -70px !important; /* Adjusted for new padding */
-          top: 3px;
-        }
-
-        /* Placeholder states */
-        .no-video-placeholder,
-        .loading-placeholder {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 400px;
-          text-align: center;
-          color: #666;
-          background: #f8f9fa;
-          border-radius: 8px;
-          margin: 20px 0;
-        }
-
-        .no-video-placeholder h3 {
-          font-size: 24px;
-          color: #333;
-          margin-bottom: 15px;
-          font-weight: 600;
-        }
-
-        .no-video-placeholder p,
-        .loading-placeholder p {
-          font-size: 16px;
-          line-height: 1.6;
-          margin-bottom: 10px;
-          max-width: 500px;
-        }
-
-        .loading-spinner {
-          width: 32px;
-          height: 32px;
-          border: 3px solid #e5e5e5;
-          border-top: 3px solid #6B7280;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin-bottom: 15px;
-        }
-
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        /* Right Sidebar - Narrow for testing */
-        .right-sidebar {
-          width: 320px;
-          background: white;
-          margin: 20px;
-          margin-left: 10px;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-
-        .sidebar-header {
-          padding: 15px 20px;
-          border-bottom: 2px solid #e5e5e5;
-          background: #fafafa;
-        }
-
-        .sidebar-title {
-          font-size: 16px;
-          font-weight: 600;
-          margin: 0;
-          color: #333;
-        }
-
-        .testing-notice {
-          background: #FEF3C7;
-          color: #92400E;
-          padding: 8px 12px;
-          margin: 10px;
-          border-radius: 6px;
-          font-size: 12px;
-          border-left: 3px solid #F59E0B;
-        }
-
-        .sidebar-content {
-          flex: 1;
-          overflow-y: auto;
-          padding: 15px;
-        }
-
-        /* Component list in sidebar */
-        .component-item {
-          padding: 10px;
-          background: #f8f9fa;
-          border-radius: 6px;
-          margin-bottom: 8px;
-          border-left: 3px solid #6B7280;
-        }
-
-        .component-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 4px;
-        }
-
-        .component-number {
-          font-weight: 600;
-          color: #1a1a1a;
-          font-size: 13px;
-        }
-
-        .component-stats {
-          font-size: 11px;
-          color: #999;
-        }
-
-        .component-content {
-          font-size: 12px;
-          color: #666;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          line-height: 1.4;
-        }
-
-        /* Comment Selection Popup - Phase 2.2 */
-        .comment-selection-popup {
-          position: fixed;
-          background: white;
-          border: 1px solid #e5e5e5;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          padding: 12px;
-          z-index: 1000;
-          max-width: 200px;
-        }
-
-        .comment-popup-text {
-          font-size: 12px;
-          color: #666;
-          margin-bottom: 8px;
-          max-width: 180px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .comment-popup-button {
-          background: #3B82F6;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 6px 12px;
-          font-size: 12px;
-          cursor: pointer;
-          width: 100%;
-          transition: background-color 0.2s;
-        }
-
-        .comment-popup-button:hover {
-          background: #2563EB;
-        }
-
-        /* Comment highlights in editor with numbering */
-        .comment-highlight {
-          background-color: #FEF3C7;
-          border-radius: 2px;
-          cursor: pointer;
-          position: relative;
-          display: inline;
-          transition: all 0.2s ease;
-        }
-
-        .comment-highlight:hover {
-          background-color: #FDE68A;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .comment-highlight::after {
-          content: attr(data-comment-number);
-          position: absolute;
-          top: -8px;
-          left: -20px;
-          background: #3B82F6;
-          color: white;
-          font-size: 10px;
-          font-weight: bold;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          line-height: 1;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-          pointer-events: none;
-          z-index: 10;
-        }
-
-        .comment-highlight.highlight-hover {
-          background-color: #FBBF24;
-          box-shadow: 0 0 0 2px #F59E0B;
-        }
-
-        /* Priority 3: Resolved comments - pale green background with grey numbers */
-        .comment-highlight.comment-resolved {
-          background-color: #DCFCE7; /* Resolved: pale green background */
-        }
-
-        .comment-highlight.comment-resolved::after {
-          background: #9CA3AF; /* Resolved: grey number badge */
-        }
-
-        .comment-highlight.comment-resolved:hover {
-          background-color: #BBF7D0; /* Slightly darker green on hover */
-        }
-
-        /* Comment loading and success animations */
-        .comment-highlight.creating {
-          animation: pulse-highlight 1s ease-in-out infinite;
-        }
-
-        .comment-highlight.created {
-          animation: success-highlight 0.5s ease-out;
-        }
-
-        @keyframes pulse-highlight {
-          0%, 100% { background-color: #FEF3C7; }
-          50% { background-color: #FDE68A; }
-        }
-
-        @keyframes success-highlight {
-          0% { background-color: #D1FAE5; }
-          100% { background-color: #FEF3C7; }
-        }
-      `}</style>
 
       {/* Main Editor Area */}
       <div className="main-editor">
@@ -1295,106 +646,6 @@ export const TipTapEditor: React.FC = () => {
                 </div>
               )}
             </div>
-            {/* Convert Soft Enters Button - Admin/Employee Only */}
-            {selectedVideo && editor && permissions.canConvertSoftEnters && (
-              <button
-                onClick={() => {
-                  if (!editor) return;
-
-                  // Convert soft enters (br tags) to hard enters (paragraph breaks)
-                  const conversionSuccessful = editor.chain().focus().command(({ tr, state }) => {
-                    const { doc } = state;
-                    const replacements: { from: number; to: number; content: Node[][] }[] = [];
-
-                    // Traverse document to find paragraphs with br tags
-                    doc.descendants((node, pos) => {
-                      if (node.type.name === 'paragraph') {
-                        // Check if this paragraph has any br tags by examining its structure
-                        let hasBr = false;
-                        node.forEach((child) => {
-                          if (child.type.name === 'hardBreak') {
-                            hasBr = true;
-                          }
-                        });
-
-                        if (hasBr) {
-                          // Split the paragraph at br tags - preserve nodes with formatting
-                          const parts: Node[][] = []; // Array of node arrays
-                          let currentPart: Node[] = [];
-
-                          node.forEach((child) => {
-                            if (child.type.name === 'hardBreak') {
-                              if (currentPart.length > 0) {
-                                parts.push(currentPart);
-                                currentPart = [];
-                              }
-                            } else {
-                              // Preserve the child node with all its marks (bold, italic, etc.)
-                              currentPart.push(child);
-                            }
-                          });
-
-                          // Add final part
-                          if (currentPart.length > 0) {
-                            parts.push(currentPart);
-                          }
-
-                          if (parts.length > 1) {
-                            replacements.push({
-                              from: pos,
-                              to: pos + node.nodeSize,
-                              content: parts
-                            });
-                          }
-                        }
-                      }
-                    });
-
-                    // Apply replacements in reverse order to maintain positions
-                    replacements.reverse().forEach(({ from, to, content }) => {
-                      // Build paragraph nodes preserving formatting from node arrays
-                      const paragraphs = content.map(nodePart =>
-                        state.schema.nodes.paragraph.create(
-                          null,
-                          nodePart // Pass node array directly - preserves marks
-                        )
-                      );
-
-                      tr.replaceWith(from, to, paragraphs);
-                    });
-
-                    // Return true only if we made changes
-                    return replacements.length > 0;
-                  }).run();
-
-                  // If conversion happened, trigger component extraction and save
-                  if (conversionSuccessful) {
-                    extractComponents(editor);
-                    handleSave();
-                  }
-                }}
-                style={{
-                  background: '#3B82F6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  marginTop: '4px',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#2563EB';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#3B82F6';
-                }}
-              >
-                Convert Soft Enters
-              </button>
-            )}
           </div>
         </div>
 
