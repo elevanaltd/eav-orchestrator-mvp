@@ -6,7 +6,6 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Extension } from '@tiptap/core';
 import { ParagraphComponentTracker } from './ParagraphComponentTracker';
 
 describe('ParagraphComponentTracker - Characterization Tests', () => {

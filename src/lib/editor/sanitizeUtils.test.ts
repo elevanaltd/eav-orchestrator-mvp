@@ -9,7 +9,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { sanitizeHTML, convertPlainTextToHTML, handlePlainTextPaste } from './sanitizeUtils';
 import { EditorView } from '@tiptap/pm/view';
-import { Schema, DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
+import { Schema } from '@tiptap/pm/model';
 
 describe('sanitizeUtils - Characterization Tests', () => {
   describe('sanitizeHTML', () => {
