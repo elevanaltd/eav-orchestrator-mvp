@@ -34,89 +34,9 @@ import { useScriptComments } from '../core/state/useScriptComments';
 import { loadScriptForVideo, ComponentData, ScriptWorkflowStatus, generateContentHash } from '../services/scriptService';
 import { Logger } from '../services/logger';
 import { extractComponents as extractComponentsFromDoc, isComponentParagraph } from '../lib/componentExtraction';
+import { sanitizeHTML, handlePlainTextPaste, convertPlainTextToHTML } from '../lib/editor/sanitizeUtils';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
-
-// ============================================
-// SECURITY UTILITIES
-// ============================================
-
-/**
- * Sanitize HTML content to prevent XSS attacks
- * Uses DOMPurify with restrictive whitelist of allowed tags and attributes
- */
-const sanitizeHTML = (dirtyHTML: string): string => {
-  return DOMPurify.sanitize(dirtyHTML, {
-    ALLOWED_TAGS: ['p', 'strong', 'em', 'u', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-    ALLOWED_ATTR: ['class'],
-    KEEP_CONTENT: true,
-    ALLOW_DATA_ATTR: false,
-    ALLOW_UNKNOWN_PROTOCOLS: false
-  });
-};
-
-/**
- * Handle plain text paste with proper sanitization and size limits
- * Critical-Engineer: consulted for Paste handler architecture and sanitization
- *
- * Fixes applied:
- * 1. Size limit (HIGH): Prevents DoS from large pastes
- * 2. Robust newline handling (MEDIUM): Uses regex for edge cases
- * 3. Manual HTML escaping (MEDIUM): Defense-in-depth security
- * 4. Code deduplication (HIGH): Eliminates maintenance divergence
- */
-const handlePlainTextPaste = (
-  view: EditorView,
-  textData: string,
-  showError: (msg: string) => void
-): void => {
-  // 1. Size limit (HIGH priority fix) - Prevent DoS from large pastes
-  const PASTE_SIZE_LIMIT_BYTES = 1 * 1024 * 1024; // 1MB
-  if (textData.length > PASTE_SIZE_LIMIT_BYTES) {
-    showError('Pasted content is too large. Please paste in smaller chunks.');
-    view.dispatch(view.state.tr.insertText(textData.substring(0, 5000) + "..."));
-    return;
-  }
-
-  // 2. Robust newline handling (MEDIUM priority fix) - Handle edge cases like '\n \n'
-  const paragraphs = textData.split(/\s*\n\s*\n\s*/).filter(p => p.trim() !== '');
-
-  if (paragraphs.length > 1) {
-    // 3. Manual escaping (MEDIUM priority fix) - Defense-in-depth security
-    const paragraphHTML = paragraphs
-      .map(p => `<p>${p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
-      .join('');
-
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = paragraphHTML;
-    const { state } = view;
-    const parser = ProseMirrorDOMParser.fromSchema(state.schema);
-    const slice = parser.parseSlice(tempDiv, { preserveWhitespace: 'full' });
-    view.dispatch(state.tr.replaceSelection(slice));
-  } else {
-    view.dispatch(view.state.tr.insertText(textData));
-  }
-};
-
-/**
- * Safe conversion from plain text to HTML paragraphs
- * Prevents XSS injection through the line break replacement pattern
- */
-const convertPlainTextToHTML = (plainText: string): string => {
-  // First escape any HTML in the plain text
-  const escaped = plainText
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-  // Then convert newlines to paragraph breaks
-  const withParagraphs = `<p>${escaped.replace(/\n\n/g, '</p><p>')}</p>`;
-
-  // Finally sanitize the result (defense in depth)
-  return sanitizeHTML(withParagraphs);
-};
 
 // ============================================
 // PARAGRAPH COMPONENT TRACKER
