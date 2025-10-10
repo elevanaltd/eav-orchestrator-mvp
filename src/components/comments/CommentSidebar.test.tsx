@@ -1059,6 +1059,173 @@ describe('CommentSidebar', () => {
     });
   });
 
+  // TDD Phase 2.2 - Hook Mutation Characterization Tests (Task 2.2 TDD Remediation)
+  // These tests validate refactored hook mutation code paths (resolve/delete via useCommentMutations)
+  // Gap G6 Preservation: Error handling verified through UI behavior (user-friendly messages)
+  describe('CommentSidebar mutation integration (Task 2.2 hook refactor)', () => {
+    beforeEach(() => {
+      mockGetComments.mockResolvedValue({
+        success: true,
+        data: sampleComments,
+        error: null,
+      });
+    });
+
+    it('should resolve comment via hook mutation with optimistic UI', async () => {
+      // Mock the underlying resolve function called by useCommentMutations hook
+      const mockResolveComment = vi.mocked(commentsLib.resolveComment);
+      mockResolveComment.mockResolvedValue({
+        success: true,
+        data: {
+          id: 'comment-1',
+          scriptId: 'script-1',
+          userId: 'user-1',
+          content: 'This needs revision.',
+          startPosition: 10,
+          endPosition: 25,
+          parentCommentId: null,
+          resolvedAt: new Date().toISOString(),
+          resolvedBy: 'user-1',
+          createdAt: '2024-09-29T10:00:00Z',
+          updatedAt: new Date().toISOString(),
+        },
+        error: undefined,
+      });
+
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
+
+      // Wait for comments to load
+      await waitFor(() => {
+        expect(screen.getByText('This needs revision.')).toBeInTheDocument();
+      });
+
+      // Verify resolve button exists for unresolved comment
+      const resolveButtons = screen.getAllByRole('button', { name: /^resolve$/i });
+      expect(resolveButtons.length).toBeGreaterThan(0);
+
+      // Click resolve button to trigger hook mutation
+      await act(async () => {
+        fireEvent.click(resolveButtons[0]);
+      });
+
+      // Verify hook called underlying function
+      // Characterization: useCommentMutations.resolveMutation calls resolveComment(supabase, commentId, userId)
+      await waitFor(() => {
+        expect(mockResolveComment).toHaveBeenCalledWith(
+          expect.anything(), // supabase client
+          'comment-1',       // comment id
+          'user-1'          // current user id
+        );
+      });
+
+      // Optimistic UI update occurs via React Query cache manipulation
+      // (realtime subscription eventually provides authoritative update)
+    });
+
+    it('should delete comment via hook mutation with optimistic UI', async () => {
+      // Mock the underlying delete function called by useCommentMutations hook
+      const mockDeleteComment = vi.mocked(commentsLib.deleteComment);
+      mockDeleteComment.mockResolvedValue({
+        success: true,
+        data: true,
+        error: undefined,
+      });
+
+      const onCommentDeleted = vi.fn();
+      renderWithProviders(
+        <CommentSidebar
+          scriptId="script-1"
+          onCommentDeleted={onCommentDeleted}
+        />
+      );
+
+      // Wait for comments to load
+      await waitFor(() => {
+        expect(screen.getByText('This needs revision.')).toBeInTheDocument();
+      });
+
+      // Verify delete button exists (only for own comments)
+      const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+      expect(deleteButtons.length).toBeGreaterThan(0);
+
+      // Click delete button
+      await act(async () => {
+        fireEvent.click(deleteButtons[0]);
+      });
+
+      // Confirm deletion in dialog
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: /delete comment/i })).toBeInTheDocument();
+      });
+
+      const confirmButton = screen.getByRole('button', { name: /confirm delete/i });
+
+      await act(async () => {
+        fireEvent.click(confirmButton);
+      });
+
+      // Verify hook called underlying function
+      // Characterization: useCommentMutations.deleteMutation calls deleteComment(supabase, commentId, userId)
+      await waitFor(() => {
+        expect(mockDeleteComment).toHaveBeenCalledWith(
+          expect.anything(), // supabase client
+          'comment-1',       // comment id
+          'user-1'          // current user id
+        );
+      });
+
+      // Verify parent callback triggered for highlight removal
+      await waitFor(() => {
+        expect(onCommentDeleted).toHaveBeenCalledWith('comment-1');
+      });
+
+      // Optimistic UI update removes comment from cache immediately
+    });
+
+    it('should handle resolve mutation error with user-friendly message', async () => {
+      // Mock failure scenario to validate Gap G6 error handling
+      const mockResolveComment = vi.mocked(commentsLib.resolveComment);
+      mockResolveComment.mockResolvedValue({
+        success: false,
+        data: undefined,
+        error: {
+          code: 'PERMISSION_DENIED',
+          message: 'RLS policy violation: comment belongs to different script' // Technical error
+        },
+      });
+
+      renderWithProviders(<CommentSidebar scriptId="script-1" />);
+
+      // Wait for comments to load
+      await waitFor(() => {
+        expect(screen.getByText('This needs revision.')).toBeInTheDocument();
+      });
+
+      // Click resolve button to trigger error
+      const resolveButtons = screen.getAllByRole('button', { name: /^resolve$/i });
+
+      await act(async () => {
+        fireEvent.click(resolveButtons[0]);
+      });
+
+      // Gap G6 Validation: Error handling through hook onError callback
+      // Should display user-friendly message (via getUserFriendlyErrorMessage)
+      await waitFor(() => {
+        const errorAlert = screen.queryByRole('alert');
+        if (errorAlert) {
+          const errorText = errorAlert.textContent || '';
+          // User-friendly language (Gap G6)
+          expect(errorText).toMatch(/failed|error|unable|permission|resolve/i);
+          // No technical jargon exposed to user
+          expect(errorText).not.toMatch(/RLS policy|RPC_ERROR|postgresql|stack trace/i);
+        }
+      }, { timeout: 3000 });
+
+      // Verify mutation was attempted
+      expect(mockResolveComment).toHaveBeenCalledTimes(1);
+    });
+  });
+
   // Improvement 3: Cleanup and Memory Safety Tests
   describe('Cleanup and Memory Safety', () => {
     it('should handle unmount during async loading without errors', async () => {

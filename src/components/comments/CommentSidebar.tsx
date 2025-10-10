@@ -544,6 +544,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     setMutationError(null);
 
     // FIX: TanStack Query mutate() uses callbacks, not try/catch (Vercel Bot analysis)
+    // Hook retry gap: resolveMutation lacks executeWithErrorHandling retry logic.
+    // Trade-off: Optimistic UI benefits > retry logic benefits for resolve/delete operations.
+    // Critical operations (create/reply/edit) retain executeWithErrorHandling with retry.
     const operation = isCurrentlyResolved ? 'unresolve' : 'resolve';
     const mutationOptions = {
       onError: (error: Error) => {
