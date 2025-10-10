@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { User } from '@supabase/supabase-js'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { Logger } from '../services/logger'
 
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   // Function to load user profile - simplified
   const loadUserProfile = useCallback(async (userId: string, userEmail?: string, userName?: string) => {
@@ -146,6 +148,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
         } else {
           setUserProfile(null)
+
+          // P1 Security Fix (2025-10-10): Invalidate ALL React Query caches on logout
+          // Prevents cross-user data leakage from cached queries
+          // Context: User A logs out → User B logs in → Must not see User A's cached data
+          queryClient.clear()
+          Logger.info('[AuthContext] Cleared all query caches on logout')
         }
 
         // Don't touch loading state on auth changes - only on initial load
@@ -156,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [loadUserProfile])
+  }, [loadUserProfile, queryClient])
 
   const signIn = async (email: string, password: string) => {
     try {
