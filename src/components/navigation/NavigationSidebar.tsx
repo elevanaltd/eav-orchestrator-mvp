@@ -1,9 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../lib/supabase';
-import { useNavigation, Project, Video } from '../../contexts/NavigationContext';
-import { validateProjectId, ValidationError } from '../../lib/validation';
+import { useState } from 'react';
+import { useNavigation, Video } from '../../contexts/NavigationContext';
 import '../../styles/Navigation.css';
-import { Logger } from '../../services/logger';
+import { useNavigationData } from '../../core/state/useNavigationData';
 
 // Critical-Engineer: consulted for Security vulnerability assessment
 
@@ -31,217 +29,15 @@ export function NavigationSidebar({
     isVideoSelected: checkVideoSelected
   } = useNavigation();
 
-  // Data loading state
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>('');
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-
-  // Auto-refresh state
-  const [isVisible, setIsVisible] = useState(!document.hidden);
-
-  // Handle visibility changes for performance optimization
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      setIsVisible(!document.hidden);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  // Declare functions before they are used
-  // SECURITY FIX: Prevent race condition by using functional state updates
-  const refreshData = useCallback(async () => {
-    // Refresh projects data without disrupting UI
-    await loadProjects(true);
-
-    // Use functional state update to get current expandedProjects
-    // This prevents stale closure issues
-    setExpandedProjects(currentExpanded => {
-      // Refresh videos for currently expanded projects
-      const refreshPromises = Array.from(currentExpanded).map(projectId =>
-        loadVideos(projectId, true)
-      );
-      Promise.all(refreshPromises).catch(err => {
-        Logger.error('Failed to refresh expanded project videos', { error: (err as Error).message });
-      });
-
-      // Return the same state (no change needed)
-      return currentExpanded;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Auto-refresh projects when component is visible
-  useEffect(() => {
-    if (!isVisible) {
-      return;
-    }
-
-    // Initial load
-    loadProjects();
-
-    // Set up refresh interval
-    const intervalId = setInterval(() => {
-      if (!document.hidden) {
-        refreshData();
-      }
-    }, refreshInterval);
-
-    // Cleanup interval on unmount or dependency change
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [isVisible, refreshInterval, refreshData]);
-
-  const loadProjects = async (isRefresh = false) => {
-    if (isRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setError('');
-
-    try {
-      // First, fetch all projects that meet the phase criteria
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .not('project_phase', 'in', '("Completed","Not Proceeded With")')
-        .order('title');
-
-      if (projectError) throw projectError;
-
-      // Then, fetch all videos to determine which projects have videos
-      const { data: videoData, error: videoError } = await supabase
-        .from('videos')
-        .select('eav_code')
-        .not('eav_code', 'is', null);
-
-      if (videoError) throw videoError;
-
-      // Create a set of eav_codes that have videos
-      const eavCodesWithVideos = new Set(videoData?.map(v => v.eav_code) || []);
-
-      // Filter projects to only those with videos
-      const projectsWithVideosData = (projectData || []).filter(project =>
-        project.eav_code && eavCodesWithVideos.has(project.eav_code)
-      );
-
-      // Debug: Check what we're actually getting
-
-
-
-
-      setProjects(projectsWithVideosData);
-
-    } catch (err) {
-      setError(`Failed to load projects: ${err}`);
-      Logger.error('Navigation: Load projects error', { error: (err as Error).message });
-    }
-
-    if (isRefresh) {
-      setIsRefreshing(false);
-    } else {
-      setLoading(false);
-    }
-  };
-
-  const loadVideos = async (projectId: string, isRefresh = false) => {
-    if (!isRefresh) {
-      setLoading(true);
-    }
-    setError('');
-
-    try {
-      // SECURITY: Validate projectId before database operation
-      const validatedProjectId = validateProjectId(projectId);
-
-      // Find the project's eav_code - if projects aren't loaded yet, wait a moment
-      let project = projects.find(p => p.id === validatedProjectId);
-
-      // If project not found, fetch it from database (for both refresh and non-refresh cases)
-      if (!project) {
-
-
-        // Fetch the specific project directly from database
-        const { data: projectData, error: projectError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', validatedProjectId)
-          .single();
-
-        if (projectError || !projectData) {
-          Logger.error(`Failed to fetch project ${validatedProjectId}`, { error: (projectError as Error).message });
-          if (!isRefresh) {
-            setLoading(false);
-          }
-          return;
-        }
-
-        // Only update local projects state if this is not a refresh
-        // (during refresh, projects are being updated elsewhere)
-        if (!isRefresh) {
-          setProjects(prevProjects => {
-            const exists = prevProjects.some(p => p.id === projectData.id);
-            if (!exists) {
-              return [...prevProjects, projectData];
-            }
-            return prevProjects;
-          });
-        }
-
-        project = projectData;
-      }
-
-      if (!project?.eav_code) {
-        // This can happen if the project data is incomplete or not synced properly
-        // Only warn if we actually found a project but it has no eav_code
-        if (project) {
-          Logger.warn(`Project ${validatedProjectId} exists but has no eav_code, cannot load videos`, {
-            project,
-            isRefresh
-          });
-        }
-        if (!isRefresh) {
-          setLoading(false);
-        }
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('eav_code', project.eav_code)
-        .order('title');
-
-      if (error) throw error;
-
-      // Update videos state - merge with existing videos from other projects
-      setVideos(prevVideos => [
-        ...prevVideos.filter(v => v.eav_code !== project.eav_code),
-        ...(data || [])
-      ]);
-
-
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        setError(`Invalid project ID: ${err.message}`);
-      } else {
-        setError(`Failed to load videos: ${err}`);
-      }
-      Logger.error('Navigation: Load videos error', { error: (err as Error).message });
-    }
-
-    if (!isRefresh) {
-      setLoading(false);
-    }
-  };
+  // Use navigation data hook for data fetching and auto-refresh
+  const {
+    projects,
+    videos: videosMap,
+    loading,
+    error,
+    isRefreshing,
+    loadVideos: loadVideosFromHook
+  } = useNavigationData({ refreshInterval, autoRefresh: true });
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
@@ -265,7 +61,7 @@ export function NavigationSidebar({
 
     // Load videos for this project if not already expanded
     if (!expandedProjects.has(projectId)) {
-      loadVideos(projectId);
+      loadVideosFromHook(projectId);
     }
 
     // Call legacy callback if provided
@@ -273,9 +69,15 @@ export function NavigationSidebar({
   };
 
   const handleVideoClick = (videoId: string, projectId: string) => {
-    // Find the video and project objects
-    const video = videos.find(v => v.id === videoId) || null;
+    // Find the project to get its eav_code
     const project = projects.find(p => p.id === projectId) || null;
+
+    // Find the video from the videos map using eav_code
+    let video: Video | null = null;
+    if (project?.eav_code && videosMap[project.eav_code]) {
+      video = videosMap[project.eav_code].find((v: Video) => v.id === videoId) || null;
+    }
+
     setSelectedVideo(video, project);
 
     // Call legacy callback if provided
@@ -291,7 +93,7 @@ export function NavigationSidebar({
   const getProjectVideos = (projectId: string) => {
     const project = projects.find(p => p.id === projectId);
     if (!project?.eav_code) return [];
-    return videos.filter(video => video.eav_code === project.eav_code);
+    return videosMap[project.eav_code] || [];
   };
 
   return (
