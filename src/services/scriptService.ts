@@ -126,62 +126,59 @@ export async function loadScriptForVideo(videoId: string, userRole?: string | nu
       updated_at: new Date().toISOString()
     };
 
-    const { data: createdScript, error: createError } = await supabase
+    // Race Condition Fix (2025-10-11): Use UPSERT to silently handle duplicate inserts
+    // This prevents 409 Conflict errors when concurrent requests try to create scripts
+    // for the same video_id (common during parallel React Query executions)
+    //
+    // CRITICAL FIX (2025-10-11): Don't chain .select() after UPSERT with ignoreDuplicates
+    // When ignoreDuplicates:true and duplicate exists, UPSERT returns 0 rows by design.
+    // Chaining .select() on 0 rows causes PostgREST 406 error: "JSON object requested, 0 rows returned"
+    // Solution: UPSERT without .select(), then always SELECT after (works whether created or existed)
+    const { error: upsertError } = await supabase
       .from('scripts')
-      .insert(newScript)
-      .select('*')
-      .single();
+      .upsert(newScript, { onConflict: 'video_id', ignoreDuplicates: true });
 
-    if (createError) {
-      // Handle race condition: If another request created the script simultaneously,
-      // the UNIQUE constraint on video_id will reject our INSERT with error code 23505
-      // In this case, retry the SELECT to fetch the script that was created
-      if (createError.code === '23505') {
-        // Retry SELECT to get the script created by the race condition winner
-        const { data: raceScript, error: retryError } = await supabase
-          .from('scripts')
-          .select('*')
-          .eq('video_id', validatedVideoId)
-          .maybeSingle();
-
-        if (retryError) {
-          throw new ScriptServiceError(`Failed to fetch script after conflict: ${retryError.message}`, retryError.code);
-        }
-
-        if (raceScript) {
-          // Load components for the existing script
-          const { data: components, error: componentsError } = await supabase
-            .from('script_components')
-            .select('*')
-            .eq('script_id', raceScript.id)
-            .order('component_number', { ascending: true });
-
-          if (componentsError) {
-            throw new ScriptServiceError(`Failed to load script components: ${componentsError.message}`, componentsError.code);
-          }
-
-          const transformedComponents: ComponentData[] = (components || []).map(comp => ({
-            number: comp.component_number,
-            content: comp.content,
-            wordCount: comp.word_count || 0,
-            hash: generateContentHash(comp.content)
-          }));
-
-          return {
-            ...raceScript,
-            components: transformedComponents
-          };
-        }
-      }
-
-      // If not a unique constraint violation, or retry failed, throw the original error
-      throw new ScriptServiceError(`Failed to create script: ${createError.message}`, createError.code);
+    if (upsertError) {
+      throw new ScriptServiceError(`Failed to create script: ${upsertError.message}`, upsertError.code);
     }
 
-    // Return new script with empty components array
+    // Always SELECT after UPSERT (works whether script was just created or already existed)
+    // This eliminates conditional logic and 406 errors from .select() on ignored duplicates
+    const { data: script, error: fetchAfterUpsertError } = await supabase
+      .from('scripts')
+      .select('*')
+      .eq('video_id', validatedVideoId)
+      .maybeSingle();
+
+    if (fetchAfterUpsertError) {
+      throw new ScriptServiceError(`Failed to fetch script after upsert: ${fetchAfterUpsertError.message}`, fetchAfterUpsertError.code);
+    }
+
+    if (!script) {
+      throw new ScriptServiceError('Script creation failed: upsert succeeded but script not found');
+    }
+
+    // Load components for complete script object
+    const { data: components, error: componentsError } = await supabase
+      .from('script_components')
+      .select('*')
+      .eq('script_id', script.id)
+      .order('component_number', { ascending: true });
+
+    if (componentsError) {
+      throw new ScriptServiceError(`Failed to load script components: ${componentsError.message}`, componentsError.code);
+    }
+
+    const transformedComponents: ComponentData[] = (components || []).map(comp => ({
+      number: comp.component_number,
+      content: comp.content,
+      wordCount: comp.word_count || 0,
+      hash: generateContentHash(comp.content)
+    }));
+
     return {
-      ...createdScript,
-      components: []
+      ...script,
+      components: transformedComponents
     };
   } catch (error) {
     if (error instanceof ScriptServiceError) {
