@@ -189,10 +189,13 @@ export function useNavigationData(config?: UseNavigationDataConfig) {
         return;
       }
 
-      // Fetch videos for this eav_code
+      // Fetch videos for this eav_code with script status (Enhancement #4)
       const { data, error } = await supabase
         .from('videos')
-        .select('*')
+        .select(`
+          *,
+          scripts(status)
+        `)
         .eq('eav_code', project.eav_code)
         .order('title');
 

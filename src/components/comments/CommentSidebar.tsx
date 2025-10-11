@@ -76,6 +76,9 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
     canDeleteComment,
     canEditComment,
     setMutationError,
+    showUniversalForm,
+    setShowUniversalForm,
+    handleCreateUniversalComment,
   } = useCommentSidebar({
     scriptId,
     createComment,
@@ -171,9 +174,61 @@ export const CommentSidebar: React.FC<CommentSidebarProps> = ({
             Resolved Comments
           </button>
         </div>
+
+        {/* Universal Comment Button */}
+        <button
+          type="button"
+          className="universal-comment-button"
+          onClick={() => setShowUniversalForm(!showUniversalForm)}
+          aria-label="Add Script Comment"
+        >
+          💬 Comment on Script
+        </button>
       </div>
 
-      {/* Comment Creation Form */}
+      {/* Universal Comment Form - shown when button clicked AND no text selected */}
+      {showUniversalForm && !createComment && (
+        <form
+          role="form"
+          aria-label="Universal Comment"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCreateUniversalComment();
+          }}
+        >
+          <div className="universal-comment-header">
+            <strong>Script-level Comment</strong>
+            <span>(Not tied to specific text)</span>
+          </div>
+          <textarea
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Add a comment about the script as a whole..."
+            aria-label="Universal Comment Text"
+            disabled={submitting}
+          />
+          <div className="form-actions">
+            <button
+              type="submit"
+              disabled={!commentText.trim() || submitting || connectionStatus !== 'connected'}
+            >
+              Submit
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowUniversalForm(false);
+                setCommentText('');
+              }}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Comment Creation Form - shown when text is selected */}
       {createComment && (
         <form
           role="form"

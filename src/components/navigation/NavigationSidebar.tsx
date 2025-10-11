@@ -96,6 +96,19 @@ export function NavigationSidebar({
     return videosMap[project.eav_code] || [];
   };
 
+  // Enhancement #4: Map script status to border color
+  const getStatusColor = (status?: string): string => {
+    switch (status) {
+      case 'pend_start': return '#6B7280'; // grey
+      case 'draft': return '#3B82F6'; // blue
+      case 'in_review': return '#A855F7'; // purple
+      case 'rework': return '#EF4444'; // red
+      case 'approved': return '#10B981'; // green
+      case 'reuse': return '#F59E0B'; // yellow
+      default: return '#9CA3AF'; // default grey
+    }
+  };
+
   return (
     <div className={`nav-sidebar ${isCollapsed ? 'nav-sidebar--collapsed' : ''}`}>
       <div className="nav-header">
@@ -181,6 +194,19 @@ export function NavigationSidebar({
                       <div className="nav-video-list">
                         {projectVideos.map(video => {
                           const isVideoSelected = checkVideoSelected(video.id);
+                          // Enhancement #4: Extract script status from joined data
+                          const videoWithScripts = video as Video & {
+                            scripts?: Array<{ status?: string }> | { status?: string }
+                          };
+
+                          // Handle both array and object formats from PostgREST join
+                          let scriptStatus: string | undefined;
+                          if (Array.isArray(videoWithScripts.scripts)) {
+                            scriptStatus = videoWithScripts.scripts[0]?.status;
+                          } else if (videoWithScripts.scripts && typeof videoWithScripts.scripts === 'object') {
+                            scriptStatus = (videoWithScripts.scripts as { status?: string }).status;
+                          }
+
                           return (
                             <div
                               key={video.id}
@@ -189,8 +215,17 @@ export function NavigationSidebar({
                                 e.stopPropagation();
                                 handleVideoClick(video.id, project.id);
                               }}
+                              style={{
+                                borderLeft: `4px solid ${getStatusColor(scriptStatus)}`
+                              }}
                             >
-                              <div className={`nav-video-status ${getStatusDot(video.main_stream_status, video.vo_stream_status)}`}></div>
+                              <div
+                                className={`nav-video-status ${getStatusDot(video.main_stream_status, video.vo_stream_status)}`}
+                                style={{
+                                  background: getStatusColor(scriptStatus),
+                                  boxShadow: `0 0 0 2px ${getStatusColor(scriptStatus)}33`
+                                }}
+                              ></div>
                               <div className="nav-video-info">
                                 <div className="nav-video-title">{video.title}</div>
                                 <div className="nav-video-meta">
