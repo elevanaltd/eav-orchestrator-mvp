@@ -20,7 +20,7 @@ import {
 } from '../lib/validation';
 
 // Workflow status enum for scripts
-export type ScriptWorkflowStatus = 'draft' | 'in_review' | 'rework' | 'approved';
+export type ScriptWorkflowStatus = 'pend_start' | 'draft' | 'in_review' | 'rework' | 'approved' | 'reuse';
 
 // Type definitions for scripts matching normalized database schema
 export interface Script {
@@ -234,7 +234,7 @@ export async function saveScript(
 
     if ('status' in updates && updates.status !== undefined) {
       // Validate status is one of the allowed values
-      const validStatuses: ScriptWorkflowStatus[] = ['draft', 'in_review', 'rework', 'approved'];
+      const validStatuses: ScriptWorkflowStatus[] = ['pend_start', 'draft', 'in_review', 'rework', 'approved', 'reuse'];
       if (!validStatuses.includes(updates.status)) {
         throw new ValidationError(`Invalid status: ${updates.status}. Must be one of: ${validStatuses.join(', ')}`);
       }
@@ -430,7 +430,7 @@ export async function updateScriptStatus(
     const validatedScriptId = validateScriptId(scriptId);
 
     // Validate status is one of the allowed values
-    const validStatuses: ScriptWorkflowStatus[] = ['draft', 'in_review', 'rework', 'approved'];
+    const validStatuses: ScriptWorkflowStatus[] = ['pend_start', 'draft', 'in_review', 'rework', 'approved', 'reuse'];
     if (!validStatuses.includes(status)) {
       throw new ValidationError(`Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
     }

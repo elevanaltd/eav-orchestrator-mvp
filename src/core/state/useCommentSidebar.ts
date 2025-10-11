@@ -99,6 +99,9 @@ export function useCommentSidebar({
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Universal comment form state
+  const [showUniversalForm, setShowUniversalForm] = useState(false);
+
   // Reply functionality state
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -486,6 +489,47 @@ export function useCommentSidebar({
     }
   }, [onCommentCancelled]);
 
+  // Create universal comment (script-level, not tied to specific text)
+  const handleCreateUniversalComment = useCallback(async () => {
+    if (!commentText.trim() || !currentUser) return;
+
+    if (scriptId.startsWith('readonly-')) return;
+
+    setSubmitting(true);
+    setMutationError(null);
+
+    const commentData: CreateCommentData = {
+      scriptId,
+      content: commentText.trim(),
+      startPosition: 0,
+      endPosition: 0,
+      parentCommentId: null,
+      highlightedText: undefined,
+    };
+
+    const result = await executeWithErrorHandling(
+      async () => {
+        const response = await createCommentInDB(supabase, commentData, currentUser.id);
+        if (!response.success) {
+          throw new Error(response.error?.message || 'Failed to create comment');
+        }
+        return response.data;
+      },
+      (errorInfo) => {
+        setMutationError(errorInfo.userMessage);
+      },
+      { maxAttempts: 2, baseDelayMs: 500 }
+    );
+
+    if (result.success) {
+      setCommentText('');
+      setShowUniversalForm(false);
+      await commentsQuery.refetch();
+    }
+
+    setSubmitting(false);
+  }, [commentText, currentUser, scriptId, executeWithErrorHandling, commentsQuery]);
+
   // Reply handlers
   const handleReplyClick = useCallback((commentId: string) => {
     setReplyingTo(commentId);
@@ -679,6 +723,11 @@ export function useCommentSidebar({
     submitting,
     handleCreateComment,
     handleCancelComment,
+
+    // Universal comment state
+    showUniversalForm,
+    setShowUniversalForm,
+    handleCreateUniversalComment,
 
     // Reply state
     replyingTo,

@@ -654,10 +654,12 @@ export const TipTapEditor: React.FC = () => {
                       cursor: 'pointer'
                     }}
                   >
+                    <option value="pend_start">Pend Start</option>
                     <option value="draft">Draft</option>
                     <option value="in_review">In Review</option>
                     <option value="rework">Rework</option>
                     <option value="approved">Approved</option>
+                    <option value="reuse">Reuse</option>
                   </select>
                 </div>
               )}
