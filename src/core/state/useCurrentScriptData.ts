@@ -12,13 +12,18 @@ import { loadScriptForVideo } from '../../services/scriptService'
  *
  * Architecture compliance:
  * - 5-minute stale time for optimal UX (Line 430)
- * - Enabled only when video is selected
+ * - Enabled only when video AND auth are ready (prevents queryKey race condition)
  * - Passes user role for RLS enforcement
  * - Query key: ['script', videoId, userId] for per-user cache isolation
  *
  * Security:
  * - P1 Fix (2025-10-10): Added userId to queryKey for per-user cache isolation
  * - Prevents cross-user script data leakage on logout/login transitions
+ *
+ * Race Condition Fix (2025-10-11):
+ * - Wait for currentUser before enabling query to prevent queryKey changes mid-flight
+ * - Prevents 409 Conflict when auth loads: ['script', videoId, undefined] → ['script', videoId, userId]
+ * - React Query treats different queryKeys as separate requests → concurrent INSERTs → 409
  */
 export const useCurrentScriptData = () => {
   const { selectedVideo } = useNavigation()
@@ -32,7 +37,7 @@ export const useCurrentScriptData = () => {
       }
       return loadScriptForVideo(selectedVideo.id, userProfile?.role || null)
     },
-    enabled: !!selectedVideo, // Only fetch when video is selected
+    enabled: !!selectedVideo && !!currentUser, // Wait for auth to prevent queryKey race condition
     staleTime: 1000 * 60 * 5, // 5 minutes (Architecture Line 430)
   })
 }
