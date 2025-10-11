@@ -177,23 +177,40 @@ export const useScriptComments = (editor: Editor | null) => {
 
             const left = Math.max(20, Math.min(coords.left - 100, window.innerWidth - 220)) // Center popup, but keep on screen
 
+            // Enhancement #1: Directly show comment form in sidebar (bypass popup)
+            setCreateCommentData({
+              startPosition: from,
+              endPosition: to,
+              selectedText: selectedContent,
+            })
+
+            // Keep legacy state for backward compatibility
             setSelectedText({
               text: selectedContent,
               from,
               to
             })
             setPopupPosition({ top, left })
-            setShowCommentPopup(true)
+            setShowCommentPopup(false) // Enhancement #1: No popup needed
           } catch (error) {
             // Fallback to center positioning if coordinate calculation fails
             Logger.warn('Failed to calculate popup position, using fallback', { error: (error as Error).message })
+
+            // Enhancement #1: Directly show comment form in sidebar (bypass popup)
+            setCreateCommentData({
+              startPosition: from,
+              endPosition: to,
+              selectedText: selectedContent,
+            })
+
+            // Keep legacy state for backward compatibility
             setSelectedText({
               text: selectedContent,
               from,
               to
             })
             setPopupPosition(null) // Will use CSS fallback positioning
-            setShowCommentPopup(true)
+            setShowCommentPopup(false) // Enhancement #1: No popup needed
           }
         }
       }
